@@ -77,7 +77,7 @@ pub fn supported(path: &str) -> bool {
             | "cs"
     )
 }
-fn lex(source: &str, python: bool) -> Vec<Token> {
+fn lex(source: &str, python: bool, rust: bool) -> Vec<Token> {
     let chars: Vec<char> = source.chars().collect();
     let (mut i, mut line, mut column) = (0, 1, 0);
     let mut tokens = Vec::new();
@@ -127,8 +127,47 @@ fn lex(source: &str, python: bool) -> Vec<Token> {
             continue;
         }
         let (start, start_line, start_col) = (i, line, column);
+        // Rust raw strings (including byte raw strings) may contain ordinary quotes and code.
+        let raw_prefix = if rust && c == 'r' {
+            Some(i + 1)
+        } else if rust && c == 'b' && chars.get(i + 1) == Some(&'r') {
+            Some(i + 2)
+        } else {
+            None
+        };
+        if let Some(prefix) = raw_prefix {
+            let mut quote = prefix;
+            while chars.get(quote) == Some(&'#') {
+                quote += 1;
+            }
+            if chars.get(quote) == Some(&'"') {
+                let hashes = quote - prefix;
+                column += quote + 1 - i;
+                i = quote + 1;
+                while i < chars.len() {
+                    if chars[i] == '"' && (0..hashes).all(|h| chars.get(i + 1 + h) == Some(&'#')) {
+                        i += 1 + hashes;
+                        column += 1 + hashes;
+                        break;
+                    }
+                    if chars[i] == '\n' {
+                        line += 1;
+                        column = 0;
+                    } else {
+                        column += 1;
+                    }
+                    i += 1;
+                }
+                tokens.push(Token {
+                    text: "literal".into(),
+                    line: start_line,
+                    column: start_col,
+                });
+                continue;
+            }
+        }
         // A Rust lifetime is an identifier, not a quoted string.
-        let lifetime = !python
+        let lifetime = rust
             && c == '\''
             && chars.get(i + 1).is_some_and(|x| x.is_alphabetic())
             && chars.get(i + 2) != Some(&'\'');
@@ -303,7 +342,7 @@ pub fn analyze(files: &[SourceFile]) -> Analysis {
         a.files += 1;
         a.bytes += file.content.len();
         let python = file.path.ends_with(".py");
-        let t = lex(&file.content, python);
+        let t = lex(&file.content, python, language(&file.path) == "Rust");
         let p = pairs(&t);
         let mut ranges = Vec::new();
         for i in 0..t.len() {

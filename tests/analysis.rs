@@ -129,3 +129,27 @@ fn unrelated_languages_do_not_link_by_name() {
     assert!(a.edges.is_empty());
     assert_eq!(a.unresolved_calls, 1);
 }
+
+#[test]
+fn javascript_strings_do_not_behave_like_rust_lifetimes() {
+    let a = analyze(&[file("app.js", "const title = 'magic'; function cast() { const name = 'runes'; spark(); } function spark() { return 'glow'; }")]);
+    assert_eq!(
+        a.entities.iter().filter(|e| e.kind == "function").count(),
+        2
+    );
+    assert_eq!(a.edges.iter().filter(|e| e.kind == "calls").count(), 1);
+}
+#[test]
+fn rust_raw_strings_hide_embedded_source() {
+    let content = "fn real() { let raw = r##\"fn illusion() { let name = \"fake\"; bad(); }\"##; let bytes = br#\"fn ghost() {}\"#; helper(); } fn helper() { return; }";
+    let a = analyze(&[file("raw.rs", content)]);
+    assert_eq!(
+        a.entities.iter().filter(|e| e.kind == "function").count(),
+        2
+    );
+    assert_eq!(a.edges.iter().filter(|e| e.kind == "calls").count(), 1);
+    assert!(!a
+        .entities
+        .iter()
+        .any(|e| e.name == "illusion" || e.name == "ghost"));
+}
