@@ -58,6 +58,8 @@ jobs:
           PY
       - name: Score SSIMULACRA2 visual quality
         run: |
+          sudo apt-get update
+          sudo apt-get install -y libfontconfig1-dev libfreetype6-dev
           cargo install ssimulacra2_rs --version 0.5.2 --locked
           passed=0
           for q in 95 96 97 98 99 100; do
