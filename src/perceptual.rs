@@ -6,6 +6,7 @@
 use crate::{archive::crc32, sigil::decode_svg_names_with_key, Capsule, MagicKey, Snapshot};
 use jpeg_encoder::{ColorType, Encoder, SamplingFactor};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::io::{Read, Write};
 
 const MAX_ARCHIVE: usize = 128_000_000;
@@ -25,14 +26,20 @@ pub const DEFAULT_PERCEPTUAL_QUALITY: u8 = 96;
 struct RasterSource {
     version: u32,
     snapshot: Snapshot,
+    jpeg_sha256: String,
 }
 
-fn pack_source(snapshot: &Snapshot) -> Result<Vec<u8>, String> {
+fn jpeg_hash(bytes: &[u8]) -> String {
+    format!("{:x}", Sha256::digest(bytes))
+}
+
+fn pack_source(snapshot: &Snapshot, jpeg_sha256: String) -> Result<Vec<u8>, String> {
     let mut snapshot = snapshot.clone();
     snapshot.canonicalize()?;
     let raw = serde_json::to_vec(&RasterSource {
-        version: 1,
+        version: 2,
         snapshot,
+        jpeg_sha256,
     })
     .map_err(|e| e.to_string())?;
     if raw.len() > MAX_ARCHIVE {
@@ -53,7 +60,7 @@ fn pack_source(snapshot: &Snapshot) -> Result<Vec<u8>, String> {
     })
 }
 
-fn unpack_source(bytes: &[u8]) -> Result<Snapshot, String> {
+fn unpack_source(bytes: &[u8]) -> Result<RasterSource, String> {
     let mut raw = Vec::new();
     let reader: Box<dyn Read + '_> = if let Some(data) = bytes.strip_prefix(BROTLI_MAGIC) {
         Box::new(brotli::Decompressor::new(data, 4096))
@@ -69,15 +76,19 @@ fn unpack_source(bytes: &[u8]) -> Result<Snapshot, String> {
     }
     let mut source: RasterSource =
         serde_json::from_slice(&raw).map_err(|_| "Invalid perceptual source capsule")?;
-    if source.version != 1 {
+    if source.version != 2 || source.jpeg_sha256.len() != 64 {
         return Err("Unsupported perceptual source capsule version".into());
     }
     source.snapshot.canonicalize()?;
-    Ok(source.snapshot)
+    Ok(source)
 }
 
-fn protect_source(snapshot: &Snapshot, key: Option<&MagicKey>) -> Result<Vec<u8>, String> {
-    let packed = pack_source(snapshot)?;
+fn protect_source(
+    snapshot: &Snapshot,
+    jpeg_sha256: String,
+    key: Option<&MagicKey>,
+) -> Result<Vec<u8>, String> {
+    let packed = pack_source(snapshot, jpeg_sha256)?;
     if let Some(key) = key {
         let mut data = KEY_MAGIC.to_vec();
         data.extend(key.seal(KEY_DOMAIN, &packed)?);
@@ -87,7 +98,7 @@ fn protect_source(snapshot: &Snapshot, key: Option<&MagicKey>) -> Result<Vec<u8>
     }
 }
 
-fn unprotect_source(bytes: &[u8], key: Option<&MagicKey>) -> Result<Snapshot, String> {
+fn unprotect_source(bytes: &[u8], key: Option<&MagicKey>) -> Result<RasterSource, String> {
     if let Some(encrypted) = bytes.strip_prefix(KEY_MAGIC) {
         let key = key.ok_or("This image requires its original magic key")?;
         unpack_source(&key.open(KEY_DOMAIN, encrypted)?)
@@ -122,16 +133,45 @@ fn app_segments(payload: &[u8]) -> Result<Vec<Vec<u8>>, String> {
     Ok(segments)
 }
 
-fn extract_payload(bytes: &[u8]) -> Result<Vec<u8>, String> {
+fn insert_app_segments(jpeg: &[u8], segments: &[Vec<u8>]) -> Result<Vec<u8>, String> {
+    if !jpeg.starts_with(&[0xff, 0xd8]) {
+        return Err("JPEG encoder did not emit a valid SOI marker".into());
+    }
+    let added = segments.iter().try_fold(0_usize, |sum, segment| {
+        if segment.len() + 2 > u16::MAX as usize {
+            return Err("Code Is Magic JPEG segment is too large".to_string());
+        }
+        sum.checked_add(segment.len() + 4)
+            .ok_or_else(|| "JPEG carrier size overflow".to_string())
+    })?;
+    let mut out = Vec::with_capacity(
+        jpeg.len()
+            .checked_add(added)
+            .ok_or("JPEG carrier size overflow")?,
+    );
+    out.extend_from_slice(&jpeg[..2]);
+    for segment in segments {
+        out.extend_from_slice(&[0xff, 0xef]);
+        out.extend_from_slice(&((segment.len() + 2) as u16).to_be_bytes());
+        out.extend_from_slice(segment);
+    }
+    out.extend_from_slice(&jpeg[2..]);
+    Ok(out)
+}
+
+fn parse_carrier(bytes: &[u8]) -> Result<(Vec<u8>, Vec<u8>), String> {
     if !bytes.starts_with(&[0xff, 0xd8]) {
         return Err("Not a JPEG image".into());
     }
     let mut pos = 2;
+    let mut visual = Vec::with_capacity(bytes.len());
+    visual.extend_from_slice(&bytes[..2]);
     let mut pieces: Option<Vec<Option<Vec<u8>>>> = None;
     let mut expected_len = 0_usize;
     let mut expected_crc = 0_u32;
 
-    while pos + 1 < bytes.len() {
+    while pos < bytes.len() {
+        let marker_start = pos;
         if bytes[pos] != 0xff {
             return Err("Invalid JPEG marker stream".into());
         }
@@ -139,14 +179,16 @@ fn extract_payload(bytes: &[u8]) -> Result<Vec<u8>, String> {
             pos += 1;
         }
         if pos >= bytes.len() {
-            break;
+            return Err("Truncated JPEG marker".into());
         }
         let marker = bytes[pos];
         pos += 1;
         if marker == 0xda || marker == 0xd9 {
+            visual.extend_from_slice(&bytes[marker_start..]);
             break;
         }
         if marker == 0x01 || (0xd0..=0xd7).contains(&marker) {
+            visual.extend_from_slice(&bytes[marker_start..pos]);
             continue;
         }
         if pos + 2 > bytes.len() {
@@ -160,6 +202,7 @@ fn extract_payload(bytes: &[u8]) -> Result<Vec<u8>, String> {
         pos += length;
 
         if marker != 0xef || !data.starts_with(APP_MAGIC) {
+            visual.extend_from_slice(&bytes[marker_start..pos]);
             continue;
         }
         if data.len() < APP_HEADER {
@@ -203,7 +246,7 @@ fn extract_payload(bytes: &[u8]) -> Result<Vec<u8>, String> {
     if payload.len() != expected_len || crc32(&payload) != expected_crc {
         return Err("Source capsule damaged; exact recovery is impossible".into());
     }
-    Ok(payload)
+    Ok((payload, visual))
 }
 
 fn render_rgb(svg: &str) -> Result<(Vec<u8>, u16, u16), String> {
@@ -244,6 +287,18 @@ fn render_rgb(svg: &str) -> Result<(Vec<u8>, u16, u16), String> {
     Ok((rgb, width as u16, height as u16))
 }
 
+fn encode_visual(rgb: &[u8], width: u16, height: u16, quality: u8) -> Result<Vec<u8>, String> {
+    let mut jpeg = Vec::new();
+    let mut encoder = Encoder::new(&mut jpeg, quality);
+    encoder.set_sampling_factor(SamplingFactor::F_1_1);
+    encoder.set_optimized_huffman_tables(true);
+    encoder.set_progressive(true);
+    encoder
+        .encode(rgb, width, height, ColorType::Rgb)
+        .map_err(|e| e.to_string())?;
+    Ok(jpeg)
+}
+
 /// Encode a deterministic, visually-lossless JPEG while preserving the repository exactly.
 /// Quality 96 with 4:4:4 chroma is the default profile; 95..=100 is accepted explicitly.
 pub fn encode_perceptual_jpeg_with_key(
@@ -260,22 +315,10 @@ pub fn encode_perceptual_jpeg_with_key(
     if capsule.svg.contains("data-name-sigil=") {
         decode_svg_names_with_key(&capsule.svg, key)?;
     }
-    let payload = protect_source(&capsule.snapshot, key)?;
     let (rgb, width, height) = render_rgb(&capsule.svg)?;
-    let mut jpeg = Vec::new();
-    let mut encoder = Encoder::new(&mut jpeg, quality);
-    encoder.set_sampling_factor(SamplingFactor::F_1_1);
-    encoder.set_optimized_huffman_tables(true);
-    encoder.set_progressive(true);
-    for segment in app_segments(&payload)? {
-        encoder
-            .add_app_segment(15, segment)
-            .map_err(|e| e.to_string())?;
-    }
-    encoder
-        .encode(&rgb, width, height, ColorType::Rgb)
-        .map_err(|e| e.to_string())?;
-    Ok(jpeg)
+    let visual = encode_visual(&rgb, width, height, quality)?;
+    let payload = protect_source(&capsule.snapshot, jpeg_hash(&visual), key)?;
+    insert_app_segments(&visual, &app_segments(&payload)?)
 }
 
 pub fn encode_perceptual_jpeg(capsule: &Capsule) -> Result<Vec<u8>, String> {
@@ -289,10 +332,14 @@ pub fn decode_perceptual_jpeg_with_key(
     bytes: &[u8],
     key: Option<&MagicKey>,
 ) -> Result<Capsule, String> {
-    let snapshot = unprotect_source(&extract_payload(bytes)?, key)?;
+    let (payload, visual) = parse_carrier(bytes)?;
+    let source = unprotect_source(&payload, key)?;
+    if jpeg_hash(&visual) != source.jpeg_sha256 {
+        return Err("JPEG artwork does not match its recoverable source capsule".into());
+    }
     Ok(Capsule {
         version: 1,
-        snapshot,
+        snapshot: source.snapshot,
         svg: String::new(),
     })
 }
