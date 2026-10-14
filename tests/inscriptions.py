@@ -1,5 +1,5 @@
-"""Independent geometric checks of the exported inscription cells."""
-import base64
+"""Independent geometric checks of the canonical perceptual inscription cells."""
+import gzip
 import json
 import math
 import os
@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
+import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
 ATLAS = json.loads((ROOT / 'src/glyphs.json').read_text())
@@ -26,21 +27,19 @@ with tempfile.TemporaryDirectory(prefix='magic-inscriptions-') as temp:
     (source / 'spells.rs').write_text(content)
     for key in ['', '01' * 32]:
         env = {k: v for k, v in os.environ.items() if k != 'CODE_IS_MAGIC_KEY'}
-        if key:
-            env['CODE_IS_MAGIC_KEY'] = key
-        output = temp / 'out.svg'
+        if key:env['CODE_IS_MAGIC_KEY'] = key
+        output = temp / 'out.svgz'
         command = [str(binary), str(source), '--output', str(output), '--language-colors']
         subprocess.run(command, env=env, check=True, capture_output=True)
-        svg = output.read_text()
+        encoded = output.read_bytes()
         subprocess.run(command, env=env, check=True, capture_output=True)
-        assert output.read_text() == svg
+        assert output.read_bytes() == encoded
+        svg = gzip.decompress(encoded).decode()
         document = ET.fromstring(svg)
         assert document.get('data-inscription-version') == '2'
         assert not document.findall('.//s:text', namespace)
         bands = document.findall('.//s:g[@data-inscription-band]', namespace)
-        seen = set()
-        styles = set()
-        fills = []
+        seen = set();styles = set();fills = []
         for band in bands:
             inner, outer, middle = [float(band.get('data-' + k)) for k in ['inner', 'outer', 'middle']]
             styles.add(band.get('data-style'))
@@ -59,8 +58,7 @@ with tempfile.TemporaryDirectory(prefix='magic-inscriptions-') as temp:
                     assert near >= inner - 0.00001, (near, inner)
                     assert far <= outer + 0.00001, (far, outer)
                     assert math.atan2(width / 2, near) < sector / 2, 'Glyph crosses its angular cell'
-                if len(glyphs) == 1:
-                    fills.append(float(glyphs[0].get('data-height')) / (outer - inner))
+                if len(glyphs) == 1:fills.append(float(glyphs[0].get('data-height')) / (outer - inner))
                 else:
                     top, bottom = glyphs
                     assert float(top.get('data-offset')) + float(top.get('data-height')) / 2 < float(bottom.get('data-offset')) - float(bottom.get('data-height')) / 2
@@ -69,8 +67,8 @@ with tempfile.TemporaryDirectory(prefix='magic-inscriptions-') as temp:
         assert sum(fills) / len(fills) > 0.65, 'Glyphs underfill the available radial height'
         names = json.loads(subprocess.check_output([str(binary), '--decode-names', str(output)], env=env))
         assert len(names) == 100
-        recovered = temp / 'recovered.json'
-        subprocess.run([str(binary), str(output), '--json', str(recovered), '--output', str(temp / 'recovered.zip')], env=env, check=True, capture_output=True)
-        entry = json.loads(recovered.read_text())['entries'][0]
-        assert base64.b64decode(entry['data']) == (source / 'spells.rs').read_bytes()
-print('Measured inscriptions PASS: 10 symbol families, annular bounds, angular spacing, stacked glyph clearance, proportional fill, all styles, deterministic keyed/unkeyed output, exact name/source recovery')
+        recovered = temp / 'recovered.zip'
+        subprocess.run([str(binary), str(output), '--output', str(recovered)], env=env, check=True, capture_output=True)
+        with zipfile.ZipFile(recovered) as archive:
+            assert archive.read('repository/spells.rs') == (source / 'spells.rs').read_bytes()
+print('Canonical inscriptions PASS: 10 symbol families, geometric spacing, deterministic perceptual SVGZ, exact name/source recovery')
