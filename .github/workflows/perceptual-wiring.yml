@@ -1,0 +1,79 @@
+name: Wire perceptual compression surfaces
+on:
+  push:
+    branches: [feature/perceptual-compression]
+permissions:
+  contents: write
+jobs:
+  wire:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/perceptual-compression
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Wire CLI and website
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          def replace(path, old, new):
+              p=Path(path); text=p.read_text()
+              if text.count(old) != 1:
+                  raise SystemExit(f"{path}: expected exactly one match, got {text.count(old)}")
+              p.write_text(text.replace(old,new))
+
+          replace('src/main.rs',
+          '''    encode_png_with_key, encode_svgz_with_key, optimize_png, render_with_key, snapshot_zip,\n    ArchiveEntry, Capsule, MagicKey, Snapshot,\n''',
+          '''    encode_perceptual_jpeg_with_key, encode_png_with_key, encode_svgz_with_key, optimize_png,\n    render_with_key, snapshot_zip, ArchiveEntry, Capsule, MagicKey, Snapshot,\n''')
+          replace('src/main.rs',
+          '''    #[arg(short, long, default_value = "magic.png")]\n    output: PathBuf,\n''',
+          '''    #[arg(short, long, default_value = "magic.png")]\n    output: PathBuf,\n    /// Visually-lossless JPEG quality. The guarded profile accepts only 95 through 100.\n    #[arg(long, default_value_t = 96, value_parser = clap::value_parser!(u8).range(95..=100))]\n    perceptual_quality: u8,\n''')
+          replace('src/main.rs',
+          '''    if args.output.extension().is_some_and(|e| e == "png") {\n        fs::write(&args.output, encode_png_with_key(&capsule, key.as_ref())?)?;\n    } else if args.output.extension().is_some_and(|e| e == "svgz") {\n''',
+          '''    if args.output.extension().is_some_and(|e| e == "png") {\n        fs::write(&args.output, encode_png_with_key(&capsule, key.as_ref())?)?;\n    } else if args\n        .output\n        .extension()\n        .is_some_and(|e| e == "jpg" || e == "jpeg")\n    {\n        fs::write(\n            &args.output,\n            encode_perceptual_jpeg_with_key(\n                &capsule,\n                key.as_ref(),\n                args.perceptual_quality,\n            )?,\n        )?;\n    } else if args.output.extension().is_some_and(|e| e == "svgz") {\n''')
+
+          replace('web/app.js',
+          '''for(const id of ['download-png','download-svg','download-svgz','download-json','decode-names'])''',
+          '''for(const id of ['download-png','download-jpeg','download-svg','download-svgz','download-json','decode-names'])''')
+          replace('web/app.js',
+          '''for (const id of ['download-png','download-svg','download-svgz','download-json']) $(id).disabled = false;''',
+          '''for (const id of ['download-png','download-jpeg','download-svg','download-svgz','download-json']) $(id).disabled = false;''')
+          replace('web/app.js',
+          '''$('download-png').onclick=async()=>{\n  try {setBusy(true);status('Compressing recoverable PNG without reducing fidelity…','busy');const original=resultPngs.get(diagram);const bytes=cachedPngs.get(diagram)||(original?await engine({op:'optimize-png',bytes:original}):await engine({op:'png',capsule:capsule(),key:diagramKey}));cachedPngs.set(diagram,bytes);download(new Blob([bytes],{type:'image/png'}),'png');status(original?'Compressed PNG downloaded. Every original pixel and source bit preserved.':'Recoverable PNG downloaded. Keep the original PNG without resizing or JPEG conversion.');}\n  catch(e){status(e.message,'error');}finally{setBusy(false);}\n};\n''',
+          '''$('download-png').onclick=async()=>{\n  try {setBusy(true);status('Compressing recoverable PNG without reducing fidelity…','busy');const original=resultPngs.get(diagram);const bytes=cachedPngs.get(diagram)||(original?await engine({op:'optimize-png',bytes:original}):await engine({op:'png',capsule:capsule(),key:diagramKey}));cachedPngs.set(diagram,bytes);download(new Blob([bytes],{type:'image/png'}),'png');status(original?'Compressed PNG downloaded. Every original pixel and source bit preserved.':'Recoverable PNG downloaded. Keep the original PNG without resizing or JPEG conversion.');}\n  catch(e){status(e.message,'error');}finally{setBusy(false);}\n};\n$('download-jpeg').onclick=async()=>{\n  try {setBusy(true);status('Encoding visually imperceptible JPEG; exact source stays separate from the lossy pixels…','busy');const bytes=await engine({op:'jpeg',capsule:capsule(),key:diagramKey,quality:96});download(new Blob([bytes],{type:'image/jpeg'}),'jpg');status('Perceptual JPEG downloaded. Artwork is visually compressed; embedded source recovery remains byte-exact. Keep the original file because editors may strip APP metadata.');}\n  catch(e){status(e.message,'error');}finally{setBusy(false);}\n};\n''')
+          replace('web/app.js',
+          '''    restoreArtwork(next,recovered.svg);\n    if(originalBytes[0]===137&&originalBytes[1]===80)resultPngs.set(next,originalBytes);\n''',
+          '''    if(recovered.svg)restoreArtwork(next,recovered.svg);\n    if(originalBytes[0]===137&&originalBytes[1]===80)resultPngs.set(next,originalBytes);\n''')
+          replace('web/app.js',
+          '''$('input-help').textContent=inputImage?'Image selected. Recover source downloads its exact files as a ZIP. Edit the field to use a GitHub link.':'GitHub link → magic circles · original PNG / SVG / SVGZ → source ZIP. Choose, drop, or paste an image.';''',
+          '''$('input-help').textContent=inputImage?'Image selected. Recover source downloads its exact files as a ZIP. Edit the field to use a GitHub link.':'GitHub link → magic circles · original PNG / JPEG / SVG / SVGZ → source ZIP. Choose, drop, or paste an image.';''')
+
+          replace('web/index.html',
+          '''placeholder="GitHub URL, or drop an original PNG / SVG / SVGZ"''',
+          '''placeholder="GitHub URL, or drop an original PNG / JPEG / SVG / SVGZ"''')
+          replace('web/index.html',
+          '''accept="image/png,image/svg+xml,application/gzip,.png,.svg,.svgz"''',
+          '''accept="image/png,image/jpeg,image/svg+xml,application/gzip,.png,.jpg,.jpeg,.svg,.svgz"''')
+          replace('web/index.html',
+          '''GitHub link → magic circles · original PNG / SVG / SVGZ → source ZIP.''',
+          '''GitHub link → magic circles · original PNG / JPEG / SVG / SVGZ → source ZIP.''')
+          replace('web/index.html',
+          '''<button id="download-png" disabled>PNG ↓</button><button id="download-svg" disabled>SVG ↓</button>''',
+          '''<button id="download-png" disabled>PNG ↓</button><button id="download-jpeg" disabled title="Visually imperceptible quality-96 JPEG; exact source remains recoverable">JPEG ↓</button><button id="download-svg" disabled>SVG ↓</button>''')
+          replace('web/index.html',
+          '''Exported PNGs carry the complete snapshot in RGB pixel bits; SVGs carry a source capsule.''',
+          '''Exported PNGs carry the complete snapshot in RGB pixel bits; SVGs carry a source capsule. Perceptual JPEGs keep the exact source capsule in deterministic APP15 segments while quality-96 4:4:4 compression is applied only to visible pixels.''')
+          replace('web/index.html',
+          '''JPEG conversion, resizing, cropping, and other pixel edits can destroy PNG recovery.''',
+          '''Converting an exact PNG to JPEG destroys its pixel carrier. Re-saving a perceptual JPEG in another editor can strip its source segments, so recover from the original export.''')
+          PY
+          cargo fmt --all
+          git diff --check
+      - name: Commit wiring
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/main.rs web/app.js web/index.html
+          git commit -m "Wire perceptual compression through CLI and web"
+          git push origin HEAD:feature/perceptual-compression
