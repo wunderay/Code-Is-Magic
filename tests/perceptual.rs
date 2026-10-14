@@ -24,8 +24,10 @@ fn capsule() -> Capsule {
 #[test]
 fn perceptual_jpeg_is_deterministic_and_source_exact() {
     let capsule = capsule();
-    let first = encode_perceptual_jpeg_with_key(&capsule, None, DEFAULT_PERCEPTUAL_QUALITY).unwrap();
-    let second = encode_perceptual_jpeg_with_key(&capsule, None, DEFAULT_PERCEPTUAL_QUALITY).unwrap();
+    let first =
+        encode_perceptual_jpeg_with_key(&capsule, None, DEFAULT_PERCEPTUAL_QUALITY).unwrap();
+    let second =
+        encode_perceptual_jpeg_with_key(&capsule, None, DEFAULT_PERCEPTUAL_QUALITY).unwrap();
     assert_eq!(first, second);
     assert!(first.starts_with(&[0xff, 0xd8]));
     assert!(first.windows(8).any(|w| w == b"CIMJPG01"));

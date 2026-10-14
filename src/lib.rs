@@ -149,11 +149,7 @@ pub fn pack_png_keyed(capsule_json: &str, key_hex: &str) -> Result<Vec<u8>, JsVa
     encode_png_with_key(&capsule, key.as_ref()).map_err(|e| JsValue::from_str(&e))
 }
 #[wasm_bindgen]
-pub fn pack_jpeg_keyed(
-    capsule_json: &str,
-    key_hex: &str,
-    quality: u8,
-) -> Result<Vec<u8>, JsValue> {
+pub fn pack_jpeg_keyed(capsule_json: &str, key_hex: &str, quality: u8) -> Result<Vec<u8>, JsValue> {
     let key = optional_key(key_hex)?;
     let capsule: Capsule =
         serde_json::from_str(capsule_json).map_err(|e| JsValue::from_str(&e.to_string()))?;

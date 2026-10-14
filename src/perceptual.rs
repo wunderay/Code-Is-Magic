@@ -45,9 +45,7 @@ fn pack_source(snapshot: &Snapshot) -> Result<Vec<u8>, String> {
 
     let mut brotli = BROTLI_MAGIC.to_vec();
     let mut reader = brotli::CompressorReader::new(raw.as_slice(), 4096, 9, 22);
-    reader
-        .read_to_end(&mut brotli)
-        .map_err(|e| e.to_string())?;
+    reader.read_to_end(&mut brotli).map_err(|e| e.to_string())?;
     Ok(if brotli.len() < deflate.len() {
         brotli
     } else {
@@ -181,9 +179,7 @@ fn extract_payload(bytes: &[u8]) -> Result<Vec<u8>, String> {
                 expected_crc = crc;
             }
             Some(parts)
-                if parts.len() != total
-                    || expected_len != total_len
-                    || expected_crc != crc =>
+                if parts.len() != total || expected_len != total_len || expected_crc != crc =>
             {
                 return Err("Inconsistent Code Is Magic JPEG segments".into());
             }
@@ -221,7 +217,10 @@ fn render_rgb(svg: &str) -> Result<(Vec<u8>, u16, u16), String> {
     let aspect = (size.width() as f64 / size.height() as f64).clamp(0.1, 10.0);
     let width = ((pixels as f64 * aspect).sqrt().ceil() as u32).max(64);
     let height = (pixels.div_ceil(width as usize) as u32).max(64);
-    if width as usize * height as usize > MAX_PIXELS || width > u16::MAX as u32 || height > u16::MAX as u32 {
+    if width as usize * height as usize > MAX_PIXELS
+        || width > u16::MAX as u32
+        || height > u16::MAX as u32
+    {
         return Err("Perceptual image dimensions exceed budget".into());
     }
     let mut pixmap =
