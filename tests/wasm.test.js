@@ -33,7 +33,7 @@ for(const [wingdings,languageColors,palette] of [[false,false,'gold'],[true,fals
  }finally{rmSync(folder,{recursive:true,force:true});}
 });
 
-const {transmute_keyed,pack_png_keyed,pack_svg_keyed,pack_svgz_keyed,optimize_png,recover_image_keyed,recover_names_keyed}=await import('../web/pkg/code_is_magic.js');
+const {transmute_keyed,pack_png_keyed,pack_jpeg_keyed,pack_svg_keyed,pack_svgz_keyed,optimize_png,recover_image_keyed,recover_names_keyed}=await import('../web/pkg/code_is_magic.js');
 for(const palette of ['gold','parchment'])test(`keyed native/WASM artifact parity and authenticated recovery: ${palette}`,()=>{
  const folder=mkdtempSync(join(tmpdir(),'code-magic-keyed-'));
  const key='01'.repeat(32),wrong='02'.repeat(32);
@@ -41,7 +41,7 @@ for(const palette of ['gold','parchment'])test(`keyed native/WASM artifact parit
   const source=join(folder,'source');execFileSync('mkdir',[source]);
   for(const file of demoFiles)writeFileSync(join(source,file.path),file.content);
   const env={...process.env,CODE_IS_MAGIC_KEY:key};
-  const svgPath=join(folder,'out.svg'),pngPath=join(folder,'out.png');
+  const svgPath=join(folder,'out.svg'),pngPath=join(folder,'out.png'),jpegPath=join(folder,'out.jpg');
   const options=['--palette',palette,'--language-colors','--wingdings'];
   execFileSync('cargo',['run','--locked','--',source,'--output',svgPath,...options],{env,stdio:'pipe'});
   const exported=readFileSync(svgPath);
@@ -66,6 +66,13 @@ for(const palette of ['gold','parchment'])test(`keyed native/WASM artifact parit
   assert.deepEqual(JSON.parse(recover_image_keyed(wasmPng,key)),c);
   assert.throws(()=>recover_image_keyed(wasmPng,wrong),/Wrong magic key/);
   assert.ok(Buffer.from(pack_png_keyed(recover_image_keyed(wasmPng,key),key)).equals(readFileSync(pngPath)),'Recovered PNG re-export differs');
+  execFileSync('cargo',['run','--locked','--',source,'--output',jpegPath,...options],{env,stdio:'pipe'});
+  const wasmJpeg=pack_jpeg_keyed(JSON.stringify(c),key,96);
+  assert.ok(Buffer.from(wasmJpeg).equals(readFileSync(jpegPath)),'Keyed native/WASM perceptual JPEG bytes differ');
+  const jpegRecovered=JSON.parse(recover_image_keyed(wasmJpeg,key));
+  assert.deepEqual(jpegRecovered.snapshot,c.snapshot);
+  assert.equal(jpegRecovered.svg,'');
+  assert.throws(()=>recover_image_keyed(wasmJpeg,wrong),/Wrong magic key/);
   const optimizedPath=join(folder,'optimized.png');
   execFileSync('cargo',['run','--locked','--','--optimize',pngPath,'--output',optimizedPath],{stdio:'pipe'});
   const smaller=optimize_png(wasmPng);
