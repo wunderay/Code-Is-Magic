@@ -1,3 +1,4 @@
+use crate::profiles::{contains, profile_for_language, profile_for_path, LanguageProfile};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -45,40 +46,14 @@ struct Token {
 }
 
 pub fn language(path: &str) -> &'static str {
-    match path.rsplit('.').next().unwrap_or("") {
-        "rs" => "Rust",
-        "py" => "Python",
-        "ts" | "tsx" => "TypeScript",
-        "js" | "jsx" | "mjs" | "cjs" => "JavaScript",
-        "go" => "Go",
-        "java" => "Java",
-        "cs" => "C#",
-        "cpp" | "hpp" | "cc" => "C++",
-        _ => "C",
-    }
+    profile_for_path(path).map_or("C", |profile| profile.name.as_str())
 }
 pub fn supported(path: &str) -> bool {
-    matches!(
-        path.rsplit('.').next().unwrap_or(""),
-        "rs" | "py"
-            | "js"
-            | "jsx"
-            | "mjs"
-            | "cjs"
-            | "ts"
-            | "tsx"
-            | "go"
-            | "c"
-            | "h"
-            | "cpp"
-            | "hpp"
-            | "cc"
-            | "java"
-            | "cs"
-    )
+    profile_for_path(path).is_some()
 }
-fn lex(source: &str, python: bool, rust: bool) -> Vec<Token> {
+fn lex(source: &str, profile: &LanguageProfile) -> Vec<Token> {
     let chars: Vec<char> = source.chars().collect();
+    let line_comment: Vec<char> = profile.line_comment.chars().collect();
     let (mut i, mut line, mut column) = (0, 1, 0);
     let mut tokens = Vec::new();
     while i < chars.len() {
@@ -94,14 +69,14 @@ fn lex(source: &str, python: bool, rust: bool) -> Vec<Token> {
             i += 1;
             continue;
         }
-        if (python && c == '#') || (!python && c == '/' && chars.get(i + 1) == Some(&'/')) {
+        if chars[i..].starts_with(&line_comment) {
             while i < chars.len() && chars[i] != '\n' {
                 i += 1;
                 column += 1;
             }
             continue;
         }
-        if !python && c == '/' && chars.get(i + 1) == Some(&'*') {
+        if profile.block_comments && c == '/' && chars.get(i + 1) == Some(&'*') {
             i += 2;
             column += 2;
             let mut depth = 1;
@@ -127,10 +102,10 @@ fn lex(source: &str, python: bool, rust: bool) -> Vec<Token> {
             continue;
         }
         let (start, start_line, start_col) = (i, line, column);
-        // Rust raw strings (including byte raw strings) may contain ordinary quotes and code.
-        let raw_prefix = if rust && c == 'r' {
+        // Delimited raw strings may contain ordinary quotes and code.
+        let raw_prefix = if profile.raw_strings && c == 'r' {
             Some(i + 1)
-        } else if rust && c == 'b' && chars.get(i + 1) == Some(&'r') {
+        } else if profile.raw_strings && c == 'b' && chars.get(i + 1) == Some(&'r') {
             Some(i + 2)
         } else {
             None
@@ -166,13 +141,15 @@ fn lex(source: &str, python: bool, rust: bool) -> Vec<Token> {
                 continue;
             }
         }
-        // A Rust lifetime is an identifier, not a quoted string.
-        let lifetime = rust
+        // A dialect may treat lifetime-like identifiers as identifiers, not strings.
+        let lifetime = profile.lifetimes
             && c == '\''
             && chars.get(i + 1).is_some_and(|x| x.is_alphabetic())
             && chars.get(i + 2) != Some(&'\'');
         if matches!(c, '"' | '\'' | '`') && !lifetime {
-            let triple = python && chars.get(i + 1) == Some(&c) && chars.get(i + 2) == Some(&c);
+            let triple = profile.triple_quotes
+                && chars.get(i + 1) == Some(&c)
+                && chars.get(i + 2) == Some(&c);
             i += if triple { 3 } else { 1 };
             column += if triple { 3 } else { 1 };
             while i < chars.len() {
@@ -240,21 +217,8 @@ fn ident(s: &str) -> bool {
         .is_some_and(|c| c.is_alphabetic() || c == '_')
         && s != "literal"
 }
-fn control(s: &str) -> bool {
-    matches!(
-        s,
-        "if" | "for"
-            | "while"
-            | "switch"
-            | "catch"
-            | "match"
-            | "with"
-            | "sizeof"
-            | "return"
-            | "new"
-            | "assert"
-            | "super"
-    )
+fn control(s: &str, profile: &LanguageProfile) -> bool {
+    contains(&profile.controls, s)
 }
 fn pairs(t: &[Token]) -> BTreeMap<usize, usize> {
     let mut stack = Vec::new();
@@ -341,14 +305,15 @@ pub fn analyze(files: &[SourceFile]) -> Analysis {
         }
         a.files += 1;
         a.bytes += file.content.len();
-        let python = file.path.ends_with(".py");
-        let t = lex(&file.content, python, language(&file.path) == "Rust");
+        let profile = profile_for_path(&file.path).expect("supported source profile");
+        let indented = !profile.indented_declarations.is_empty();
+        let t = lex(&file.content, profile);
         let p = pairs(&t);
         let mut ranges = Vec::new();
         for i in 0..t.len() {
             let word = t[i].text.as_str();
-            if python
-                && matches!(word, "def" | "class")
+            if indented
+                && profile.indented_declarations.contains_key(word)
                 && t.get(i + 1).is_some_and(|x| ident(&x.text))
             {
                 let mut colon = i + 2;
@@ -378,24 +343,12 @@ pub fn analyze(files: &[SourceFile]) -> Analysis {
                     &mut ranges,
                     file,
                     &t,
-                    if word == "def" { "function" } else { "class" },
+                    profile.indented_declarations[word].as_str(),
                     [i + 1, i, colon, end],
                 );
                 continue;
             }
-            if !python
-                && matches!(
-                    word,
-                    "struct"
-                        | "enum"
-                        | "class"
-                        | "interface"
-                        | "trait"
-                        | "record"
-                        | "union"
-                        | "impl"
-                )
-            {
+            if !indented && profile.braced_declarations.contains_key(word) {
                 let mut n = i + 1;
                 if t.get(n).is_some_and(|x| x.text == "<") {
                     while n < t.len() && t[n].text != ">" {
@@ -411,36 +364,31 @@ pub fn analyze(files: &[SourceFile]) -> Analysis {
                     body += 1;
                 }
                 if let Some(end) = p.get(&body) {
-                    let kind = match word {
-                        "impl" => "impl",
-                        "class" | "record" => "class",
-                        "interface" | "trait" => "interface",
-                        "enum" => "enum",
-                        _ => "struct",
-                    };
+                    let kind = profile.braced_declarations[word].as_str();
                     add_entity(&mut a, &mut ranges, file, &t, kind, [n, i, body, *end]);
                 }
             }
-            if !python && word == "type" && t.get(i + 1).is_some_and(|x| ident(&x.text)) {
+            if !indented
+                && word == profile.type_keyword
+                && t.get(i + 1).is_some_and(|x| ident(&x.text))
+            {
                 if let Some(body) = (i + 2..t.len())
                     .take_while(|&j| t[j].text != ";")
                     .find(|&j| t[j].text == "{")
                 {
                     if let Some(end) = p.get(&body) {
-                        let kind = if t.get(i + 2).is_some_and(|x| x.text == "struct") {
-                            "struct"
-                        } else if t.get(i + 2).is_some_and(|x| x.text == "interface") {
-                            "interface"
-                        } else {
-                            "struct"
-                        };
+                        let kind = t
+                            .get(i + 2)
+                            .and_then(|token| profile.type_kinds.get(&token.text))
+                            .unwrap_or(&profile.type_default_kind)
+                            .as_str();
                         add_entity(&mut a, &mut ranges, file, &t, kind, [i + 1, i, body, *end]);
                     }
                 }
             }
-            // Named JavaScript object literals get their own cube.
-            if !python
-                && matches!(word, "const" | "let" | "var")
+            // Named object literals get their own structural frame.
+            if !indented
+                && contains(&profile.object_keywords, word)
                 && t.get(i + 2).is_some_and(|x| x.text == "=")
                 && t.get(i + 3).is_some_and(|x| x.text == "{")
             {
@@ -455,15 +403,15 @@ pub fn analyze(files: &[SourceFile]) -> Analysis {
                     );
                 }
             }
-            if python {
+            if indented {
                 continue;
             }
             if word == "(" {
                 let Some(&close) = p.get(&i) else {
                     continue;
                 };
-                // Go receiver: func (receiver Type) method(...)
-                if i > 0 && t[i - 1].text == "func" {
+                // Skip a dialect's receiver signature before considering its method signature.
+                if i > 0 && t[i - 1].text == profile.receiver_keyword {
                     continue;
                 }
                 let mut name = i.saturating_sub(1);
@@ -473,11 +421,13 @@ pub fn analyze(files: &[SourceFile]) -> Analysis {
                     }
                     name = name.saturating_sub(1);
                 }
-                if !ident(&t[name].text) || control(&t[name].text) {
+                if !ident(&t[name].text) || control(&t[name].text, profile) {
                     continue;
                 }
-                // Rust declarations always carry fn; never infer a declaration from a call/block pair.
-                if language(&file.path) == "Rust" && (name == 0 || t[name - 1].text != "fn") {
+                // Some dialects require an explicit function declaration keyword.
+                if !profile.required_function_keyword.is_empty()
+                    && (name == 0 || t[name - 1].text != profile.required_function_keyword)
+                {
                     continue;
                 }
                 let mut body = close + 1;
@@ -492,24 +442,7 @@ pub fn analyze(files: &[SourceFile]) -> Analysis {
                 }
                 if let Some(&end) = p.get(&body).filter(|_| t[body].text == "{") {
                     // A call followed by an object/block is not a declaration.
-                    if name > 0
-                        && matches!(
-                            t[name - 1].text.as_str(),
-                            "." | "::"
-                                | "return"
-                                | "="
-                                | "=>"
-                                | "new"
-                                | ","
-                                | "if"
-                                | "while"
-                                | "switch"
-                                | "match"
-                                | "!"
-                                | "&&"
-                                | "||"
-                        )
-                    {
+                    if name > 0 && contains(&profile.reject_function_prefixes, &t[name - 1].text) {
                         continue;
                     }
                     add_entity(
@@ -522,7 +455,7 @@ pub fn analyze(files: &[SourceFile]) -> Analysis {
                     );
                 }
             }
-            if word == "=>" {
+            if word == profile.arrow_token {
                 let body = i + 1;
                 let Some(&end) = p.get(&body).filter(|_| t[body].text == "{") else {
                     continue;
@@ -573,9 +506,9 @@ pub fn analyze(files: &[SourceFile]) -> Analysis {
                 a.entities[id].tokens.push(t[j].text.clone());
                 if t.get(j + 1).is_some_and(|x| x.text == "(")
                     && ident(&t[j].text)
-                    && !control(&t[j].text)
+                    && !control(&t[j].text, profile)
                 {
-                    let call = if j >= 2 && matches!(t[j - 1].text.as_str(), "." | "::") {
+                    let call = if j >= 2 && contains(&profile.member_operators, &t[j - 1].text) {
                         format!("{}::{}", t[j - 2].text, t[j].text)
                     } else {
                         t[j].text.clone()
@@ -597,12 +530,15 @@ pub fn analyze(files: &[SourceFile]) -> Analysis {
             }
         }
     }
-    // Merge Rust impl containers into their declared type; retain a standalone impl if the type is external.
+    // Merge configured extension containers into their declared type when it is local.
     let mut aliases = BTreeMap::new();
     for e in &a.entities {
-        if e.kind == "impl" {
+        if contains(&profile_for_language(&e.language).merge_containers, &e.kind) {
             if let Some(base) = a.entities.iter().find(|b| {
-                b.name == e.name && b.path == e.path && b.kind != "impl" && b.kind != "function"
+                b.name == e.name
+                    && b.path == e.path
+                    && !contains(&profile_for_language(&b.language).merge_containers, &b.kind)
+                    && b.kind != "function"
             }) {
                 aliases.insert(e.id, base.id);
             }
@@ -632,14 +568,8 @@ pub fn analyze(files: &[SourceFile]) -> Analysis {
                 .filter(|b| {
                     b.kind == "function"
                         && b.name == *name
-                        && (b.language == e.language
-                            || matches!(
-                                (b.language.as_str(), e.language.as_str()),
-                                ("JavaScript", "TypeScript")
-                                    | ("TypeScript", "JavaScript")
-                                    | ("C", "C++")
-                                    | ("C++", "C")
-                            ))
+                        && profile_for_language(&b.language).call_group
+                            == profile_for_language(&e.language).call_group
                 })
                 .collect();
             let target = if parts.len() > 1 {
@@ -648,7 +578,10 @@ pub fn analyze(files: &[SourceFile]) -> Analysis {
                     .iter()
                     .copied()
                     .filter(|b| {
-                        if matches!(qualifier, "self" | "this" | "Self") {
+                        if contains(
+                            &profile_for_language(&e.language).self_qualifiers,
+                            qualifier,
+                        ) {
                             b.owner == e.owner && e.owner.is_some()
                         } else {
                             b.owner.is_some_and(|o| a.entities[o].name == qualifier)

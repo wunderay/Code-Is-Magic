@@ -9,7 +9,10 @@ concurrency:
   group: pages
   cancel-in-progress: false
 jobs:
+  profiles:
+    uses: ./.github/workflows/profiles.yml
   build:
+    needs: profiles
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

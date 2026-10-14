@@ -1,11 +1,13 @@
 mod analyze;
 mod archive;
+mod profiles;
 mod render;
 mod sigil;
 pub use analyze::{analyze, supported, Analysis, Edge, Entity, SourceFile};
 pub use archive::{
     decode_png, decode_svg, embed_svg, encode_png, snapshot_zip, ArchiveEntry, Capsule, Snapshot,
 };
+pub use profiles::{language_profiles, profile_for_language, profile_for_path, LanguageProfile};
 pub use render::{render, render_with_wingdings, Diagram, Placement};
 pub use sigil::{decode_name, decode_svg_names, encode_name, DecodedName, NameSigil};
 use wasm_bindgen::prelude::*;

@@ -182,7 +182,38 @@ fn chaotic_layout_is_reproducible_and_reserves_space_for_each_seal() {
     }
     assert!(x_positions.len() > 90 && y_positions.len() > 90);
     assert_eq!(radii.len(), 1);
-    assert_eq!(d.svg.matches("marker-end='url(#arrow)'").count(), 100);
+    assert_eq!(d.svg.matches("data-channel='calls'").count(), 100);
+    assert_eq!(d.svg.matches("data-call-gate='1'").count(), 100);
+    assert_eq!(d.svg.matches("data-strand='1'").count(), 200);
+    assert!(!d.svg.contains("marker-end"));
+}
+
+#[test]
+fn recursive_invocations_have_visible_gates_and_lossless_names() {
+    let a = analyze(&[file("recursive.rs", "fn recurse() { recurse(); }")]);
+    let d = render(&a, "ignored", 12, "gold");
+    assert!(d
+        .svg
+        .contains("data-channel='calls' data-from='0' data-to='0'"));
+    let gate = d
+        .svg
+        .split("data-call-gate='1' transform='translate(")
+        .nth(1)
+        .unwrap();
+    let coords: Vec<f64> = gate
+        .split(')')
+        .next()
+        .unwrap()
+        .split_whitespace()
+        .map(|value| value.parse().unwrap())
+        .collect();
+    let seal = &d.placements[0];
+    assert!((coords[0] - seal.x).hypot(coords[1] - seal.y) > seal.radius + 8.);
+    assert_eq!(
+        code_is_magic::decode_svg_names(&d.svg).unwrap()[0].name,
+        "recurse"
+    );
+    assert!(!d.svg.contains("NaN") && !d.svg.contains("inf"));
 }
 
 #[test]

@@ -3,7 +3,10 @@ on: [pull_request]
 permissions:
   contents: read
 jobs:
+  profiles:
+    uses: ./.github/workflows/profiles.yml
   verify:
+    needs: profiles
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

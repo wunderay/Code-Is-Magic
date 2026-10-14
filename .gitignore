@@ -3,3 +3,5 @@
 /node_modules/
 /artifacts/
 *.tmp
+__pycache__/
+*.pyc

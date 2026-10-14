@@ -80,7 +80,7 @@ The expected project URL after successful publication is `https://wunderay.githu
 
 ## Visual grammar
 
-Function seal **area is directly proportional to non-comment body source lines**: radius = 24 × √lines. Four times as much code produces twice the radius. Equal-length functions have equal-sized seals regardless of their names, with no size cap or name-based jitter. The adjustable default of 12 lines controls ornament detail, not circle size. Call arrows connect unambiguous caller → callee targets; dashed links express type membership. Structs use hexagons, enums diamonds, classes frames, interfaces opposing triangles, and named JavaScript object literals cubes. The reversible name contour distinguishes different names independently of those motifs.
+Function seal **area is directly proportional to non-comment body source lines**: radius = 24 × √lines. Four times as much code produces twice the radius. Equal-length functions have equal-sized seals regardless of their names, with no size cap or name-based jitter. The adjustable default of 12 lines controls ornament detail, not circle size. Braided invocation channels connect unambiguous caller → callee targets, with engraved knots and asymmetric destination gates; dotted tethers with diamond joints express type membership. Recursive calls use woven return loops. Structs use hexagons, enums diamonds, classes frames, interfaces opposing triangles, and named JavaScript object literals cubes. The reversible name contour distinguishes different names independently of those motifs.
 
 Outer collars stay circular. A name-derived center chooses and varies twelve original emblem families: ritual triangles, crescents, floral knots, heraldic crests, eyes, interlocking facets, branching runes, hourglasses, square labyrinths, orbital seals, flames, and curved triquetras. The exact reversible name contour sits inside the emblem rather than deforming the rim. Its normalized geometry and v1 decoder remain compatible with earlier images. Source recovery preserves the original artwork and its separate full seal radius.
 
@@ -103,6 +103,8 @@ The **visualizer** is a structural lexer, not a compiler: dynamic dispatch, macr
 
 ## Format and limits
 
+Language-specific policies and designs are authored in their own languages under [`languages/`](languages/README.md). A build-time compiler generates portable profiles for the shared Rust parser/renderer and browser extension filter. Native and WASM builds embed identical policies and need no additional user runtimes. See the authoring guide for regeneration and all-nine-language CI checks.
+
 - Name contour v1: framed UTF-8 bytes encoded as 16 radial levels; geometry validates length and CRC32. No case folding or Unicode normalization is applied.
 - Source capsule v1: canonical sorted snapshot plus the original vector artwork, serialized in fixed field order and compressed deterministically.
 - PNG framing: `CIMPNG01`, compressed length, CRC32, then payload, in RGB low bits. The decoder bounds dimensions, payload size, decompression, paths, duplicates, and modes before exposing files.
@@ -124,4 +126,4 @@ node --test tests/wasm.test.js
 
 Tests cover name round trips and distinctions, text-free geometry recovery, binary/CRLF/BOM source recovery, modes/symlinks/submodule pointers, pixel-preserving PNG recompression, corruption rejection, safe archive paths, native/WASM artifact parity, source acquisition, declarations, and call graphs.
 
-`src/glyphs.json` contains vector outlines derived from [Noto fonts](https://github.com/notofonts/noto-fonts), under the SIL Open Font License in `web/fonts/OFL.txt`. The project code is MIT licensed. Source repositories retain their own licenses.
+`src/glyphs.json` contains vector outlines derived from [Noto fonts](https://github.com/notofonts/noto-fonts), with the third-party font notice in `web/fonts/OFL.txt`. No project-wide license is specified. Captured source repositories retain their own notices.

@@ -1,4 +1,5 @@
-export const SOURCE_PATTERN = /\.(rs|py|js|jsx|mjs|cjs|ts|tsx|go|c|h|cpp|hpp|cc|java|cs)$/;
+import { sourceExtensions } from './languages.js';
+export const SOURCE_PATTERN = new RegExp(`\\.(${sourceExtensions.join('|')})$`);
 export function parseRepository(input) {
   let url; try { url = new URL(input); } catch { throw new Error('Enter a repository URL such as https://github.com/owner/repo.'); }
   if (url.protocol !== 'https:' || url.hostname !== 'github.com' || url.username || url.password || url.search || url.hash) throw new Error('Use an HTTPS github.com repository URL without a query or fragment.');

@@ -1,4 +1,5 @@
 use crate::encode_name;
+use crate::profiles::{profile_for_language, CollarOperation};
 use crate::{Analysis, Entity};
 use serde::Deserialize;
 use serde::Serialize;
@@ -372,37 +373,25 @@ fn design(s: &mut String, e: &Entity, x: f64, y: f64, r: f64, large: bool) {
     circle(s, x, y, r, 0.92);
     circle(s, x, y, r * 0.93, 0.65);
     circle(s, x, y, r * 0.73, 0.72);
-    let repeats = match e.language.as_str() {
-        "Rust" => 8,
-        "Python" => 6,
-        "JavaScript" => 12,
-        "TypeScript" => 3,
-        "Go" => 3,
-        "C" => 12,
-        "C++" => 16,
-        "Java" => 4,
-        _ => 8,
-    };
-    for i in 0..repeats {
-        let angle = rotation + i as f64 * 2. * PI / repeats as f64;
+    let profile = profile_for_language(&e.language);
+    for i in 0..profile.repeats {
+        let angle = rotation + i as f64 * 2. * PI / profile.repeats as f64;
         let degrees = angle * 180. / PI;
         let _ = write!(s, "<g transform='translate({x} {y}) rotate({degrees:.3}) scale({r})' stroke-width='.007'>");
-        match e.language.as_str() {
-            "Rust" => s.push_str("<path d='M -.024 -.94 L 0 -.99 L .024 -.94 M 0 -.99 L 0 -.90'/>"),
-            "Python" => s.push_str("<path d='M -.035 -.965 Q 0 -.925 .035 -.965 Q 0 -.995 -.035 -.965 Z'/>"),
-            "JavaScript" => s.push_str("<path d='M 0 -.99 L 0 -.94 M -.018 -.982 L .018 -.947 M .018 -.982 L -.018 -.947'/>"),
-            "TypeScript" => {
-                poly(s, 0., -0.87, 0.115, 3, 1, -PI / 2.);
-                poly(s, 0., -0.87, 0.07, 3, 1, PI / 2.);
+        for operation in &profile.collar {
+            match operation {
+                CollarOperation::Path { data } => {
+                    let _ = write!(s, "<path d='{data}'/>");
+                }
+                CollarOperation::Polygon {
+                    cx,
+                    cy,
+                    r,
+                    n,
+                    step,
+                    rotation_degrees,
+                } => poly(s, *cx, *cy, *r, *n, *step, rotation_degrees * PI / 180.),
             }
-            "Go" => s.push_str("<path d='M -.12 -.965 Q -.04 -.99 0 -.955 T .12 -.965 M -.1 -.938 Q -.03 -.965 .02 -.936 T .1 -.938'/>"),
-            "C" => s.push_str("<path d='M -.03 -.94 L -.03 -.983 L .03 -.983 L .03 -.94'/>"),
-            "C++" => {
-                poly(s, -0.017, -0.964, 0.027, 4, 1, PI / 4.);
-                poly(s, 0.017, -0.964, 0.027, 4, 1, PI / 4.);
-            }
-            "Java" => s.push_str("<path d='M -.028 -.94 L -.028 -.965 Q 0 -1.02 .028 -.965 L .028 -.94 M 0 -.99 L 0 -.94'/>"),
-            _ => poly(s, 0., -0.964, 0.031, 4, 1, 0.),
         }
         s.push_str("</g>");
     }
@@ -431,6 +420,151 @@ fn design(s: &mut String, e: &Entity, x: f64, y: f64, r: f64, large: bool) {
         }
     }
 }
+fn curve_point(points: &[[f64; 2]; 4], t: f64) -> ([f64; 2], [f64; 2]) {
+    let u = 1. - t;
+    let mut point = [0.; 2];
+    let mut tangent = [0.; 2];
+    for axis in 0..2 {
+        point[axis] = u.powi(3) * points[0][axis]
+            + 3. * u * u * t * points[1][axis]
+            + 3. * u * t * t * points[2][axis]
+            + t.powi(3) * points[3][axis];
+        tangent[axis] = 3. * u * u * (points[1][axis] - points[0][axis])
+            + 6. * u * t * (points[2][axis] - points[1][axis])
+            + 3. * t * t * (points[3][axis] - points[2][axis]);
+    }
+    let length = tangent[0].hypot(tangent[1]).max(0.0001);
+    (point, [tangent[0] / length, tangent[1] / length])
+}
+fn invocation_channel(
+    s: &mut String,
+    from: &Placement,
+    to: &Placement,
+    kind: &str,
+    seed: u64,
+    ink: &str,
+    bg: &str,
+) {
+    let mut flow = Entropy(seed);
+    let points = if from.id == to.id {
+        let reach = (from.radius * 0.6).max(70.);
+        [
+            [from.x - from.radius * 0.3, from.y - from.radius - 17.],
+            [from.x - reach * 1.6, from.y - from.radius - reach * 1.8],
+            [from.x + reach * 1.6, from.y - from.radius - reach * 1.8],
+            [from.x + from.radius * 0.3, from.y - from.radius - 17.],
+        ]
+    } else {
+        let dx = to.x - from.x;
+        let dy = to.y - from.y;
+        let distance = dx.hypot(dy).max(0.0001);
+        let (ux, uy) = (dx / distance, dy / distance);
+        let (x1, y1, x2, y2) = (
+            from.x + ux * (from.radius + 5.),
+            from.y + uy * (from.radius + 5.),
+            to.x - ux * (to.radius + 17.),
+            to.y - uy * (to.radius + 17.),
+        );
+        let bend = flow.between(-0.3, 0.3) * distance + flow.between(-50., 50.);
+        [
+            [x1, y1],
+            [
+                x1 + (x2 - x1) * 0.31 - uy * bend,
+                y1 + (y2 - y1) * 0.31 + ux * bend,
+            ],
+            [
+                x1 + (x2 - x1) * 0.68 + uy * bend * 0.48,
+                y1 + (y2 - y1) * 0.68 - ux * bend * 0.48,
+            ],
+            [x2, y2],
+        ]
+    };
+    let center = format!(
+        "M {:.3} {:.3} C {:.3} {:.3}, {:.3} {:.3}, {:.3} {:.3}",
+        points[0][0],
+        points[0][1],
+        points[1][0],
+        points[1][1],
+        points[2][0],
+        points[2][1],
+        points[3][0],
+        points[3][1]
+    );
+    let _ = write!(s, "<g data-channel='{kind}' data-from='{}' data-to='{}' fill='none' stroke='{ink}' stroke-linecap='round' stroke-linejoin='round'>", from.id, to.id);
+    if kind == "contains" {
+        let _ = write!(
+            s,
+            "<path d='{center}' stroke-width='.8' stroke-dasharray='2 8' opacity='.32'/>"
+        );
+        let (point, tangent) = curve_point(&points, 0.48);
+        let angle = tangent[1].atan2(tangent[0]) * 180. / PI;
+        let _ = write!(
+            s,
+            "<g transform='translate({:.3} {:.3}) rotate({angle:.3})' fill='{bg}' opacity='.65'>",
+            point[0], point[1]
+        );
+        poly(s, 0., 0., 4., 4, 1, 0.);
+        s.push_str("</g></g>");
+        return;
+    }
+    let _ = write!(s, "<path d='{center}' stroke-width='8' opacity='.055'/><path d='{center}' stroke-width='.65' stroke-dasharray='1 9' opacity='.42'/>");
+    let turns = 3. + (seed % 5) as f64;
+    let amplitude = flow.between(3.5, 7.5);
+    for strand in [-1., 1.] {
+        let mut path = String::new();
+        for i in 0..=96 {
+            let t = i as f64 / 96.;
+            let (point, tangent) = curve_point(&points, t);
+            let envelope = (PI * t).sin().max(0.).sqrt();
+            let offset = strand * amplitude * (t * turns * 2. * PI).sin() * envelope;
+            let _ = write!(
+                path,
+                "{} {:.3} {:.3} ",
+                if i == 0 { "M" } else { "L" },
+                point[0] - tangent[1] * offset,
+                point[1] + tangent[0] * offset
+            );
+        }
+        let _ = write!(
+            s,
+            "<path data-strand='1' d='{path}' stroke-width='1.05' opacity='.62'/>"
+        );
+    }
+    // Engraved knots mark the braid; their spacing and forms are name-derived.
+    let knots = 2 + seed % 4;
+    for i in 0..knots {
+        let t = (i as f64 + 1.) / (knots as f64 + 1.);
+        let (point, tangent) = curve_point(&points, t);
+        let angle = tangent[1].atan2(tangent[0]) * 180. / PI;
+        let size = flow.between(3.2, 5.8);
+        let _ = write!(s, "<g transform='translate({:.3} {:.3}) rotate({angle:.3})' fill='{bg}' stroke-width='.8' opacity='.85'>", point[0], point[1]);
+        poly(s, 0., 0., size, 4, 1, 0.);
+        if i % 2 == 0 {
+            circle(s, 0., 0., size * 1.35, 0.7);
+        }
+        let _ = write!(
+            s,
+            "<path d='M {:.3} 0 L {:.3} 0 M 0 {:.3} L 0 {:.3}'/>",
+            -size * 0.45,
+            size * 0.45,
+            -size * 0.45,
+            size * 0.45
+        );
+        s.push_str("</g>");
+    }
+    let (source, _) = curve_point(&points, 0.);
+    let _ = write!(s, "<g fill='{bg}' stroke-width='.9'>");
+    circle(s, source[0], source[1], 4., 0.75);
+    circle(s, source[0], source[1], 1.6, 0.7);
+    s.push_str("</g>");
+    let (destination, tangent) = curve_point(&points, 1.);
+    let angle = tangent[1].atan2(tangent[0]) * 180. / PI;
+    let _ = write!(s, "<g data-call-gate='1' transform='translate({:.3} {:.3}) rotate({angle:.3})' stroke-width='1' opacity='.92'>", destination[0], destination[1]);
+    s.push_str("<path d='M -5 -8 C 5 -8 5 8 -5 8 M -8 -5 C -2 -5 -2 5 -8 5'/>");
+    let _ = write!(s, "<path d='M 0 -5 L 8 0 L 0 5 L -3 0 Z' fill='{bg}'/>");
+    circle(s, 0., 0., 1.6, 0.9);
+    s.push_str("</g></g>");
+}
 pub fn render(a: &Analysis, title: &str, min_lines: usize, palette: &str) -> Diagram {
     render_with_wingdings(a, title, min_lines, palette, false)
 }
@@ -455,7 +589,7 @@ pub fn render_with_wingdings(
     let outlines: BTreeMap<String, Outline> =
         serde_json::from_str(include_str!("glyphs.json")).expect("bundled glyph paths are valid");
     let _ = title; // Provenance lives in the recoverable archive, never in the artwork.
-    let mut s=format!("<svg xmlns='http://www.w3.org/2000/svg' width='{width}' height='{height}' viewBox='0 0 {width} {height}'><defs><marker id='arrow' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M 0 0 L 10 5 L 0 10' fill='none' stroke='{ink}'/></marker></defs><rect width='100%' height='100%' fill='{bg}'/>");
+    let mut s=format!("<svg xmlns='http://www.w3.org/2000/svg' width='{width}' height='{height}' viewBox='0 0 {width} {height}'><rect width='100%' height='100%' fill='{bg}'/>");
     let mut atmosphere = Entropy(hash("wild grimoire") ^ visible.len() as u64);
     let _ = write!(s, "<g fill='{ink}' opacity='.17'>");
     for _ in 0..visible.len().saturating_mul(3).min(360) {
@@ -484,7 +618,7 @@ pub fn render_with_wingdings(
         );
     }
     s.push_str("</g>");
-    // Channels are rendered behind seals. Endpoint trimming and arrows express caller -> callee.
+    // Braided invocation channels sit behind seals; an asymmetric gate identifies the callee.
     for edge in &a.edges {
         let Some(from) = placements.iter().find(|p| p.id == edge.from) else {
             continue;
@@ -492,28 +626,11 @@ pub fn render_with_wingdings(
         let Some(to) = placements.iter().find(|p| p.id == edge.to) else {
             continue;
         };
-        if edge.from == edge.to {
-            let _=write!(s,"<path d='M {} {} C {} {}, {} {}, {} {}' fill='none' stroke='{ink}' opacity='.5' marker-end='url(#arrow)'/>",from.x-22.,from.y-from.radius,from.x-140.,from.y-from.radius-100.,from.x+140.,from.y-from.radius-100.,from.x+22.,from.y-from.radius);
-            continue;
-        }
-        let dx = to.x - from.x;
-        let dy = to.y - from.y;
-        let distance = (dx * dx + dy * dy).sqrt();
-        let ux = dx / distance;
-        let uy = dy / distance;
-        let (x1, y1, x2, y2) = (
-            from.x + ux * (from.radius + 3.),
-            from.y + uy * (from.radius + 3.),
-            to.x - ux * (to.radius + 10.),
-            to.y - uy * (to.radius + 10.),
-        );
-        let mut flow = Entropy(hash(&format!("{}:{}:{}", edge.from, edge.to, edge.kind)));
-        let bend = flow.between(-0.3, 0.3) * distance + flow.between(-50., 50.);
-        let c1x = x1 + (x2 - x1) * 0.31 - uy * bend;
-        let c1y = y1 + (y2 - y1) * 0.31 + ux * bend;
-        let c2x = x1 + (x2 - x1) * 0.68 + uy * bend * 0.48;
-        let c2y = y1 + (y2 - y1) * 0.68 - ux * bend * 0.48;
-        let _=write!(s,"<path d='M {x1:.1} {y1:.1} C {c1x:.1} {c1y:.1} {c2x:.1} {c2y:.1} {x2:.1} {y2:.1}' fill='none' stroke='{ink}' stroke-width='{}' opacity='{}' {} {}/>",if edge.kind=="contains"{0.8}else{1.3},if edge.kind=="contains"{0.26}else{0.55},if edge.kind=="contains"{"stroke-dasharray='4 7'"}else{""},if edge.kind=="calls"{"marker-end='url(#arrow)'"}else{""});
+        let seed = hash(&format!(
+            "{}:{}:{}",
+            a.entities[edge.from].qualified_name, a.entities[edge.to].qualified_name, edge.kind
+        ));
+        invocation_channel(&mut s, from, to, &edge.kind, seed, ink, bg);
     }
     for place in &placements {
         let e = &a.entities[place.id];
@@ -565,16 +682,7 @@ pub fn render_with_wingdings(
                 "struct" => "⬡",
                 "interface" => "△",
                 "object" => "◇",
-                _ => match e.language.as_str() {
-                    "Rust" => "ᛟ",
-                    "Python" => "☽",
-                    "TypeScript" => "Δ",
-                    "JavaScript" => "☉",
-                    "Go" => "≋",
-                    "Java" => "♜",
-                    "C#" => "✧",
-                    _ => "⚙",
-                },
+                _ => profile_for_language(&e.language).sigil.as_str(),
             },
             x,
             y,

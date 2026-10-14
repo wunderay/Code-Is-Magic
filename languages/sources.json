@@ -1,0 +1,14 @@
+{
+  "sources": {
+    "languages/c/profile.c": "b6fe7646968a3c0e05ceb2141b285e9c192c41bff9046bfd712ea4268067f4a0",
+    "languages/cpp/profile.cpp": "7bae0b7ff6e03b2937b5b0278dfccec4afdba89051b5c10405ece8847dc25935",
+    "languages/csharp/Profile.cs": "d4f730ad5abd2052e8f186fb3d55fa5b7ecc89ac4f187486d7d1203ceb6845b6",
+    "languages/go/profile.go": "3246b59311844b8fddce2edd9850a41d12a84fdb09b2ddd0362d0770a3f4dc5b",
+    "languages/java/Profile.java": "fefd7807a7007c43c827abd63ae99de29e811ae452a9cc0dcacfddd16c004770",
+    "languages/javascript/profile.js": "9aef2121ac644b8607a751b6863ee07bd604ba81b62e34abf9efd523b7ea6b06",
+    "languages/python/profile.py": "a2a88bd8084092eabbe7331f2f2b1ee0a74e82f2244fd19318802e8126bbe0a0",
+    "languages/rust/profile.rs": "5b1fdb40f535fa672fa089335098398aebd21968878543cae928c929c3a4de95",
+    "languages/typescript/profile.ts": "61e9a71dbd31210a82b1ea9917725879bb88760f6a35593ddf9078174caa02ab"
+  },
+  "version": 1
+}

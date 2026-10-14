@@ -1,0 +1,840 @@
+{
+  "profiles": [
+    {
+      "arrow_token": "=>",
+      "block_comments": true,
+      "braced_declarations": {
+        "class": "class",
+        "enum": "enum",
+        "impl": "impl",
+        "interface": "interface",
+        "record": "class",
+        "struct": "struct",
+        "trait": "interface",
+        "union": "struct"
+      },
+      "call_group": "c-family",
+      "collar": [
+        {
+          "data": "M -.03 -.94 L -.03 -.983 L .03 -.983 L .03 -.94",
+          "op": "path"
+        }
+      ],
+      "controls": [
+        "if",
+        "for",
+        "while",
+        "switch",
+        "catch",
+        "match",
+        "with",
+        "sizeof",
+        "return",
+        "new",
+        "assert",
+        "super"
+      ],
+      "extensions": [
+        "c",
+        "h"
+      ],
+      "id": "c",
+      "indented_declarations": {},
+      "lifetimes": false,
+      "line_comment": "//",
+      "member_operators": [
+        ".",
+        "::"
+      ],
+      "merge_containers": [
+        "impl"
+      ],
+      "name": "C",
+      "object_keywords": [
+        "const",
+        "let",
+        "var"
+      ],
+      "raw_strings": false,
+      "receiver_keyword": "func",
+      "reject_function_prefixes": [
+        ".",
+        "::",
+        "return",
+        "=",
+        "=>",
+        "new",
+        ",",
+        "if",
+        "while",
+        "switch",
+        "match",
+        "!",
+        "&&",
+        "||"
+      ],
+      "repeats": 12,
+      "required_function_keyword": "",
+      "self_qualifiers": [
+        "self",
+        "this",
+        "Self"
+      ],
+      "sigil": "⚙",
+      "triple_quotes": false,
+      "type_default_kind": "struct",
+      "type_keyword": "type",
+      "type_kinds": {
+        "interface": "interface",
+        "struct": "struct"
+      }
+    },
+    {
+      "arrow_token": "=>",
+      "block_comments": true,
+      "braced_declarations": {
+        "class": "class",
+        "enum": "enum",
+        "impl": "impl",
+        "interface": "interface",
+        "record": "class",
+        "struct": "struct",
+        "trait": "interface",
+        "union": "struct"
+      },
+      "call_group": "c-family",
+      "collar": [
+        {
+          "cx": -0.017,
+          "cy": -0.964,
+          "n": 4,
+          "op": "polygon",
+          "r": 0.027,
+          "rotation_degrees": 45,
+          "step": 1
+        },
+        {
+          "cx": 0.017,
+          "cy": -0.964,
+          "n": 4,
+          "op": "polygon",
+          "r": 0.027,
+          "rotation_degrees": 45,
+          "step": 1
+        }
+      ],
+      "controls": [
+        "if",
+        "for",
+        "while",
+        "switch",
+        "catch",
+        "match",
+        "with",
+        "sizeof",
+        "return",
+        "new",
+        "assert",
+        "super"
+      ],
+      "extensions": [
+        "cpp",
+        "hpp",
+        "cc"
+      ],
+      "id": "cpp",
+      "indented_declarations": {},
+      "lifetimes": false,
+      "line_comment": "//",
+      "member_operators": [
+        ".",
+        "::"
+      ],
+      "merge_containers": [
+        "impl"
+      ],
+      "name": "C++",
+      "object_keywords": [
+        "const",
+        "let",
+        "var"
+      ],
+      "raw_strings": false,
+      "receiver_keyword": "func",
+      "reject_function_prefixes": [
+        ".",
+        "::",
+        "return",
+        "=",
+        "=>",
+        "new",
+        ",",
+        "if",
+        "while",
+        "switch",
+        "match",
+        "!",
+        "&&",
+        "||"
+      ],
+      "repeats": 16,
+      "required_function_keyword": "",
+      "self_qualifiers": [
+        "self",
+        "this",
+        "Self"
+      ],
+      "sigil": "⚙",
+      "triple_quotes": false,
+      "type_default_kind": "struct",
+      "type_keyword": "type",
+      "type_kinds": {
+        "interface": "interface",
+        "struct": "struct"
+      }
+    },
+    {
+      "arrow_token": "=>",
+      "block_comments": true,
+      "braced_declarations": {
+        "class": "class",
+        "enum": "enum",
+        "impl": "impl",
+        "interface": "interface",
+        "record": "class",
+        "struct": "struct",
+        "trait": "interface",
+        "union": "struct"
+      },
+      "call_group": "csharp",
+      "collar": [
+        {
+          "cx": 0,
+          "cy": -0.964,
+          "n": 4,
+          "op": "polygon",
+          "r": 0.031,
+          "rotation_degrees": 0,
+          "step": 1
+        }
+      ],
+      "controls": [
+        "if",
+        "for",
+        "while",
+        "switch",
+        "catch",
+        "match",
+        "with",
+        "sizeof",
+        "return",
+        "new",
+        "assert",
+        "super"
+      ],
+      "extensions": [
+        "cs"
+      ],
+      "id": "csharp",
+      "indented_declarations": {},
+      "lifetimes": false,
+      "line_comment": "//",
+      "member_operators": [
+        ".",
+        "::"
+      ],
+      "merge_containers": [
+        "impl"
+      ],
+      "name": "C#",
+      "object_keywords": [
+        "const",
+        "let",
+        "var"
+      ],
+      "raw_strings": false,
+      "receiver_keyword": "func",
+      "reject_function_prefixes": [
+        ".",
+        "::",
+        "return",
+        "=",
+        "=>",
+        "new",
+        ",",
+        "if",
+        "while",
+        "switch",
+        "match",
+        "!",
+        "&&",
+        "||"
+      ],
+      "repeats": 8,
+      "required_function_keyword": "",
+      "self_qualifiers": [
+        "self",
+        "this",
+        "Self"
+      ],
+      "sigil": "✧",
+      "triple_quotes": false,
+      "type_default_kind": "struct",
+      "type_keyword": "type",
+      "type_kinds": {
+        "interface": "interface",
+        "struct": "struct"
+      }
+    },
+    {
+      "arrow_token": "=>",
+      "block_comments": true,
+      "braced_declarations": {
+        "class": "class",
+        "enum": "enum",
+        "impl": "impl",
+        "interface": "interface",
+        "record": "class",
+        "struct": "struct",
+        "trait": "interface",
+        "union": "struct"
+      },
+      "call_group": "go",
+      "collar": [
+        {
+          "data": "M -.12 -.965 Q -.04 -.99 0 -.955 T .12 -.965 M -.1 -.938 Q -.03 -.965 .02 -.936 T .1 -.938",
+          "op": "path"
+        }
+      ],
+      "controls": [
+        "if",
+        "for",
+        "while",
+        "switch",
+        "catch",
+        "match",
+        "with",
+        "sizeof",
+        "return",
+        "new",
+        "assert",
+        "super"
+      ],
+      "extensions": [
+        "go"
+      ],
+      "id": "go",
+      "indented_declarations": {},
+      "lifetimes": false,
+      "line_comment": "//",
+      "member_operators": [
+        ".",
+        "::"
+      ],
+      "merge_containers": [
+        "impl"
+      ],
+      "name": "Go",
+      "object_keywords": [
+        "const",
+        "let",
+        "var"
+      ],
+      "raw_strings": false,
+      "receiver_keyword": "func",
+      "reject_function_prefixes": [
+        ".",
+        "::",
+        "return",
+        "=",
+        "=>",
+        "new",
+        ",",
+        "if",
+        "while",
+        "switch",
+        "match",
+        "!",
+        "&&",
+        "||"
+      ],
+      "repeats": 3,
+      "required_function_keyword": "",
+      "self_qualifiers": [
+        "self",
+        "this",
+        "Self"
+      ],
+      "sigil": "≋",
+      "triple_quotes": false,
+      "type_default_kind": "struct",
+      "type_keyword": "type",
+      "type_kinds": {
+        "interface": "interface",
+        "struct": "struct"
+      }
+    },
+    {
+      "arrow_token": "=>",
+      "block_comments": true,
+      "braced_declarations": {
+        "class": "class",
+        "enum": "enum",
+        "impl": "impl",
+        "interface": "interface",
+        "record": "class",
+        "struct": "struct",
+        "trait": "interface",
+        "union": "struct"
+      },
+      "call_group": "java",
+      "collar": [
+        {
+          "data": "M -.028 -.94 L -.028 -.965 Q 0 -1.02 .028 -.965 L .028 -.94 M 0 -.99 L 0 -.94",
+          "op": "path"
+        }
+      ],
+      "controls": [
+        "if",
+        "for",
+        "while",
+        "switch",
+        "catch",
+        "match",
+        "with",
+        "sizeof",
+        "return",
+        "new",
+        "assert",
+        "super"
+      ],
+      "extensions": [
+        "java"
+      ],
+      "id": "java",
+      "indented_declarations": {},
+      "lifetimes": false,
+      "line_comment": "//",
+      "member_operators": [
+        ".",
+        "::"
+      ],
+      "merge_containers": [
+        "impl"
+      ],
+      "name": "Java",
+      "object_keywords": [
+        "const",
+        "let",
+        "var"
+      ],
+      "raw_strings": false,
+      "receiver_keyword": "func",
+      "reject_function_prefixes": [
+        ".",
+        "::",
+        "return",
+        "=",
+        "=>",
+        "new",
+        ",",
+        "if",
+        "while",
+        "switch",
+        "match",
+        "!",
+        "&&",
+        "||"
+      ],
+      "repeats": 4,
+      "required_function_keyword": "",
+      "self_qualifiers": [
+        "self",
+        "this",
+        "Self"
+      ],
+      "sigil": "♜",
+      "triple_quotes": false,
+      "type_default_kind": "struct",
+      "type_keyword": "type",
+      "type_kinds": {
+        "interface": "interface",
+        "struct": "struct"
+      }
+    },
+    {
+      "arrow_token": "=>",
+      "block_comments": true,
+      "braced_declarations": {
+        "class": "class",
+        "enum": "enum",
+        "impl": "impl",
+        "interface": "interface",
+        "record": "class",
+        "struct": "struct",
+        "trait": "interface",
+        "union": "struct"
+      },
+      "call_group": "ecmascript",
+      "collar": [
+        {
+          "data": "M 0 -.99 L 0 -.94 M -.018 -.982 L .018 -.947 M .018 -.982 L -.018 -.947",
+          "op": "path"
+        }
+      ],
+      "controls": [
+        "if",
+        "for",
+        "while",
+        "switch",
+        "catch",
+        "match",
+        "with",
+        "sizeof",
+        "return",
+        "new",
+        "assert",
+        "super"
+      ],
+      "extensions": [
+        "js",
+        "jsx",
+        "mjs",
+        "cjs"
+      ],
+      "id": "javascript",
+      "indented_declarations": {},
+      "lifetimes": false,
+      "line_comment": "//",
+      "member_operators": [
+        ".",
+        "::"
+      ],
+      "merge_containers": [
+        "impl"
+      ],
+      "name": "JavaScript",
+      "object_keywords": [
+        "const",
+        "let",
+        "var"
+      ],
+      "raw_strings": false,
+      "receiver_keyword": "func",
+      "reject_function_prefixes": [
+        ".",
+        "::",
+        "return",
+        "=",
+        "=>",
+        "new",
+        ",",
+        "if",
+        "while",
+        "switch",
+        "match",
+        "!",
+        "&&",
+        "||"
+      ],
+      "repeats": 12,
+      "required_function_keyword": "",
+      "self_qualifiers": [
+        "self",
+        "this",
+        "Self"
+      ],
+      "sigil": "☉",
+      "triple_quotes": false,
+      "type_default_kind": "struct",
+      "type_keyword": "type",
+      "type_kinds": {
+        "interface": "interface",
+        "struct": "struct"
+      }
+    },
+    {
+      "arrow_token": "=>",
+      "block_comments": false,
+      "braced_declarations": {
+        "class": "class",
+        "enum": "enum",
+        "impl": "impl",
+        "interface": "interface",
+        "record": "class",
+        "struct": "struct",
+        "trait": "interface",
+        "union": "struct"
+      },
+      "call_group": "python",
+      "collar": [
+        {
+          "data": "M -.035 -.965 Q 0 -.925 .035 -.965 Q 0 -.995 -.035 -.965 Z",
+          "op": "path"
+        }
+      ],
+      "controls": [
+        "if",
+        "for",
+        "while",
+        "switch",
+        "catch",
+        "match",
+        "with",
+        "sizeof",
+        "return",
+        "new",
+        "assert",
+        "super"
+      ],
+      "extensions": [
+        "py"
+      ],
+      "id": "python",
+      "indented_declarations": {
+        "class": "class",
+        "def": "function"
+      },
+      "lifetimes": false,
+      "line_comment": "#",
+      "member_operators": [
+        ".",
+        "::"
+      ],
+      "merge_containers": [
+        "impl"
+      ],
+      "name": "Python",
+      "object_keywords": [
+        "const",
+        "let",
+        "var"
+      ],
+      "raw_strings": false,
+      "receiver_keyword": "func",
+      "reject_function_prefixes": [
+        ".",
+        "::",
+        "return",
+        "=",
+        "=>",
+        "new",
+        ",",
+        "if",
+        "while",
+        "switch",
+        "match",
+        "!",
+        "&&",
+        "||"
+      ],
+      "repeats": 6,
+      "required_function_keyword": "",
+      "self_qualifiers": [
+        "self",
+        "this",
+        "Self"
+      ],
+      "sigil": "☽",
+      "triple_quotes": true,
+      "type_default_kind": "struct",
+      "type_keyword": "type",
+      "type_kinds": {
+        "interface": "interface",
+        "struct": "struct"
+      }
+    },
+    {
+      "arrow_token": "=>",
+      "block_comments": true,
+      "braced_declarations": {
+        "class": "class",
+        "enum": "enum",
+        "impl": "impl",
+        "interface": "interface",
+        "record": "class",
+        "struct": "struct",
+        "trait": "interface",
+        "union": "struct"
+      },
+      "call_group": "rust",
+      "collar": [
+        {
+          "data": "M -.024 -.94 L 0 -.99 L .024 -.94 M 0 -.99 L 0 -.90",
+          "op": "path"
+        }
+      ],
+      "controls": [
+        "if",
+        "for",
+        "while",
+        "switch",
+        "catch",
+        "match",
+        "with",
+        "sizeof",
+        "return",
+        "new",
+        "assert",
+        "super"
+      ],
+      "extensions": [
+        "rs"
+      ],
+      "id": "rust",
+      "indented_declarations": {},
+      "lifetimes": true,
+      "line_comment": "//",
+      "member_operators": [
+        ".",
+        "::"
+      ],
+      "merge_containers": [
+        "impl"
+      ],
+      "name": "Rust",
+      "object_keywords": [
+        "const",
+        "let",
+        "var"
+      ],
+      "raw_strings": true,
+      "receiver_keyword": "func",
+      "reject_function_prefixes": [
+        ".",
+        "::",
+        "return",
+        "=",
+        "=>",
+        "new",
+        ",",
+        "if",
+        "while",
+        "switch",
+        "match",
+        "!",
+        "&&",
+        "||"
+      ],
+      "repeats": 8,
+      "required_function_keyword": "fn",
+      "self_qualifiers": [
+        "self",
+        "this",
+        "Self"
+      ],
+      "sigil": "ᛟ",
+      "triple_quotes": false,
+      "type_default_kind": "struct",
+      "type_keyword": "type",
+      "type_kinds": {
+        "interface": "interface",
+        "struct": "struct"
+      }
+    },
+    {
+      "arrow_token": "=>",
+      "block_comments": true,
+      "braced_declarations": {
+        "class": "class",
+        "enum": "enum",
+        "impl": "impl",
+        "interface": "interface",
+        "record": "class",
+        "struct": "struct",
+        "trait": "interface",
+        "union": "struct"
+      },
+      "call_group": "ecmascript",
+      "collar": [
+        {
+          "cx": 0,
+          "cy": -0.87,
+          "n": 3,
+          "op": "polygon",
+          "r": 0.115,
+          "rotation_degrees": -90,
+          "step": 1
+        },
+        {
+          "cx": 0,
+          "cy": -0.87,
+          "n": 3,
+          "op": "polygon",
+          "r": 0.07,
+          "rotation_degrees": 90,
+          "step": 1
+        }
+      ],
+      "controls": [
+        "if",
+        "for",
+        "while",
+        "switch",
+        "catch",
+        "match",
+        "with",
+        "sizeof",
+        "return",
+        "new",
+        "assert",
+        "super"
+      ],
+      "extensions": [
+        "ts",
+        "tsx"
+      ],
+      "id": "typescript",
+      "indented_declarations": {},
+      "lifetimes": false,
+      "line_comment": "//",
+      "member_operators": [
+        ".",
+        "::"
+      ],
+      "merge_containers": [
+        "impl"
+      ],
+      "name": "TypeScript",
+      "object_keywords": [
+        "const",
+        "let",
+        "var"
+      ],
+      "raw_strings": false,
+      "receiver_keyword": "func",
+      "reject_function_prefixes": [
+        ".",
+        "::",
+        "return",
+        "=",
+        "=>",
+        "new",
+        ",",
+        "if",
+        "while",
+        "switch",
+        "match",
+        "!",
+        "&&",
+        "||"
+      ],
+      "repeats": 3,
+      "required_function_keyword": "",
+      "self_qualifiers": [
+        "self",
+        "this",
+        "Self"
+      ],
+      "sigil": "Δ",
+      "triple_quotes": false,
+      "type_default_kind": "struct",
+      "type_keyword": "type",
+      "type_kinds": {
+        "interface": "interface",
+        "struct": "struct"
+      }
+    }
+  ],
+  "version": 1
+}
