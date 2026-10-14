@@ -16,10 +16,11 @@ use std::{
 #[derive(Parser)]
 #[command(
     version,
-    about = "Transmute a GitHub repository or local source directory into magic circles"
+    about = "Transmute a repository into magic circles, or recover source from a magic image"
 )]
 struct Args {
-    /// https://github.com/owner/repo[.git], or a local directory
+    /// GitHub repository URL, local source directory, or original exported PNG/SVG image
+    #[arg(value_name = "INPUT")]
     repository: Option<String>,
     /// Recover the complete snapshot from an original exported PNG or SVG into a ZIP
     #[arg(long)]
@@ -278,7 +279,17 @@ fn read_capsule(path: &Path) -> Result<Capsule, Box<dyn Error>> {
 }
 fn run() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
-    if let Some(path) = &args.decode {
+    let image_input = args.decode.clone().or_else(|| {
+        if args.decode_names.is_some() {
+            None
+        } else {
+            args.repository
+                .as_deref()
+                .filter(|input| Path::new(input).is_file())
+                .map(PathBuf::from)
+        }
+    });
+    if let Some(path) = &image_input {
         let capsule = read_capsule(path)?;
         let output = if args.output == Path::new("magic.png") {
             PathBuf::from("recovered.zip")
@@ -309,7 +320,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         );
         return Ok(());
     }
-    let input=args.repository.as_deref().ok_or("Provide a GitHub repository, local directory, --decode image.png, or --decode-names image.svg")?;
+    let input=args.repository.as_deref().ok_or("Provide a GitHub repository, local directory, original image.png/image.svg, or --decode-names image.svg")?;
     let mut snapshot = if Path::new(input).is_dir() {
         let mut s = Snapshot {
             version: 1,

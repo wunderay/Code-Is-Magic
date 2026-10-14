@@ -4,9 +4,10 @@ const $ = id => document.getElementById(id);
 const canvas = $('canvas'), ctx = canvas.getContext('2d'), viewport = $('viewport');
 let worker, requestId = 0, pending = new Map(), image, diagram, files = demoFiles, title = 'Example grimoire · nine language signatures';
 let snapshot = snapshotFromSources(demoFiles,title);
+let inputImage = null;
 let zoom = 1, panX = 0, panY = 0, selected = null, controller = null, busy = false, imported = false, reframe = true;
 function status(message, type = '') { $('status').textContent = message; $('status').className = `status ${type}`; }
-function setBusy(value) { busy = value; $('generate').disabled = value; $('demo').disabled = value; $('cancel').hidden = !value; $('progress').hidden = !value; }
+function setBusy(value) { busy = value; $('generate').disabled = value; $('choose-image').disabled = value; $('repo').readOnly = value; $('demo').disabled = value; $('cancel').hidden = !value; $('progress').hidden = !value; }
 function getWorker() {
   if (!worker) {
     worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
@@ -98,8 +99,8 @@ $('download-png').onclick=async()=>{
   try {setBusy(true);status('Encoding the complete repository into lossless PNG pixels…','busy');const bytes=await engine({op:'png',capsule:capsule()});download(new Blob([bytes],{type:'image/png'}),'png');status('Recoverable PNG downloaded. Keep the original PNG without resizing or JPEG conversion.');}
   catch(e){status(e.message,'error');}finally{setBusy(false);}
 };
-$('restore').onchange=async event=>{
-  const file=event.target.files[0];if(!file||busy)return;
+async function recoverSource(file) {
+  if(busy)return;
   try {
     setBusy(true);status('Recovering exact repository bytes from the image…','busy');
     if(file.size>150_000_000)throw new Error('Image exceeds the upload budget.');
@@ -123,8 +124,30 @@ $('restore').onchange=async event=>{
     await install(next);
     download(new Blob([zip],{type:'application/zip'}),'zip');
     status(`Recovered ${snapshot.entries.length} tracked entries with exact bytes. Source ZIP downloaded.`);
-  }catch(e){status(e.message,'error');}finally{setBusy(false);event.target.value='';}
-};
+  }catch(e){status(e.message,'error');}finally{setBusy(false);}
+}
+function inputMode() {
+  $('input-mark').textContent=inputImage?'◇':'⌘';
+  $('generate').textContent=inputImage?'Recover source':'Transmute';
+  const arrow=document.createElement('span');arrow.textContent=inputImage?'↓':'↗';$('generate').append(arrow);
+  $('input-help').textContent=inputImage?'Image selected. Recover source downloads its exact files as a ZIP. Edit the field to use a GitHub link.':'GitHub link → magic circles · original PNG / SVG → source ZIP. Choose, drop, or paste an image.';
+}
+function chooseImage(inputs) {
+  if(busy)return;
+  if(inputs.length!==1){status('Choose one original PNG or SVG image.','error');return;}
+  const file=inputs[0];
+  if(!/\.(png|svg)$/i.test(file.name)&&!['image/png','image/svg+xml'].includes(file.type)){status('Choose an original exported PNG or SVG image.','error');return;}
+  if(file.size>150_000_000){status('Image exceeds the upload budget.','error');return;}
+  inputImage=file;$('repo').value=file.name;inputMode();
+  status('Magic image ready. Select Recover source to download its source code.');$('generate').focus();
+}
+$('choose-image').onclick=()=>$('restore').click();
+$('restore').onchange=event=>{if(event.target.files.length)chooseImage([...event.target.files]);event.target.value='';};
+$('repo').oninput=()=>{inputImage=null;inputMode();};
+$('repo').addEventListener('paste',event=>{const files=[...(event.clipboardData?.files||[])];if(files.length){event.preventDefault();chooseImage(files);}});
+$('repo-form').addEventListener('dragover',event=>{if(event.dataTransfer?.types.includes('Files')){event.preventDefault();if(!busy)$('repo-form').classList.add('drop-ready');}});
+$('repo-form').addEventListener('dragleave',event=>{if(!$('repo-form').contains(event.relatedTarget))$('repo-form').classList.remove('drop-ready');});
+$('repo-form').addEventListener('drop',event=>{const files=[...(event.dataTransfer?.files||[])];$('repo-form').classList.remove('drop-ready');if(files.length){event.preventDefault();chooseImage(files);}});
 $('decode-names').onclick=async()=>{
   try{const recovered=await engine({op:'names',svg:diagram.svg});status(`Decoded ${recovered.length} exact names from contour geometry.`);if(selected!==null){const value=recovered.find(e=>e.entity_id===selected);if(value)$('inspector').querySelector('h3').textContent=value.name;}}
   catch(e){status(e.message,'error');}
@@ -132,6 +155,7 @@ $('decode-names').onclick=async()=>{
 $('access-button').onclick=()=>{$('access').open=!$('access').open;};
 $('repo-form').onsubmit=async e=>{
   e.preventDefault();if(busy)return;
+  if(inputImage){await recoverSource(inputImage);return;}
   controller=new AbortController();const activeController=controller;setBusy(true);status('Opening the source grimoire…','busy');
   const token=$('token').value;$('token').value='';
   try {

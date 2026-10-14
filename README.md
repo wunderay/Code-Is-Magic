@@ -28,7 +28,7 @@ git clone https://github.com/wunderay/Code-Is-Magic.git
 cd Code-Is-Magic
 cargo install --path . --locked
 code-is-magic https://github.com/owner/repo --output magic.png
-code-is-magic --decode magic.png --output recovered.zip
+code-is-magic magic.png --output recovered.zip
 code-is-magic --decode-names magic.png
 ```
 
@@ -47,13 +47,15 @@ code-is-magic --decode magic.svg --output recovered.zip --json snapshot.json
 code-is-magic --decode-names magic.svg
 ```
 
+The same positional `INPUT` accepts a GitHub link, a local source directory, or an original exported PNG/SVG. Image input automatically recovers the complete source snapshot into `recovered.zip` unless `--output` specifies another path. The explicit `--decode` option remains available.
+
 `--palette` accepts `gold`, `astral`, or `parchment`. `--reference` accepts a branch, tag, or commit; all GitHub reads use the resolved commit's immutable blob IDs. Set `GITHUB_TOKEN` in your shell environment for private repositories or more API quota. Tokens are never put into the snapshot.
 
 Local CLI mode preserves file bytes, executable flags, and symlink targets without following symlinks. It excludes directories named `.git`, `target`, `node_modules`, and `pkg`; GitHub mode preserves every entry in the selected tracked tree. Windows files do not expose Unix executable flags through ordinary local metadata; use GitHub input to preserve the Git modes precisely.
 
 ## Website
 
-The static website accepts a GitHub repository URL or source folder and displays the circles on an HTML canvas. It has pan/zoom, an inspector outside the artwork, three palettes, PNG/SVG/JSON downloads, a geometry name decoder, and **Recover source from image** upload. That upload decodes the original exported PNG/SVG and downloads the reconstructed source ZIP entirely in your browser.
+The website's main **GitHub link or magic image** input accepts both directions. Paste a GitHub link and select **Transmute** to generate circles on the canvas. Choose, drop, or paste an original exported PNG/SVG in that same input and select **Recover source** to download the complete reconstructed source ZIP entirely in your browser. Editing the field switches back to repository input. Source folder input, pan/zoom, an inspector outside the artwork, three palettes, PNG/SVG/JSON downloads, and a geometry name decoder are also available.
 
 PNG export uses the same Rust `resvg` rasterizer, pixel codec, and PNG encoder as the native CLI. It does not use browser canvas serialization, so native and WebAssembly output bytes are tested for equality. Equal canonical snapshots, artwork, and options produce identical PNG, SVG capsule, and ZIP bytes. There are no timestamps or random seeds in the output format; the apparent chaos is deterministic.
 
