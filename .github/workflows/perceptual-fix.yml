@@ -1,0 +1,37 @@
+name: Apply perceptual lint fix
+on:
+  push:
+    branches: [feature/perceptual-compression]
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/perceptual-compression
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Apply lint fix and remove this temporary workflow
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/perceptual.rs')
+          text=p.read_text()
+          old='let pixels = natural.min(MAX_PIXELS).max(64 * 64);'
+          new='let pixels = natural.clamp(64 * 64, MAX_PIXELS);'
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one clamp pattern, got {text.count(old)}')
+          p.write_text(text.replace(old,new))
+          PY
+          cargo fmt --all
+          rm .github/workflows/perceptual-fix.yml
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/perceptual.rs tests/perceptual.rs .github/workflows/perceptual-fix.yml
+          git commit -m "Fix perceptual codec lint and formatting"
+          git push origin HEAD:feature/perceptual-compression
