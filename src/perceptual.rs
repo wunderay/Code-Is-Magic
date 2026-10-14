@@ -4,14 +4,15 @@
 //! wasteful: the exact SVGZ was already smaller than high-quality JPEG in the project
 //! reference drawing. The canonical export therefore applies deterministic sub-pixel
 //! geometry quantization, keeps source/name recovery exact, then writes reproducible
-//! SVGZ. Path geometry is rounded to 0.01 SVG units and placement geometry to 0.001
-//! units. Reversible name-sigil polygon and placement geometry is left byte-for-byte
-//! unchanged.
+//! SVGZ. Path geometry is rounded to 0.01 SVG units, ordinary scalar placement geometry
+//! to 0.001 units, and transforms to 0.000001 so small glyph scale factors retain high
+//! relative precision. Reversible name-sigil geometry is left byte-for-byte unchanged.
 use crate::{compact_svg, embed_svg_with_key, Capsule, MagicKey};
 use std::{io::Write, ops::Range};
 
 const PATH_DECIMALS: usize = 2;
 const PLACEMENT_DECIMALS: usize = 3;
+const TRANSFORM_DECIMALS: usize = 6;
 
 fn trim_number(mut text: String) -> String {
     if let Some(dot) = text.find('.') {
@@ -111,7 +112,6 @@ pub fn perceptual_svg(svg: &str) -> Result<String, String> {
         return Err("Invalid SVG artwork".into());
     }
     let placement = [
-        "transform",
         "x",
         "y",
         "cx",
@@ -145,6 +145,13 @@ pub fn perceptual_svg(svg: &str) -> Result<String, String> {
                     if let Some(edit) = replacement(&compact, attribute, PLACEMENT_DECIMALS) {
                         replacements.push(edit);
                     }
+                }
+            }
+            // Transforms often contain tiny glyph scale factors. Six decimals keeps
+            // their relative size stable while still canonicalizing excess precision.
+            if let Some(attribute) = node.attribute_node("transform") {
+                if let Some(edit) = replacement(&compact, attribute, TRANSFORM_DECIMALS) {
+                    replacements.push(edit);
                 }
             }
         }
@@ -200,7 +207,7 @@ mod tests {
                     sha: None,
                 }],
             },
-            svg: "<svg xmlns='http://www.w3.org/2000/svg' width='100.123456' height='100.987654'><path d='M0.123456 1.987654L99.876543 98.012345'/><polygon data-name-sigil='1' data-entity='0' data-seal-radius='8.123456' points='0.123456,0.987654 1.111111,2.222222' transform='translate(50.123456 49.987654) scale(8.123456)'/></svg>".into(),
+            svg: "<svg xmlns='http://www.w3.org/2000/svg' width='100.123456' height='100.987654'><path d='M0.123456 1.987654L99.876543 98.012345'/><use href='#glyph-1' transform='translate(50.123456789 49.987654321) scale(0.012345678 -0.012345678)'/><polygon data-name-sigil='1' data-entity='0' data-seal-radius='8.123456' points='0.123456,0.987654 1.111111,2.222222' transform='translate(50.123456 49.987654) scale(8.123456)'/></svg>".into(),
         }
     }
 
@@ -210,6 +217,7 @@ mod tests {
         assert!(svg.contains("width='100.123'"));
         assert!(svg.contains("height='100.988'"));
         assert!(svg.contains("d='M0.12 1.99L99.88 98.01'"));
+        assert!(svg.contains("transform='translate(50.123457 49.987654) scale(0.012346 -0.012346)'"));
         assert!(svg.contains("transform='translate(50.123456 49.987654) scale(8.123456)'"));
         assert!(svg.contains("points='0.123456,0.987654 1.111111,2.222222'"));
         assert!(svg.contains("data-seal-radius='8.123456'"));
