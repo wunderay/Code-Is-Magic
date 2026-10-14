@@ -2,8 +2,8 @@ use base64::Engine;
 use clap::Parser;
 use code_is_magic::{
     analyze, compact_svg, decode_image_with_key, decode_svg_names_with_key, embed_svg_with_key,
-    encode_png_with_key, encode_svgz_with_key, optimize_png, render_with_key, snapshot_zip,
-    ArchiveEntry, Capsule, MagicKey, Snapshot,
+    encode_perceptual_jpeg_with_key, encode_png_with_key, encode_svgz_with_key, optimize_png,
+    render_with_key, snapshot_zip, ArchiveEntry, Capsule, MagicKey, Snapshot,
 };
 use reqwest::blocking::Client;
 use serde_json::Value;
@@ -36,6 +36,9 @@ struct Args {
     decode_names: Option<PathBuf>,
     #[arg(short, long, default_value = "magic.png")]
     output: PathBuf,
+    /// Visually-lossless JPEG quality. The guarded profile accepts only 95 through 100.
+    #[arg(long, default_value_t = 96, value_parser = clap::value_parser!(u8).range(95..=100))]
+    perceptual_quality: u8,
     /// Minimum non-comment source lines for full ornament detail; size always follows code lines
     #[arg(long, default_value_t = 12)]
     min_lines: usize,
@@ -461,6 +464,15 @@ fn run() -> Result<(), Box<dyn Error>> {
     };
     if args.output.extension().is_some_and(|e| e == "png") {
         fs::write(&args.output, encode_png_with_key(&capsule, key.as_ref())?)?;
+    } else if args
+        .output
+        .extension()
+        .is_some_and(|e| e == "jpg" || e == "jpeg")
+    {
+        fs::write(
+            &args.output,
+            encode_perceptual_jpeg_with_key(&capsule, key.as_ref(), args.perceptual_quality)?,
+        )?;
     } else if args.output.extension().is_some_and(|e| e == "svgz") {
         fs::write(&args.output, encode_svgz_with_key(&capsule, key.as_ref())?)?;
     } else {

@@ -16,7 +16,7 @@ const resultPngs = new WeakMap();
 const cachedPngs = new WeakMap();
 let zoom = 1, panX = 0, panY = 0, selected = null, controller = null, busy = false, imported = false, reframe = true;
 function status(message, type = '') { $('status').textContent = message; $('status').className = `status ${type}`; }
-function setBusy(value) { if(value)clearTimeout(debounce);busy = value;for(const id of ['download-png','download-svg','download-svgz','download-json','decode-names'])$(id).disabled=value||!diagram; for(const id of ['magic-key','generate-key','save-key','clear-key','palette','min-lines','wingdings','language-colors','theme-toggle'])$(id).disabled=value; $('generate').disabled = value; $('choose-image').disabled = value; $('repo').readOnly = value; $('demo').disabled = value; $('cancel').hidden = !value; $('progress').hidden = !value; }
+function setBusy(value) { if(value)clearTimeout(debounce);busy = value;for(const id of ['download-png','download-jpeg','download-svg','download-svgz','download-json','decode-names'])$(id).disabled=value||!diagram; for(const id of ['magic-key','generate-key','save-key','clear-key','palette','min-lines','wingdings','language-colors','theme-toggle'])$(id).disabled=value; $('generate').disabled = value; $('choose-image').disabled = value; $('repo').readOnly = value; $('demo').disabled = value; $('cancel').hidden = !value; $('progress').hidden = !value; }
 function getWorker() {
   if (!worker) {
     worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
@@ -57,7 +57,7 @@ async function install(next) {
   $('canvas-stats').textContent = `${visible.length} SEALS · ${calls} CALL CHANNELS`;
   $('coverage').textContent = `${next.analysis.files} visualized source files · ${snapshot?.entries.length||0} entries preserved`;
   canvas.setAttribute('aria-label', `${visible.length} magic seals with ${calls} call channels for ${title}`);
-  for (const id of ['download-png','download-svg','download-svgz','download-json']) $(id).disabled = false;
+  for (const id of ['download-png','download-jpeg','download-svg','download-svgz','download-json']) $(id).disabled = false;
   listEntities(); inspect(null);
 }
 function draw(time=performance.now()-animationEpoch) {
@@ -115,6 +115,10 @@ $('download-png').onclick=async()=>{
   try {setBusy(true);status('Compressing recoverable PNG without reducing fidelity…','busy');const original=resultPngs.get(diagram);const bytes=cachedPngs.get(diagram)||(original?await engine({op:'optimize-png',bytes:original}):await engine({op:'png',capsule:capsule(),key:diagramKey}));cachedPngs.set(diagram,bytes);download(new Blob([bytes],{type:'image/png'}),'png');status(original?'Compressed PNG downloaded. Every original pixel and source bit preserved.':'Recoverable PNG downloaded. Keep the original PNG without resizing or JPEG conversion.');}
   catch(e){status(e.message,'error');}finally{setBusy(false);}
 };
+$('download-jpeg').onclick=async()=>{
+  try {setBusy(true);status('Encoding visually imperceptible JPEG; exact source stays separate from the lossy pixels…','busy');const bytes=await engine({op:'jpeg',capsule:capsule(),key:diagramKey,quality:96});download(new Blob([bytes],{type:'image/jpeg'}),'jpg');status('Perceptual JPEG downloaded. Artwork is visually compressed; embedded source recovery remains byte-exact. Keep the original file because editors may strip APP metadata.');}
+  catch(e){status(e.message,'error');}finally{setBusy(false);}
+};
 function restoreArtwork(next,svg) {
     const original=new DOMParser().parseFromString(svg,'image/svg+xml').documentElement;
     const width=Number(original.getAttribute('width')),height=Number(original.getAttribute('height'));
@@ -142,7 +146,7 @@ async function recoverSource(file) {
     const zip=await engine({op:'zip',snapshot:recovered.snapshot});
     snapshot=recovered.snapshot;files=sourceFiles(snapshot);title=snapshot.title;reframe=true;imported=false;
     const next=await transmute(files,title);
-    restoreArtwork(next,recovered.svg);
+    if(recovered.svg)restoreArtwork(next,recovered.svg);
     if(originalBytes[0]===137&&originalBytes[1]===80)resultPngs.set(next,originalBytes);
     await install(next);
     download(new Blob([zip],{type:'application/zip'}),'zip');
@@ -153,7 +157,7 @@ function inputMode() {
   $('input-mark').textContent=inputImage?'◇':'⌘';
   $('generate').textContent=inputImage?'Recover source':'Transmute';
   const arrow=document.createElement('span');arrow.textContent=inputImage?'↓':'↗';$('generate').append(arrow);
-  $('input-help').textContent=inputImage?'Image selected. Recover source downloads its exact files as a ZIP. Edit the field to use a GitHub link.':'GitHub link → magic circles · original PNG / SVG / SVGZ → source ZIP. Choose, drop, or paste an image.';
+  $('input-help').textContent=inputImage?'Image selected. Recover source downloads its exact files as a ZIP. Edit the field to use a GitHub link.':'GitHub link → magic circles · original PNG / JPEG / SVG / SVGZ → source ZIP. Choose, drop, or paste an image.';
 }
 function chooseImage(inputs) {
   if(busy)return;
