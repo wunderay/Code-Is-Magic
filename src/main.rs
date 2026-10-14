@@ -1,17 +1,20 @@
 use base64::Engine;
 use clap::Parser;
 use code_is_magic::{
-    analyze, decode_png, decode_svg, decode_svg_names, embed_svg, encode_png, render_with_options,
-    snapshot_zip, ArchiveEntry, Capsule, Snapshot,
+    analyze, decode_png_with_key, decode_svg_names_with_key, decode_svg_with_key,
+    embed_svg_with_key, encode_png_with_key, render_with_key, snapshot_zip, ArchiveEntry, Capsule,
+    MagicKey, Snapshot,
 };
 use reqwest::blocking::Client;
 use serde_json::Value;
 use std::{
     error::Error,
     fs,
+    io::{Read, Write},
     path::{Path, PathBuf},
     time::Duration,
 };
+use zeroize::Zeroizing;
 
 #[derive(Parser)]
 #[command(
@@ -41,6 +44,12 @@ struct Args {
     /// Color seals using their language's color; tones adapt to the selected background
     #[arg(long)]
     language_colors: bool,
+    /// Read a 64-hex-digit magic key from a file, or '-' for stdin; overrides CODE_IS_MAGIC_KEY
+    #[arg(long)]
+    key_file: Option<PathBuf>,
+    /// Generate a random magic key into a new file (keep it outside the captured source folder)
+    #[arg(long, conflicts_with = "key_file")]
+    generate_key: Option<PathBuf>,
     /// Branch, tag, or commit; defaults to the repository's default branch
     #[arg(long)]
     reference: Option<String>,
@@ -272,16 +281,55 @@ fn local(
     }
     Ok(())
 }
-fn read_capsule(path: &Path) -> Result<Capsule, Box<dyn Error>> {
+fn read_capsule(path: &Path, key: Option<&MagicKey>) -> Result<Capsule, Box<dyn Error>> {
     let bytes = fs::read(path)?;
     if bytes.starts_with(b"\x89PNG") {
-        Ok(decode_png(&bytes)?)
+        Ok(decode_png_with_key(&bytes, key)?)
     } else {
-        Ok(decode_svg(std::str::from_utf8(&bytes)?)?)
+        Ok(decode_svg_with_key(std::str::from_utf8(&bytes)?, key)?)
     }
 }
 fn run() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
+    if let Some(path) = &args.generate_key {
+        let mut bytes = Zeroizing::new([0_u8; 32]);
+        getrandom::getrandom(bytes.as_mut()).map_err(|_| "Secure key generation failed")?;
+        let text = Zeroizing::new(bytes.iter().map(|b| format!("{b:02x}")).collect::<String>());
+        let mut options = fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        let mut file = options.open(path)?;
+        writeln!(file, "{}", text.as_str())?;
+        println!(
+            "Generated magic key in {}. Keep this file to recover keyed images.",
+            path.display()
+        );
+        return Ok(());
+    }
+    let key_text = if let Some(path) = &args.key_file {
+        let mut text = Zeroizing::new(String::new());
+        if path == Path::new("-") {
+            std::io::stdin().take(1025).read_to_string(&mut text)?;
+        } else {
+            fs::File::open(path)?.take(1025).read_to_string(&mut text)?;
+        }
+        Some(text)
+    } else {
+        match std::env::var("CODE_IS_MAGIC_KEY") {
+            Ok(text) => Some(Zeroizing::new(text)),
+            Err(std::env::VarError::NotPresent) => None,
+            Err(_) => return Err("CODE_IS_MAGIC_KEY must contain a UTF-8 hexadecimal key".into()),
+        }
+    };
+    let key = key_text
+        .as_deref()
+        .map(|text| MagicKey::from_hex(text))
+        .transpose()?;
+    drop(key_text);
     let image_input = args.decode.clone().or_else(|| {
         if args.decode_names.is_some() {
             None
@@ -293,7 +341,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         }
     });
     if let Some(path) = &image_input {
-        let capsule = read_capsule(path)?;
+        let capsule = read_capsule(path, key.as_ref())?;
         let output = if args.output == Path::new("magic.png") {
             PathBuf::from("recovered.zip")
         } else {
@@ -313,17 +361,31 @@ fn run() -> Result<(), Box<dyn Error>> {
     if let Some(path) = &args.decode_names {
         let bytes = fs::read(path)?;
         let svg = if bytes.starts_with(b"\x89PNG") {
-            decode_png(&bytes)?.svg
+            decode_png_with_key(&bytes, key.as_ref())?.svg
         } else {
             String::from_utf8(bytes)?
         };
         println!(
             "{}",
-            serde_json::to_string_pretty(&decode_svg_names(&svg)?)?
+            serde_json::to_string_pretty(&decode_svg_names_with_key(&svg, key.as_ref())?)?
         );
         return Ok(());
     }
     let input=args.repository.as_deref().ok_or("Provide a GitHub repository, local directory, original image.png/image.svg, or --decode-names image.svg")?;
+    if Path::new(input).is_dir() {
+        if let Some(path) = args
+            .key_file
+            .as_ref()
+            .filter(|p| p.as_path() != Path::new("-"))
+        {
+            if path
+                .canonicalize()?
+                .starts_with(Path::new(input).canonicalize()?)
+            {
+                return Err("Keep the magic key file outside the captured source directory".into());
+            }
+        }
+    }
     let mut snapshot = if Path::new(input).is_dir() {
         let mut s = Snapshot {
             version: 1,
@@ -338,27 +400,35 @@ fn run() -> Result<(), Box<dyn Error>> {
     };
     snapshot.canonicalize()?;
     let analysis = analyze(&snapshot.source_files());
-    let diagram = render_with_options(
+    let diagram = render_with_key(
         &analysis,
         &snapshot.title,
         args.min_lines.max(1),
         &args.palette,
         args.wingdings,
         args.language_colors,
-    );
+        key.as_ref(),
+    )?;
     let capsule = Capsule {
         version: 1,
         snapshot: snapshot.clone(),
         svg: diagram.svg.clone(),
     };
     if args.output.extension().is_some_and(|e| e == "png") {
-        fs::write(&args.output, encode_png(&capsule)?)?;
+        fs::write(&args.output, encode_png_with_key(&capsule, key.as_ref())?)?;
     } else {
-        fs::write(&args.output, embed_svg(&capsule)?)?;
+        fs::write(&args.output, embed_svg_with_key(&capsule, key.as_ref())?)?;
     }
     if let Some(path) = args.json {
-        let mut json = serde_json::to_value(&diagram)?;
-        json["snapshot"] = serde_json::to_value(&snapshot)?;
+        let mut json = if key.is_some() {
+            // Only ciphertext and public artwork in keyed offline exports.
+            serde_json::json!({"version": 2, "svg": embed_svg_with_key(&capsule, key.as_ref())?})
+        } else {
+            serde_json::to_value(&diagram)?
+        };
+        if key.is_none() {
+            json["snapshot"] = serde_json::to_value(&snapshot)?;
+        }
         fs::write(path, serde_json::to_vec_pretty(&json)?)?;
     }
     println!(

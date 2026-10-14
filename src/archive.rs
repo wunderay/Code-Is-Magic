@@ -1,4 +1,4 @@
-use crate::{supported, SourceFile};
+use crate::{supported, MagicKey, SourceFile};
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -134,9 +134,42 @@ fn unpack(bytes: &[u8]) -> Result<Capsule, String> {
     capsule.snapshot.canonicalize()?;
     Ok(capsule)
 }
+const ARCHIVE_DOMAIN: &[u8] = b"source-capsule/v1";
+fn protect(capsule: &Capsule, key: Option<&MagicKey>) -> Result<Vec<u8>, String> {
+    // A keyed contour must never be exported with an unencrypted source capsule.
+    if capsule.svg.contains("data-magic-key='1'") && key.is_none() {
+        return Err("A magic key is required to export this keyed artwork".into());
+    }
+    if capsule.svg.contains("data-magic-key='1'") && capsule.svg.contains("data-name-sigil='1'") {
+        // Do not accidentally encrypt the source with a different key than its contours.
+        crate::decode_svg_names_with_key(&capsule.svg, key)?;
+    }
+    let packed = packed(capsule)?;
+    if let Some(key) = key {
+        let mut data = b"CIMKEY01".to_vec();
+        data.extend(key.seal(ARCHIVE_DOMAIN, &packed)?);
+        if data.len() > MAX_ARCHIVE {
+            return Err("Encrypted archive exceeds budget".into());
+        }
+        Ok(data)
+    } else {
+        Ok(packed)
+    }
+}
+fn unprotect(bytes: &[u8], key: Option<&MagicKey>) -> Result<Capsule, String> {
+    if let Some(encrypted) = bytes.strip_prefix(b"CIMKEY01") {
+        let key = key.ok_or("This image requires its original magic key")?;
+        unpack(&key.open(ARCHIVE_DOMAIN, encrypted)?)
+    } else {
+        unpack(bytes)
+    }
+}
 /// Exact source bytes live in the low three bits of RGB pixels, not PNG metadata.
 pub fn encode_png(capsule: &Capsule) -> Result<Vec<u8>, String> {
-    let data = packed(capsule)?;
+    encode_png_with_key(capsule, None)
+}
+pub fn encode_png_with_key(capsule: &Capsule, key: Option<&MagicKey>) -> Result<Vec<u8>, String> {
+    let data = protect(capsule, key)?;
     let mut frame = b"CIMPNG01".to_vec();
     frame.extend_from_slice(&(data.len() as u64).to_be_bytes());
     frame.extend_from_slice(&crc32(&data).to_be_bytes());
@@ -205,6 +238,9 @@ pub fn encode_png(capsule: &Capsule) -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 pub fn decode_png(bytes: &[u8]) -> Result<Capsule, String> {
+    decode_png_with_key(bytes, None)
+}
+pub fn decode_png_with_key(bytes: &[u8], key: Option<&MagicKey>) -> Result<Capsule, String> {
     let mut decoder = png::Decoder::new(Cursor::new(bytes));
     decoder.set_transformations(png::Transformations::EXPAND | png::Transformations::STRIP_16);
     decoder.set_limits(png::Limits {
@@ -263,10 +299,13 @@ pub fn decode_png(bytes: &[u8]) -> Result<Capsule, String> {
     if crc32(&frame[20..]) != u32::from_be_bytes(frame[16..20].try_into().unwrap()) {
         return Err("Source capsule damaged; exact recovery is impossible".into());
     }
-    unpack(&frame[20..])
+    unprotect(&frame[20..], key)
 }
 pub fn embed_svg(capsule: &Capsule) -> Result<String, String> {
-    let data = base64::engine::general_purpose::STANDARD.encode(packed(capsule)?);
+    embed_svg_with_key(capsule, None)
+}
+pub fn embed_svg_with_key(capsule: &Capsule, key: Option<&MagicKey>) -> Result<String, String> {
+    let data = base64::engine::general_purpose::STANDARD.encode(protect(capsule, key)?);
     let metadata = format!("<metadata id='source-capsule-v1'>{data}</metadata>");
     let index = capsule.svg.rfind("</svg>").ok_or("Invalid SVG")?;
     Ok(format!(
@@ -277,6 +316,9 @@ pub fn embed_svg(capsule: &Capsule) -> Result<String, String> {
     ))
 }
 pub fn decode_svg(svg: &str) -> Result<Capsule, String> {
+    decode_svg_with_key(svg, None)
+}
+pub fn decode_svg_with_key(svg: &str, key: Option<&MagicKey>) -> Result<Capsule, String> {
     let open = "<metadata id='source-capsule-v1'>";
     let text = svg
         .split_once(open)
@@ -288,7 +330,14 @@ pub fn decode_svg(svg: &str) -> Result<Capsule, String> {
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(text)
         .map_err(|_| "Invalid SVG capsule")?;
-    unpack(&bytes)
+    if bytes.len() > MAX_ARCHIVE {
+        return Err("SVG capsule exceeds budget".into());
+    }
+    let capsule = unprotect(&bytes, key)?;
+    if bytes.starts_with(b"CIMKEY01") && embed_svg_with_key(&capsule, key)? != svg {
+        return Err("Encrypted SVG artwork has been altered".into());
+    }
+    Ok(capsule)
 }
 /// Deterministic ZIP: original files under repository/, provenance beside that folder.
 pub fn snapshot_zip(snapshot: &Snapshot) -> Result<Vec<u8>, String> {

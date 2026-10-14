@@ -6,9 +6,11 @@ const canvas = $('canvas'), ctx = canvas.getContext('2d'), viewport = $('viewpor
 let worker, requestId = 0, pending = new Map(), image, diagram, files = demoFiles, title = 'Example grimoire · nine language signatures';
 let snapshot = snapshotFromSources(demoFiles,title);
 let inputImage = null;
+let diagramKey = '';
+const resultKeys = new WeakMap();
 let zoom = 1, panX = 0, panY = 0, selected = null, controller = null, busy = false, imported = false, reframe = true;
 function status(message, type = '') { $('status').textContent = message; $('status').className = `status ${type}`; }
-function setBusy(value) { busy = value; $('generate').disabled = value; $('choose-image').disabled = value; $('repo').readOnly = value; $('demo').disabled = value; $('cancel').hidden = !value; $('progress').hidden = !value; }
+function setBusy(value) { busy = value; for(const id of ['magic-key','generate-key','save-key','clear-key','palette','min-lines','wingdings','language-colors'])$(id).disabled=value; $('generate').disabled = value; $('choose-image').disabled = value; $('repo').readOnly = value; $('demo').disabled = value; $('cancel').hidden = !value; $('progress').hidden = !value; }
 function getWorker() {
   if (!worker) {
     worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
@@ -25,8 +27,9 @@ async function engine(data) {
   return new Promise((resolve,reject)=>{pending.set(id,{resolve,reject});w.postMessage({id,...data});});
 }
 async function transmute(inputFiles,inputTitle) {
-  const result=await engine({files:inputFiles,title:inputTitle,minLines:Number($('min-lines').value),palette:$('palette').value,wingdings:$('wingdings').checked,languageColors:$('language-colors').checked});
-  result.snapshot=snapshot;return result;
+  const key=$('magic-key').value.trim();
+  const result=await engine({key,files:inputFiles,title:inputTitle,minLines:Number($('min-lines').value),palette:$('palette').value,wingdings:$('wingdings').checked,languageColors:$('language-colors').checked});
+  resultKeys.set(result,key);result.snapshot=snapshot;return result;
 }
 function capsule() {
   if(!snapshot)throw new Error('This old diagram has no full repository snapshot. Load a repository or source folder first.');
@@ -38,7 +41,7 @@ async function install(next) {
   const nextImage = new Image();
   try { await new Promise((resolve,reject) => { nextImage.onload = resolve; nextImage.onerror = () => reject(new Error('The inscription image could not render.')); nextImage.src = url; }); }
   finally { URL.revokeObjectURL(url); }
-  diagram = next; image = nextImage; selected = null;
+  diagram = next; diagramKey=resultKeys.get(next)||''; image = nextImage; selected = null;
   if (reframe) fit(); else draw();
   $('diagram-title').textContent = title;
   const visible = next.analysis.entities.filter(e=>e.kind!=='merged_impl');
@@ -94,25 +97,20 @@ function inspect(id) {
   for(const button of $('entities').children)button.classList.toggle('selected',Number(button.dataset.id)===id);
 }
 function download(blob,extension) {const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`${title.split(' @ ')[0].replace(/[^a-zA-Z0-9_-]/g,'-') || 'code-is-magic'}.${extension}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-$('download-svg').onclick=async()=>{try{setBusy(true);download(new Blob([await engine({op:'svg',capsule:capsule()})],{type:'image/svg+xml'}),'svg');status('Source-carrying SVG downloaded.');}catch(e){status(e.message,'error');}finally{setBusy(false);}};
-$('download-json').onclick=()=>download(new Blob([JSON.stringify({...diagram,snapshot})],{type:'application/json'}),'json');
-$('download-png').onclick=async()=>{
-  try {setBusy(true);status('Encoding the complete repository into lossless PNG pixels…','busy');const bytes=await engine({op:'png',capsule:capsule()});download(new Blob([bytes],{type:'image/png'}),'png');status('Recoverable PNG downloaded. Keep the original PNG without resizing or JPEG conversion.');}
+$('download-svg').onclick=async()=>{try{setBusy(true);download(new Blob([await engine({op:'svg',capsule:capsule(),key:diagramKey})],{type:'image/svg+xml'}),'svg');status('Source-carrying SVG downloaded.');}catch(e){status(e.message,'error');}finally{setBusy(false);}};
+$('download-json').onclick=async()=>{
+  try{setBusy(true);const data=diagramKey?{version:2,svg:await engine({op:'svg',capsule:capsule(),key:diagramKey})}:{...diagram,snapshot};download(new Blob([JSON.stringify(data)],{type:'application/json'}),'json');status('Offline diagram downloaded. Keyed diagrams require the same key on import.');}
   catch(e){status(e.message,'error');}finally{setBusy(false);}
 };
-async function recoverSource(file) {
-  if(busy)return;
-  try {
-    setBusy(true);status('Recovering exact repository bytes from the image…','busy');
-    if(file.size>150_000_000)throw new Error('Image exceeds the upload budget.');
-    const recovered=await engine({op:'recover',bytes:new Uint8Array(await file.arrayBuffer())});
-    const zip=await engine({op:'zip',snapshot:recovered.snapshot});
-    snapshot=recovered.snapshot;files=sourceFiles(snapshot);title=snapshot.title;reframe=true;imported=false;
-    const next=await transmute(files,title);
-    const original=new DOMParser().parseFromString(recovered.svg,'image/svg+xml').documentElement;
+$('download-png').onclick=async()=>{
+  try {setBusy(true);status('Encoding the complete repository into lossless PNG pixels…','busy');const bytes=await engine({op:'png',capsule:capsule(),key:diagramKey});download(new Blob([bytes],{type:'image/png'}),'png');status('Recoverable PNG downloaded. Keep the original PNG without resizing or JPEG conversion.');}
+  catch(e){status(e.message,'error');}finally{setBusy(false);}
+};
+function restoreArtwork(next,svg) {
+    const original=new DOMParser().parseFromString(svg,'image/svg+xml').documentElement;
     const width=Number(original.getAttribute('width')),height=Number(original.getAttribute('height'));
     if(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0)throw new Error('Invalid original artwork dimensions.');
-    next.svg=recovered.svg;next.width=width;next.height=height;
+    next.svg=svg;next.width=width;next.height=height;
     next.placements=[...original.querySelectorAll('polygon[data-name-sigil="1"]')].map(node=>{
       const match=node.getAttribute('transform')?.match(/^translate\(([-\d.]+) ([-\d.]+)\) scale\(([-\d.]+)\)$/);
       if(!match)throw new Error('Invalid original name contour transform.');
@@ -123,6 +121,18 @@ async function recoverSource(file) {
     const background=original.querySelector('rect')?.getAttribute('fill');
     $('palette').value=background==='#f0e8d7'?'parchment':background==='#090d20'?'astral':'gold';
     $('language-colors').checked=original.getAttribute('data-language-colors')==='true';colorLegend();
+    resultKeys.set(next,original.getAttribute('data-magic-key')==='1'?$('magic-key').value.trim():'');
+}
+async function recoverSource(file) {
+  if(busy)return;
+  try {
+    setBusy(true);status('Recovering exact repository bytes from the image…','busy');
+    if(file.size>150_000_000)throw new Error('Image exceeds the upload budget.');
+    const recovered=await engine({op:'recover',key:$('magic-key').value.trim(),bytes:new Uint8Array(await file.arrayBuffer())});
+    const zip=await engine({op:'zip',snapshot:recovered.snapshot});
+    snapshot=recovered.snapshot;files=sourceFiles(snapshot);title=snapshot.title;reframe=true;imported=false;
+    const next=await transmute(files,title);
+    restoreArtwork(next,recovered.svg);
     await install(next);
     download(new Blob([zip],{type:'application/zip'}),'zip');
     status(`Recovered ${snapshot.entries.length} tracked entries with exact bytes. Source ZIP downloaded.`);
@@ -151,7 +161,7 @@ $('repo-form').addEventListener('dragover',event=>{if(event.dataTransfer?.types.
 $('repo-form').addEventListener('dragleave',event=>{if(!$('repo-form').contains(event.relatedTarget))$('repo-form').classList.remove('drop-ready');});
 $('repo-form').addEventListener('drop',event=>{const files=[...(event.dataTransfer?.files||[])];$('repo-form').classList.remove('drop-ready');if(files.length){event.preventDefault();chooseImage(files);}});
 $('decode-names').onclick=async()=>{
-  try{const recovered=await engine({op:'names',svg:diagram.svg});status(`Decoded ${recovered.length} exact names from contour geometry.`);if(selected!==null){const value=recovered.find(e=>e.entity_id===selected);if(value)$('inspector').querySelector('h3').textContent=value.name;}}
+  try{const recovered=await engine({op:'names',svg:diagram.svg,key:diagramKey});status(`Decoded ${recovered.length} exact names from contour geometry.`);if(selected!==null){const value=recovered.find(e=>e.entity_id===selected);if(value)$('inspector').querySelector('h3').textContent=value.name;}}
   catch(e){status(e.message,'error');}
 };
 $('access-button').onclick=()=>{$('access').open=!$('access').open;};
@@ -190,5 +200,25 @@ $('folder').onchange=async event=>{
     await install(await transmute(files,title));status(`Preserved ${entries.length} selected files exactly. Browser folder mode cannot read executable bits or symlinks; use GitHub or the CLI for those.`);
   }catch(e){status(e.message,'error');}finally{setBusy(false);event.target.value='';}
 };
-$('json').onchange=async event=>{if(busy)return;const file=event.target.files[0];if(!file)return;try{if(file.size>50_000_000)throw new Error('Diagram is too large.');const next=JSON.parse(await file.text());if(!next.analysis?.entities||!Array.isArray(next.placements)||typeof next.svg!=='string'||!Number.isFinite(next.width)||!Number.isFinite(next.height)||next.width<1||next.height<1||next.width>100000||next.height>100000)throw new Error('Choose a JSON diagram exported by Code Is Magic.');const document=new DOMParser().parseFromString(next.svg,'image/svg+xml');if(document.querySelector('parsererror,script,foreignObject,image,use')||document.documentElement.localName!=='svg')throw new Error('Imported SVG contains unsupported elements.');for(const style of document.querySelectorAll('style')){const allowed=/@font-face\s*\{\s*font-family:\s*'CIM(?:Runic|Symbols|Greek)';\s*src:\s*url\('data:font\/ttf;base64,[A-Za-z0-9+/=]+'\)\s*format\('truetype'\);\s*\}/g;if(style.textContent.replace(allowed,'').trim())throw new Error('Imported SVG contains unsupported styling.');}for(const node of document.querySelectorAll('*'))for(const attr of node.attributes)if(/^on/i.test(attr.name)||/href/i.test(attr.name)||/url\(\s*['"]?(?!#)/i.test(attr.value))throw new Error('Imported SVG contains an external resource or executable attribute.');$('language-colors').checked=document.documentElement.getAttribute('data-language-colors')==='true';colorLegend();title=`Imported grimoire · ${file.name}`;snapshot=next.snapshot||null;reframe=true;await install(next);imported=true;status('Offline diagram opened. Original styling preserved.');}catch(e){status(e.message,'error');}finally{event.target.value='';}};
+$('json').onchange=async event=>{if(busy)return;const file=event.target.files[0];if(!file)return;setBusy(true);try{if(file.size>50_000_000)throw new Error('Diagram is too large.');let next=JSON.parse(await file.text());if(next.version===2&&typeof next.svg==='string'){
+      const recovered=await engine({op:'recover',key:$('magic-key').value.trim(),bytes:new TextEncoder().encode(next.svg)});
+      // Work on recovered bytes only after successful key authentication.
+      next=await transmute(sourceFiles(recovered.snapshot),recovered.snapshot.title);
+      next.snapshot=recovered.snapshot;restoreArtwork(next,recovered.svg);
+    }if(!next.analysis?.entities||!Array.isArray(next.placements)||typeof next.svg!=='string'||!Number.isFinite(next.width)||!Number.isFinite(next.height)||next.width<1||next.height<1||next.width>100000||next.height>100000)throw new Error('Choose a JSON diagram exported by Code Is Magic.');const document=new DOMParser().parseFromString(next.svg,'image/svg+xml');if(document.querySelector('parsererror,script,foreignObject,image,use')||document.documentElement.localName!=='svg')throw new Error('Imported SVG contains unsupported elements.');for(const style of document.querySelectorAll('style')){const allowed=/@font-face\s*\{\s*font-family:\s*'CIM(?:Runic|Symbols|Greek)';\s*src:\s*url\('data:font\/ttf;base64,[A-Za-z0-9+/=]+'\)\s*format\('truetype'\);\s*\}/g;if(style.textContent.replace(allowed,'').trim())throw new Error('Imported SVG contains unsupported styling.');}for(const node of document.querySelectorAll('*'))for(const attr of node.attributes)if(/^on/i.test(attr.name)||/href/i.test(attr.name)||/url\(\s*['"]?(?!#)/i.test(attr.value))throw new Error('Imported SVG contains an external resource or executable attribute.');$('language-colors').checked=document.documentElement.getAttribute('data-language-colors')==='true';colorLegend();title=`Imported grimoire · ${file.name}`;snapshot=next.snapshot||null;reframe=true;await install(next);imported=true;status('Offline diagram opened. Original styling preserved.');}catch(e){status(e.message,'error');}finally{setBusy(false);event.target.value='';}};
+function updateKey(){if(imported&&snapshot){files=sourceFiles(snapshot);imported=false;}rerender();}
+$('magic-key').onchange=updateKey;
+$('generate-key').onclick=()=>{
+  const bytes=crypto.getRandomValues(new Uint8Array(32));
+  $('magic-key').value=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+  updateKey();
+};
+$('save-key').onclick=()=>{
+  const key=$('magic-key').value.trim();
+  if(!/^[0-9a-fA-F]{64}$/.test(key)){status('Enter or generate a 64-digit hexadecimal key first.','error');return;}
+  const url=URL.createObjectURL(new Blob([key+'\n'],{type:'text/plain'}));
+  const a=document.createElement('a');a.href=url;a.download='code-is-magic.key';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  status('Key saved. Keep it separate from the source folder and image.');
+};
+$('clear-key').onclick=()=>{$('magic-key').value='';updateKey();};
 loadDemo();

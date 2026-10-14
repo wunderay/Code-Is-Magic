@@ -32,3 +32,33 @@ for(const [wingdings,languageColors,palette] of [[false,false,'gold'],[true,fals
   assert.deepEqual(roundTrip.snapshot,recovered.snapshot);
  }finally{rmSync(folder,{recursive:true,force:true});}
 });
+
+const {transmute_keyed,pack_png_keyed,pack_svg_keyed,recover_image_keyed,recover_names_keyed}=await import('../web/pkg/code_is_magic.js');
+for(const palette of ['gold','parchment'])test(`keyed native/WASM artifact parity and authenticated recovery: ${palette}`,()=>{
+ const folder=mkdtempSync(join(tmpdir(),'code-magic-keyed-'));
+ const key='01'.repeat(32),wrong='02'.repeat(32);
+ try{
+  const source=join(folder,'source');execFileSync('mkdir',[source]);
+  for(const file of demoFiles)writeFileSync(join(source,file.path),file.content);
+  const env={...process.env,CODE_IS_MAGIC_KEY:key};
+  const svgPath=join(folder,'out.svg'),pngPath=join(folder,'out.png');
+  const options=['--palette',palette,'--language-colors','--wingdings'];
+  execFileSync('cargo',['run','--locked','--',source,'--output',svgPath,...options],{env,stdio:'pipe'});
+  const exported=readFileSync(svgPath);
+  assert.throws(()=>recover_image(exported),/requires.*key/i);
+  assert.throws(()=>recover_image_keyed(exported,wrong),/Wrong magic key/);
+  const c=JSON.parse(recover_image_keyed(exported,key));
+  const browser=JSON.parse(transmute_keyed(JSON.stringify([...demoFiles].reverse()),source,12,palette,true,true,key));
+  assert.equal(browser.svg,c.svg);
+  assert.equal(recover_names_keyed(browser.svg,key),recover_names_keyed(c.svg,key));
+  assert.equal(JSON.parse(recover_names_keyed(browser.svg,key)).length,28);
+  assert.throws(()=>recover_names_keyed(browser.svg,wrong),/Wrong magic key/);
+  assert.equal(pack_svg_keyed(JSON.stringify(c),key),exported.toString());
+  execFileSync('cargo',['run','--locked','--',source,'--output',pngPath,...options],{env,stdio:'pipe'});
+  const wasmPng=pack_png_keyed(JSON.stringify(c),key);
+  assert.deepEqual(Buffer.from(wasmPng),readFileSync(pngPath));
+  assert.deepEqual(JSON.parse(recover_image_keyed(wasmPng,key)),c);
+  assert.throws(()=>recover_image_keyed(wasmPng,wrong),/Wrong magic key/);
+  assert.deepEqual(Buffer.from(pack_png_keyed(recover_image_keyed(wasmPng,key),key)),readFileSync(pngPath));
+ }finally{rmSync(folder,{recursive:true,force:true});}
+});

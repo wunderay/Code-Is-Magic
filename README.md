@@ -56,6 +56,45 @@ The same positional `INPUT` accepts a GitHub link, a local source directory, or 
 
 Local CLI mode preserves file bytes, executable flags, and symlink targets without following symlinks. It excludes directories named `.git`, `target`, `node_modules`, and `pkg`; GitHub mode preserves every entry in the selected tracked tree. Windows files do not expose Unix executable flags through ordinary local metadata; use GitHub input to preserve the Git modes precisely.
 
+## Optional cryptographic magic key
+
+A random **32-byte key** (64 hexadecimal digits) changes the central emblems, contour geometry, rune alphabet, collar rotations, satellites, constellation layout, and braided connections. Circular rings, language motifs, graph relationships, optional language colors, and function area scaling remain. Same canonical snapshot, key, renderer version, and settings give the same output bytes in native Rust and WebAssembly; a different key produces a different inscription. Without a key, existing output and older image recovery remain compatible.
+
+Generate a key **outside your source folder**, then use it in either direction:
+
+```sh
+code-is-magic --generate-key ../my-magic.key
+code-is-magic ./my-project --key-file ../my-magic.key --output keyed.png
+code-is-magic keyed.png --key-file ../my-magic.key --output recovered.zip
+code-is-magic --decode-names keyed.png --key-file ../my-magic.key
+```
+
+The CLI also accepts `CODE_IS_MAGIC_KEY` from the environment. In Bash:
+
+```sh
+export CODE_IS_MAGIC_KEY="$(cat ../my-magic.key)"
+code-is-magic https://github.com/owner/repo --output keyed.png
+code-is-magic keyed.png --output recovered.zip
+unset CODE_IS_MAGIC_KEY
+```
+
+In Windows PowerShell:
+
+```powershell
+$env:CODE_IS_MAGIC_KEY = (Get-Content ..\my-magic.key -Raw).Trim()
+code-is-magic https://github.com/owner/repo --output keyed.png
+code-is-magic keyed.png --output recovered.zip
+Remove-Item Env:CODE_IS_MAGIC_KEY
+```
+
+`--key-file` overrides the environment; `--key-file -` reads the key from stdin. Secrets are not accepted as command-line values, printed in errors, or serialized into images. Key generation uses the OS cryptographic random generator, creates a new file without overwriting an existing file, and applies mode `0600` on Unix. Windows file permissions follow the destination folder's ACL. A key file inside the captured local directory is rejected. Keep keys and files containing secrets out of captured source trees. These are random keys, **not passphrases**: arbitrary passwords are rejected instead of being silently weakened into encryption keys.
+
+On the website, **Optional magic key** accepts the same hex key for transmutation and image recovery. **Generate** uses Web Crypto's secure random generator; **Save key** downloads the key separately. The key stays in this tab's memory and is sent only to the local Rust WebAssembly worker, never to GitHub or a backend, and is not kept in browser storage. Enter the original key before submitting a keyed image. Downloads use the key associated with the displayed artwork. PNG, SVG, and keyed offline JSON all encrypt the embedded source capsule; keyed JSON contains public artwork and ciphertext, not plaintext analysis/source. Import keyed JSON with its original key. Explicit source recovery downloads an ordinary source ZIP.
+
+The scheme uses RustCrypto **AES-256-SIV** ([RFC 5297](https://www.rfc-editor.org/rfc/rfc5297.html)) for deterministic authenticated encryption, with domain-separated HMAC-SHA-512 derivation from the 32-byte key. Different domains separate source capsules, name contours, visual seeds, and the glyph permutation. Encrypted name contour v2 remains independently reversible from SVG coordinates with the key. An encrypted capsule starts with `CIMKEY01`; the existing PNG frame transports this ciphertext in pixel bits. Recovery authenticates it before decompressing or exposing files. Missing/wrong keys and altered ciphertext fail; keyed SVG recovery also validates its visible artwork against the authenticated copy. Tests include an independent Python AESSIV vector, key separation, legacy recovery, and native/WASM byte parity.
+
+**Keep the key:** it cannot be recovered from the image. Deterministic encryption reveals repeated identical inputs under the same key. The public diagram also reveals structure, seal sizes, language motifs/colors, and approximate name lengths; it is an encrypted source carrier with a visible visualization, not a way to hide every fact about a repository. Retain the original exported PNG for recovery; resizing and other pixel edits can still destroy its payload.
+
 ## Website
 
 The website's main **GitHub link or magic image** input accepts both directions. Paste a GitHub link and select **Transmute** to generate circles on the canvas. Choose, drop, or paste an original exported PNG/SVG in that same input and select **Recover source** to download the complete reconstructed source ZIP entirely in your browser. Editing the field switches back to repository input. Source folder input, pan/zoom, an inspector outside the artwork, three palettes, PNG/SVG/JSON downloads, and a geometry name decoder are also available.
@@ -113,7 +152,7 @@ Language-specific policies and designs are authored in their own languages under
 - PNG framing: `CIMPNG01`, compressed length, CRC32, then payload, in RGB low bits. The decoder bounds dimensions, payload size, decompression, paths, duplicates, and modes before exposing files.
 - ZIP: stored entries, UTF-8 path flag, fixed 1980 date, fixed modes; no nondeterministic timestamps.
 - Budget: 5,000 tracked entries, 2 MB per file, 50 MB file bytes, 128 MB uncompressed capsule, 64 million PNG pixels. Exceeding a budget fails instead of omitting files.
-- Recovery uses original exported files. Arbitrary artwork or screenshots do not contain a reconstructible repository. Checksums detect corruption; the format is not encryption or a digital signature.
+- Recovery uses original exported files. Arbitrary artwork or screenshots do not contain a reconstructible repository. Unkeyed checksums detect corruption; optional keyed capsules authenticate and encrypt the source. Neither mode is a digital signature.
 
 ## Verification
 
@@ -127,6 +166,6 @@ bash scripts/build-web.sh
 node --test tests/wasm.test.js
 ```
 
-Tests cover name round trips and distinctions, text-free geometry recovery, binary/CRLF/BOM source recovery, modes/symlinks/submodule pointers, pixel-preserving PNG recompression, corruption rejection, safe archive paths, native/WASM artifact parity, source acquisition, declarations, and call graphs.
+Tests cover name round trips and distinctions, text-free geometry recovery, binary/CRLF/BOM source recovery, modes/symlinks/submodule pointers, pixel-preserving PNG recompression, corruption rejection, safe archive paths, native/WASM artifact parity, source acquisition, declarations, call graphs, and keyed deterministic encryption/recovery through environment, key files, stdin, and browser APIs.
 
 `src/glyphs.json` contains vector outlines derived from [Noto fonts](https://github.com/notofonts/noto-fonts), with the third-party font notice in `web/fonts/OFL.txt`. No project-wide license is specified. Captured source repositories retain their own notices.

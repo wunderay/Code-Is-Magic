@@ -45,3 +45,42 @@ with tempfile.TemporaryDirectory(prefix="magic-recovery-") as temp:
             assert z.read("repository/"+entry["path"])==base64.b64decode(entry["data"])
         assert z.testzip() is None
     print("Unified CLI input: PNG/SVG → ZIP, default output, invalid-image rejection; exact bytes, UTF-8 paths, CRLF/BOM, executable modes, symlink targets PASS")
+
+with tempfile.TemporaryDirectory(prefix="magic-keyed-") as temp:
+    root=Path(temp)/"source";root.mkdir()
+    (root/"spell.rs").write_bytes(b"\xef\xbb\xbffn spell() {\r\n  shine();\r\n}\r\nfn shine() {}\r\n")
+    (root/"binary.dat").write_bytes(bytes(range(256)))
+    keyfile=Path(temp)/"secret.key"
+    def run(*args,env=None,input=None):
+        return subprocess.run([str(binary),*map(str,args)],capture_output=True,env=env,input=input)
+    assert run("--generate-key",keyfile).returncode==0
+    key=keyfile.read_text().strip();assert len(key)==64
+    if os.name!="nt":assert keyfile.stat().st_mode&0o777==0o600
+    assert run("--generate-key",keyfile).returncode!=0
+    assert keyfile.read_text().strip()==key
+    env={**os.environ,"CODE_IS_MAGIC_KEY":key}
+    png=Path(temp)/"keyed.png";svg=Path(temp)/"keyed.svg";offline=Path(temp)/"keyed.json"
+    assert run(root,"--output",png,"--json",offline,env=env).returncode==0
+    protected=json.loads(offline.read_text());assert set(protected)=={"version","svg"} and protected["version"]==2
+    assert key not in offline.read_text() and "spell.rs" not in offline.read_text()
+    assert run(root,"--output",svg,"--key-file",keyfile).returncode==0
+    recovered=Path(temp)/"recovered.zip"
+    for image in [png,svg]:
+        assert run(image,"--output",recovered,"--key-file","-",input=key.encode()).returncode==0
+        with zipfile.ZipFile(recovered) as z:
+            for file in root.iterdir():assert z.read("repository/"+file.name)==file.read_bytes()
+        original=recovered.read_bytes()
+        for wrong in [None,"02"*32,"invalid-secret"]:
+            badenv={k:v for k,v in os.environ.items() if k!="CODE_IS_MAGIC_KEY"}
+            if wrong is not None:badenv["CODE_IS_MAGIC_KEY"]=wrong
+            failed=run(image,"--output",recovered,env=badenv)
+            assert failed.returncode!=0 and recovered.read_bytes()==original
+            if wrong:assert wrong.encode() not in failed.stderr
+    names=run("--decode-names",svg,env=env)
+    assert names.returncode==0 and [n["name"] for n in json.loads(names.stdout)]==["spell","shine"]
+    repeated=Path(temp)/"repeated.png"
+    assert run(root,"--output",repeated,"--key-file",keyfile,env={**env,"CODE_IS_MAGIC_KEY":"02"*32}).returncode==0
+    assert repeated.read_bytes()==png.read_bytes() # explicit file overrides environment
+    (root/"insecure.key").write_text(key)
+    assert run(root,"--key-file",root/"insecure.key","--output",repeated).returncode!=0
+    print("Keyed CLI: secure generation, env/file/stdin, precedence, protected JSON, exact recovery, wrong-key rejection, no secret echo PASS")

@@ -3,3 +3,7 @@
 .language-dot{display:none;width:7px;height:7px;border-radius:50%;margin-right:5px}.legend.language-colors .language-dot{display:inline-block}
 .invocation.drop-ready{border-color:var(--gold);box-shadow:0 0 0 2px #d8be8740}.input-foot>span{min-width:0;overflow-wrap:anywhere}.input-foot .text-button{flex-shrink:0}.input-row #choose-image{font-size:12px}@media(max-width:680px){.input-row #repo{flex-basis:calc(100% - 30px)}.input-row #choose-image{flex:1}.input-row #generate{width:auto;flex:1;padding:11px 13px}.input-row #generate span{margin-left:10px}}
 @font-face{font-family:CIMRunic;src:url('./fonts/NotoSansRunic-Regular.ttf') format('truetype');font-display:swap}@font-face{font-family:CIMSymbols;src:url('./fonts/NotoSansSymbols2-Regular.ttf') format('truetype');font-display:swap}@font-face{font-family:CIMGreek;src:url('./fonts/NotoSans-Regular.ttf') format('truetype');font-display:swap}body{font-family:system-ui,CIMRunic,CIMSymbols,CIMGreek,sans-serif}.intro-seal>span,.intro-seal small{font-family:CIMRunic,CIMSymbols,CIMGreek,Georgia,serif}.legend dt,.architecture span{font-family:system-ui,CIMRunic,CIMSymbols,CIMGreek,sans-serif}
+
+#magic-key{box-sizing:border-box;width:100%;min-width:0;margin:8px 0;font-family:monospace}.key-actions{display:flex;flex-wrap:wrap;gap:6px}.key-actions button{flex:1;padding:7px 4px}
+
+@media(max-width:700px){.key-actions,#key-help{grid-column:1/-1}.key-actions button{min-width:0;flex:1}}

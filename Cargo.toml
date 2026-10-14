@@ -14,7 +14,7 @@ path = "src/main.rs"
 
 [features]
 default = ["cli"]
-cli = ["dep:reqwest", "dep:clap"]
+cli = ["dep:reqwest", "dep:clap", "dep:getrandom"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
@@ -25,6 +25,11 @@ png = "0.17"
 resvg = { version = "0.45.1", default-features = false }
 wasm-bindgen = "0.2"
 clap = { version = "4", features = ["derive"], optional = true }
+aes-siv = { version = "0.7", default-features = false, features = ["alloc"] }
+sha2 = "0.10"
+hmac = "0.12"
+zeroize = "1"
+getrandom = { version = "0.2", optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls-native-roots"], optional = true }

@@ -1,5 +1,6 @@
 //! Visible, lossless UTF-8 names encoded as normalized radial contours.
 //! No hash lookup or name metadata is needed to recover a name.
+use crate::MagicKey;
 use serde::{Deserialize, Serialize};
 use std::f64::consts::PI;
 
@@ -23,9 +24,18 @@ fn checksum(bytes: &[u8]) -> u32 {
     !crc
 }
 pub fn encode_name(name: &str) -> NameSigil {
-    let data = name.as_bytes();
+    encode_name_with_key(name, None).expect("unkeyed contour encoding")
+}
+pub fn encode_name_with_key(name: &str, key: Option<&MagicKey>) -> Result<NameSigil, String> {
+    let encrypted;
+    let data = if let Some(key) = key {
+        encrypted = key.seal(b"name-contour/v2", name.as_bytes())?;
+        encrypted.as_slice()
+    } else {
+        name.as_bytes()
+    };
     let mut frame = Vec::with_capacity(data.len() + 11);
-    frame.extend_from_slice(&[0xc7, 0x51, 1]);
+    frame.extend_from_slice(&[0xc7, 0x51, if key.is_some() { 2 } else { 1 }]);
     frame.extend_from_slice(&(data.len() as u32).to_be_bytes());
     frame.extend_from_slice(data);
     frame.extend_from_slice(&checksum(data).to_be_bytes());
@@ -43,9 +53,12 @@ pub fn encode_name(name: &str) -> NameSigil {
             ]
         })
         .collect();
-    NameSigil { points }
+    Ok(NameSigil { points })
 }
 pub fn decode_name(sigil: &NameSigil) -> Result<String, String> {
+    decode_name_with_key(sigil, None)
+}
+pub fn decode_name_with_key(sigil: &NameSigil, key: Option<&MagicKey>) -> Result<String, String> {
     let count = sigil.points.len();
     if count < 22 || !count.is_multiple_of(2) {
         return Err("Invalid sigil point count".into());
@@ -75,7 +88,7 @@ pub fn decode_name(sigil: &NameSigil) -> Result<String, String> {
         .iter()
         .map(|p| (p[0] << 4) | p[1])
         .collect();
-    if frame[..3] != [0xc7, 0x51, 1] {
+    if frame[..2] != [0xc7, 0x51] || !matches!(frame[2], 1 | 2) {
         return Err("Unrecognized sigil format".into());
     }
     let length = u32::from_be_bytes(frame[3..7].try_into().unwrap()) as usize;
@@ -87,7 +100,13 @@ pub fn decode_name(sigil: &NameSigil) -> Result<String, String> {
     if checksum(bytes) != expected {
         return Err("Sigil checksum mismatch".into());
     }
-    String::from_utf8(bytes.to_vec()).map_err(|_| "Sigil name is not valid UTF-8".into())
+    let plain = if frame[2] == 2 {
+        key.ok_or("This name contour requires its original magic key")?
+            .open(b"name-contour/v2", bytes)?
+    } else {
+        bytes.to_vec()
+    };
+    String::from_utf8(plain).map_err(|_| "Sigil name is not valid UTF-8".into())
 }
 impl NameSigil {
     pub fn svg_points(&self) -> String {
@@ -111,6 +130,12 @@ fn attribute<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
 /// Decode the normalized polygon coordinates in an unmodified Code Is Magic SVG.
 /// Plaintext labels, analysis JSON, and font data are not consulted.
 pub fn decode_svg_names(svg: &str) -> Result<Vec<DecodedName>, String> {
+    decode_svg_names_with_key(svg, None)
+}
+pub fn decode_svg_names_with_key(
+    svg: &str,
+    key: Option<&MagicKey>,
+) -> Result<Vec<DecodedName>, String> {
     let mut decoded = Vec::new();
     for segment in svg.split("<polygon").skip(1) {
         let tag = segment.split('>').next().ok_or("Unclosed polygon")?;
@@ -132,7 +157,7 @@ pub fn decode_svg_names(svg: &str) -> Result<Vec<DecodedName>, String> {
                 y.parse().map_err(|_| "Invalid y coordinate")?,
             ]);
         }
-        let name = decode_name(&NameSigil { points })?;
+        let name = decode_name_with_key(&NameSigil { points }, key)?;
         decoded.push(DecodedName { entity_id, name });
     }
     if decoded.is_empty() {

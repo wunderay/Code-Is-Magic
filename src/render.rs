@@ -1,5 +1,5 @@
-use crate::encode_name;
 use crate::profiles::{profile_for_language, CollarOperation};
+use crate::{encode_name_with_key, MagicKey};
 use crate::{Analysis, Entity};
 use serde::Deserialize;
 use serde::Serialize;
@@ -41,10 +41,17 @@ impl Entropy {
         low + self.unit() * (high - low)
     }
 }
-fn entity_seed(e: &Entity) -> u64 {
-    hash(&e.qualified_name)
+fn entity_seed(e: &Entity, key: Option<&MagicKey>) -> u64 {
+    keyed_seed(key, b"entity", &e.qualified_name)
 }
-fn scatter_layout(a: &Analysis, visible: &[&Entity]) -> (Vec<Placement>, u32, u32) {
+fn keyed_seed(key: Option<&MagicKey>, domain: &[u8], value: &str) -> u64 {
+    key.map_or_else(|| hash(value), |key| key.seed(domain, value.as_bytes()))
+}
+fn scatter_layout(
+    a: &Analysis,
+    visible: &[&Entity],
+    key: Option<&MagicKey>,
+) -> (Vec<Placement>, u32, u32) {
     let mut neighbors = vec![Vec::new(); a.entities.len()];
     for edge in &a.edges {
         if edge.from != edge.to {
@@ -58,7 +65,7 @@ fn scatter_layout(a: &Analysis, visible: &[&Entity]) -> (Vec<Placement>, u32, u3
         if e.kind == "function" {
             24. * (e.lines.max(1) as f64).sqrt()
         } else {
-            92. + (entity_seed(e) % 37) as f64
+            92. + (entity_seed(e, None) % 37) as f64
         }
     };
     // A neighboring-cell lookup must remain safe even for very large functions.
@@ -87,7 +94,7 @@ fn scatter_layout(a: &Analysis, visible: &[&Entity]) -> (Vec<Placement>, u32, u3
     let mut cells: BTreeMap<(i32, i32), Vec<usize>> = BTreeMap::new();
     for e in order {
         let r = radius(e);
-        let mut entropy = Entropy(entity_seed(e));
+        let mut entropy = Entropy(entity_seed(e, key));
         let anchors: Vec<usize> = neighbors[e.id]
             .iter()
             .filter_map(|&id| placed[id])
@@ -237,8 +244,8 @@ fn poly(s: &mut String, x: f64, y: f64, r: f64, n: usize, step: usize, rot: f64)
 }
 // Original emblems inspired by ritual diagrams, drawn in normalized local coordinates.
 // The exact name contour remains a separate lossless geometry layer.
-fn center_emblem(s: &mut String, e: &Entity, x: f64, y: f64, r: f64) {
-    let seed = entity_seed(e);
+fn center_emblem(s: &mut String, e: &Entity, x: f64, y: f64, r: f64, key: Option<&MagicKey>) {
+    let seed = entity_seed(e, key);
     let mut ink = Entropy(seed.wrapping_add(913));
     let family = (seed ^ (seed >> 23)) % 12;
     let rotation = ink.between(-180., 180.);
@@ -360,8 +367,8 @@ fn center_emblem(s: &mut String, e: &Entity, x: f64, y: f64, r: f64) {
     }
     s.push_str("</g>");
 }
-fn design(s: &mut String, e: &Entity, x: f64, y: f64, r: f64, large: bool) {
-    let seed = entity_seed(e);
+fn design(s: &mut String, e: &Entity, x: f64, y: f64, r: f64, large: bool, key: Option<&MagicKey>) {
+    let seed = entity_seed(e, key);
     let rotation = (seed % 360) as f64 * PI / 180.;
     let mut ink = Entropy(seed.wrapping_add(71));
     // A calm circular collar contrasts with the wilder name-derived center.
@@ -396,7 +403,7 @@ fn design(s: &mut String, e: &Entity, x: f64, y: f64, r: f64, large: bool) {
         s.push_str("</g>");
     }
     s.push_str("</g>");
-    center_emblem(s, e, x, y, r);
+    center_emblem(s, e, x, y, r, key);
     if large {
         // Offset satellites and partial orbits keep the overall inscription unruly.
         arc(
@@ -606,12 +613,32 @@ pub fn render_with_options(
     wingdings: bool,
     language_colors: bool,
 ) -> Diagram {
+    render_with_key(
+        a,
+        title,
+        min_lines,
+        palette,
+        wingdings,
+        language_colors,
+        None,
+    )
+    .expect("unkeyed rendering")
+}
+pub fn render_with_key(
+    a: &Analysis,
+    title: &str,
+    min_lines: usize,
+    palette: &str,
+    wingdings: bool,
+    language_colors: bool,
+    key: Option<&MagicKey>,
+) -> Result<Diagram, String> {
     let visible: Vec<_> = a
         .entities
         .iter()
         .filter(|e| e.kind != "merged_impl")
         .collect();
-    let (placements, width, height) = scatter_layout(a, &visible);
+    let (placements, width, height) = scatter_layout(a, &visible, key);
     let (bg, ink, muted) = match palette {
         "parchment" => ("#f0e8d7", "#73502d", "#a59370"),
         "astral" => ("#090d20", "#8cd4ee", "#354968"),
@@ -619,9 +646,22 @@ pub fn render_with_options(
     };
     let outlines: BTreeMap<String, Outline> =
         serde_json::from_str(include_str!("glyphs.json")).expect("bundled glyph paths are valid");
+    // Permute the vector-symbol alphabet with the key. Ring glyphs stay legible,
+    // but the ordinary syntax-to-symbol mapping cannot be used on keyed art.
+    let symbols: Vec<_> = outlines.keys().collect();
+    let mut shuffled = symbols.clone();
+    if let Some(key) = key {
+        shuffled.sort_by_key(|symbol| (key.seed(b"glyph-alphabet", symbol.as_bytes()), *symbol));
+    }
+    let alphabet: BTreeMap<_, _> = symbols.into_iter().zip(shuffled).collect();
     let _ = title; // Provenance lives in the recoverable archive, never in the artwork.
     let mut s=format!("<svg xmlns='http://www.w3.org/2000/svg' width='{width}' height='{height}' viewBox='0 0 {width} {height}' data-language-colors='{language_colors}'><rect width='100%' height='100%' fill='{bg}'/>");
-    let mut atmosphere = Entropy(hash("wild grimoire") ^ visible.len() as u64);
+    if key.is_some() {
+        // This is a format flag, never a key or key fingerprint.
+        s = s.replacen("viewBox=", "data-magic-key='1' viewBox=", 1);
+    }
+    let mut atmosphere =
+        Entropy(keyed_seed(key, b"atmosphere", "wild grimoire") ^ visible.len() as u64);
     let _ = write!(s, "<g fill='{ink}' opacity='.17'>");
     for _ in 0..visible.len().saturating_mul(3).min(360) {
         let px = atmosphere.between(45., width as f64 - 45.);
@@ -657,10 +697,14 @@ pub fn render_with_options(
         let Some(to) = placements.iter().find(|p| p.id == edge.to) else {
             continue;
         };
-        let seed = hash(&format!(
-            "{}:{}:{}",
-            a.entities[edge.from].qualified_name, a.entities[edge.to].qualified_name, edge.kind
-        ));
+        let seed = keyed_seed(
+            key,
+            b"channel",
+            &format!(
+                "{}:{}:{}",
+                a.entities[edge.from].qualified_name, a.entities[edge.to].qualified_name, edge.kind
+            ),
+        );
         invocation_channel(&mut s, from, to, &edge.kind, seed, ink, bg);
     }
     for place in &placements {
@@ -674,15 +718,15 @@ pub fn render_with_options(
         let (x, y, r) = (place.x, place.y, place.radius);
         let large = e.kind != "function" || e.lines >= min_lines;
         let _=write!(s,"<g id='entity-{}' data-language-color='{}'><circle cx='{x}' cy='{y}' r='{}' fill='{bg}'/><g fill='none' stroke='{ink}' stroke-width='.85'>",e.id,profile.color,r+2.);
-        design(&mut s, e, x, y, r, large);
-        let contour = encode_name(&e.qualified_name);
+        design(&mut s, e, x, y, r, large, key);
+        let contour = encode_name_with_key(&e.qualified_name, key)?;
         let core = r * 0.52;
         let _=write!(s,"<polygon data-name-sigil='1' data-entity='{}' data-seal-radius='{r}' points='{}' transform='translate({x} {y}) scale({core})' stroke-width='.007' opacity='.65' stroke-linejoin='round'/> </g>",e.id,contour.svg_points());
-        let mut script = Entropy(entity_seed(e).wrapping_add(17));
+        let mut script = Entropy(entity_seed(e, key).wrapping_add(17));
         let count = if large {
-            34 + (entity_seed(e) % 35) as usize
+            34 + (entity_seed(e, key) % 35) as usize
         } else {
-            15 + (entity_seed(e) % 13) as usize
+            15 + (entity_seed(e, key) % 13) as usize
         };
         let _ = write!(s, "<g fill='{ink}'>");
         for i in 0..count {
@@ -697,6 +741,9 @@ pub fn render_with_options(
                 .get(i * e.tokens.len().max(1) / count)
                 .map_or(e.name.as_str(), |x| x.as_str());
             let symbol = glyph(token);
+            let symbol = alphabet
+                .get(&symbol.to_string())
+                .map_or(symbol, |s| s.as_str());
             let _ = write!(s,"<g transform='translate({x} {y}) rotate({angle:.3}) translate(0 -{band:.1}) rotate({lean:.1})' opacity='.8'>");
             if wingdings && i % 3 == 0 {
                 // Portable dingbat ornaments are vector geometry, not installed-font text.
@@ -728,13 +775,13 @@ pub fn render_with_options(
         s.push_str("</g></g>");
     }
     s.push_str("</svg>");
-    Diagram {
+    Ok(Diagram {
         svg: s,
         width,
         height,
         placements,
         analysis: a.clone(),
-    }
+    })
 }
 
 #[derive(Deserialize)]
