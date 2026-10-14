@@ -5,14 +5,19 @@ mod crypto;
 pub use compression::{compact_svg, optimize_png};
 pub use crypto::MagicKey;
 mod inscription;
+mod perceptual;
 mod profiles;
 mod render;
 mod sigil;
 pub use analyze::{analyze, supported, Analysis, Edge, Entity, SourceFile};
 pub use archive::{
-    decode_image_with_key, decode_png, decode_png_with_key, decode_svg, decode_svg_with_key,
-    embed_svg, embed_svg_with_key, encode_png, encode_png_with_key, encode_svgz_with_key,
-    snapshot_zip, ArchiveEntry, Capsule, Snapshot,
+    decode_png, decode_png_with_key, decode_svg, decode_svg_with_key, embed_svg,
+    embed_svg_with_key, encode_png, encode_png_with_key, encode_svgz_with_key, snapshot_zip,
+    ArchiveEntry, Capsule, Snapshot,
+};
+pub use perceptual::{
+    decode_perceptual_jpeg, decode_perceptual_jpeg_with_key, encode_perceptual_jpeg,
+    encode_perceptual_jpeg_with_key, DEFAULT_PERCEPTUAL_QUALITY,
 };
 pub use profiles::{language_profiles, profile_for_language, profile_for_path, LanguageProfile};
 pub use render::{
@@ -23,6 +28,15 @@ pub use sigil::{
     encode_name_with_key, DecodedName, NameSigil,
 };
 use wasm_bindgen::prelude::*;
+
+/// Recover either an exact PNG/SVG/SVGZ carrier or a perceptual JPEG carrier.
+pub fn decode_image_with_key(bytes: &[u8], key: Option<&MagicKey>) -> Result<Capsule, String> {
+    if bytes.starts_with(&[0xff, 0xd8]) {
+        perceptual::decode_perceptual_jpeg_with_key(bytes, key)
+    } else {
+        archive::decode_image_with_key(bytes, key)
+    }
+}
 
 /// Browser and CLI use exactly the same analysis and renderer.
 #[wasm_bindgen]
@@ -133,6 +147,18 @@ pub fn pack_png_keyed(capsule_json: &str, key_hex: &str) -> Result<Vec<u8>, JsVa
     let capsule: Capsule =
         serde_json::from_str(capsule_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
     encode_png_with_key(&capsule, key.as_ref()).map_err(|e| JsValue::from_str(&e))
+}
+#[wasm_bindgen]
+pub fn pack_jpeg_keyed(
+    capsule_json: &str,
+    key_hex: &str,
+    quality: u8,
+) -> Result<Vec<u8>, JsValue> {
+    let key = optional_key(key_hex)?;
+    let capsule: Capsule =
+        serde_json::from_str(capsule_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
+    encode_perceptual_jpeg_with_key(&capsule, key.as_ref(), quality)
+        .map_err(|e| JsValue::from_str(&e))
 }
 #[wasm_bindgen]
 pub fn pack_svg_keyed(capsule_json: &str, key_hex: &str) -> Result<String, JsValue> {
