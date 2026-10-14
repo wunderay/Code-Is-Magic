@@ -2,7 +2,7 @@ use base64::Engine;
 use clap::Parser;
 use code_is_magic::{
     analyze, compact_svg, decode_image_with_key, decode_svg_names_with_key, embed_svg_with_key,
-    encode_png_with_key, encode_svgz_with_key, optimize_png, render_with_key, snapshot_zip,
+    encode_magic_with_key, encode_svgz_with_key, optimize_png, render_with_key, snapshot_zip,
     ArchiveEntry, Capsule, MagicKey, Snapshot,
 };
 use reqwest::blocking::Client;
@@ -22,19 +22,20 @@ use zeroize::Zeroizing;
     about = "Transmute a repository into magic circles, or recover source from a magic image"
 )]
 struct Args {
-    /// GitHub repository URL, local source directory, or original exported PNG/SVG image
+    /// GitHub repository URL, local source directory, or recoverable legacy/canonical image
     #[arg(value_name = "INPUT")]
     repository: Option<String>,
-    /// Losslessly optimize an existing PNG, SVG, or SVGZ; PNG optimization needs no key
+    /// Losslessly optimize an existing legacy PNG, SVG, or SVGZ; this is migration, not transmutation
     #[arg(long, conflicts_with_all = ["repository", "decode", "decode_names", "generate_key"])]
     optimize: Option<PathBuf>,
-    /// Recover the complete snapshot from an original exported PNG or SVG into a ZIP
+    /// Recover the complete snapshot from a canonical SVGZ or legacy PNG/SVG/SVGZ into a ZIP
     #[arg(long)]
     decode: Option<PathBuf>,
-    /// Recover names from the geometric contours in SVG or source-carrying PNG
+    /// Recover names from geometric contours in canonical SVGZ or legacy SVG/PNG
     #[arg(long)]
     decode_names: Option<PathBuf>,
-    #[arg(short, long, default_value = "magic.png")]
+    /// Canonical transmutation output. Code-to-magic emits SVGZ only.
+    #[arg(short, long, default_value = "magic.svgz")]
     output: PathBuf,
     /// Minimum non-comment source lines for full ornament detail; size always follows code lines
     #[arg(long, default_value_t = 12)]
@@ -59,9 +60,6 @@ struct Args {
     /// Maximum tracked snapshot entries (up to 5,000); exceeding the limit fails
     #[arg(long, default_value_t = 5000)]
     max_files: usize,
-    /// Save a JSON diagram for offline browser import
-    #[arg(long)]
-    json: Option<PathBuf>,
 }
 fn repo_slug(input: &str) -> Result<String, Box<dyn Error>> {
     let s = input
@@ -285,8 +283,7 @@ fn local(
     Ok(())
 }
 fn read_capsule(path: &Path, key: Option<&MagicKey>) -> Result<Capsule, Box<dyn Error>> {
-    let bytes = fs::read(path)?;
-    Ok(decode_image_with_key(&bytes, key)?)
+    Ok(decode_image_with_key(&fs::read(path)?, key)?)
 }
 fn run() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
@@ -301,12 +298,12 @@ fn run() -> Result<(), Box<dyn Error>> {
         let bytes = fs::read(path)?;
         if bytes.starts_with(b"\x89PNG") {
             if !args.output.extension().is_some_and(|e| e == "png") {
-                return Err("Use a .png output path for pixel-preserving PNG optimization".into());
+                return Err("Use a .png output path for pixel-preserving legacy PNG optimization".into());
             }
             let optimized = optimize_png(&bytes)?;
             fs::write(&args.output, &optimized)?;
             println!(
-                "Lossless PNG: {} → {} bytes; every pixel and source bit preserved",
+                "Lossless legacy PNG: {} → {} bytes; every pixel and source bit preserved",
                 bytes.len(),
                 optimized.len()
             );
@@ -358,7 +355,7 @@ fn run() -> Result<(), Box<dyn Error>> {
             .extension()
             .is_some_and(|e| e == "svg" || e == "svgz")
         {
-            return Err("Choose a .svg or .svgz output path for vector optimization".into());
+            return Err("Choose a .svg or .svgz output path for legacy vector optimization".into());
         }
         let mut capsule = read_capsule(path, key.as_ref())?;
         capsule.svg = compact_svg(&capsule.svg)?;
@@ -369,7 +366,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         };
         fs::write(&args.output, &bytes)?;
         println!(
-            "Lossless vector: {} → {} bytes; exact outlines and source preserved",
+            "Lossless legacy vector: {} → {} bytes; exact outlines and source preserved",
             fs::metadata(path)?.len(),
             bytes.len()
         );
@@ -387,15 +384,12 @@ fn run() -> Result<(), Box<dyn Error>> {
     });
     if let Some(path) = &image_input {
         let capsule = read_capsule(path, key.as_ref())?;
-        let output = if args.output == Path::new("magic.png") {
+        let output = if args.output == Path::new("magic.svgz") {
             PathBuf::from("recovered.zip")
         } else {
             args.output.clone()
         };
         fs::write(&output, snapshot_zip(&capsule.snapshot)?)?;
-        if let Some(path) = &args.json {
-            fs::write(path, serde_json::to_vec_pretty(&capsule.snapshot)?)?;
-        }
         println!(
             "Recovered {} tracked entries with exact bytes and modes to {}",
             capsule.snapshot.entries.len(),
@@ -416,7 +410,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         );
         return Ok(());
     }
-    let input=args.repository.as_deref().ok_or("Provide a GitHub repository, local directory, original image.png/image.svg, or --decode-names image.svg")?;
+    let input=args.repository.as_deref().ok_or("Provide a GitHub repository, local directory, canonical .svgz, legacy recoverable image, or --decode-names image")?;
     if Path::new(input).is_dir() {
         if let Some(path) = args
             .key_file
@@ -459,25 +453,10 @@ fn run() -> Result<(), Box<dyn Error>> {
         snapshot: snapshot.clone(),
         svg: diagram.svg.clone(),
     };
-    if args.output.extension().is_some_and(|e| e == "png") {
-        fs::write(&args.output, encode_png_with_key(&capsule, key.as_ref())?)?;
-    } else if args.output.extension().is_some_and(|e| e == "svgz") {
-        fs::write(&args.output, encode_svgz_with_key(&capsule, key.as_ref())?)?;
-    } else {
-        fs::write(&args.output, embed_svg_with_key(&capsule, key.as_ref())?)?;
+    if !args.output.extension().is_some_and(|e| e == "svgz") {
+        return Err("Code-to-magic transmutation has one canonical format: choose a .svgz output path".into());
     }
-    if let Some(path) = args.json {
-        let mut json = if key.is_some() {
-            // Only ciphertext and public artwork in keyed offline exports.
-            serde_json::json!({"version": 2, "svg": embed_svg_with_key(&capsule, key.as_ref())?})
-        } else {
-            serde_json::to_value(&diagram)?
-        };
-        if key.is_none() {
-            json["snapshot"] = serde_json::to_value(&snapshot)?;
-        }
-        fs::write(path, serde_json::to_vec_pretty(&json)?)?;
-    }
+    fs::write(&args.output, encode_magic_with_key(&capsule, key.as_ref())?)?;
     println!(
         "✦ CODE IS MAGIC ✦\n{} source files · {} declarations · {} call channels",
         analysis.files,
@@ -485,14 +464,14 @@ fn run() -> Result<(), Box<dyn Error>> {
         analysis.edges.iter().filter(|e| e.kind == "calls").count()
     );
     println!(
-        "{} complete tracked entries embedded losslessly",
+        "{} complete tracked entries embedded byte-exactly",
         snapshot.entries.len()
     );
     println!(
         "{} unresolved/external calls · structural analysis",
         analysis.unresolved_calls
     );
-    println!("Circle written to {}", args.output.display());
+    println!("Canonical perceptual SVGZ written to {}", args.output.display());
     Ok(())
 }
 fn main() {
