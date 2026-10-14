@@ -1,6 +1,7 @@
 use crate::{Analysis, Entity};
 use base64::Engine;
 use serde::Serialize;
+use std::collections::BTreeMap;
 use std::f64::consts::PI;
 use std::fmt::Write;
 
@@ -30,6 +31,160 @@ fn hash(s: &str) -> u64 {
     s.bytes().fold(14695981039346656037, |h, b| {
         (h ^ b as u64).wrapping_mul(1099511628211)
     })
+}
+// Source-seeded entropy keeps the chaos identical in native Rust and WebAssembly.
+struct Entropy(u64);
+impl Entropy {
+    fn unit(&mut self) -> f64 {
+        self.0 = self
+            .0
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        (self.0 >> 11) as f64 / (1_u64 << 53) as f64
+    }
+    fn between(&mut self, low: f64, high: f64) -> f64 {
+        low + self.unit() * (high - low)
+    }
+}
+fn entity_seed(e: &Entity) -> u64 {
+    hash(&format!(
+        "{}:{}:{}",
+        e.path,
+        e.qualified_name,
+        e.tokens.join(" ")
+    ))
+}
+fn scatter_layout(
+    a: &Analysis,
+    visible: &[&Entity],
+    min_lines: usize,
+) -> (Vec<Placement>, u32, u32) {
+    let mut neighbors = vec![Vec::new(); a.entities.len()];
+    for edge in &a.edges {
+        if edge.from != edge.to {
+            neighbors[edge.from].push(edge.to);
+            neighbors[edge.to].push(edge.from);
+        }
+    }
+    let radius = |e: &Entity| {
+        let variance = (entity_seed(e) % 37) as f64;
+        if e.kind == "function" && e.lines < min_lines {
+            43. + variance * 0.72
+        } else if e.kind == "function" {
+            ((102. + (e.lines.max(1) as f64).ln() * 9. + variance).min(184.) * 1000.).round()
+                / 1000.
+        } else {
+            92. + variance
+        }
+    };
+    let spread = visible
+        .iter()
+        .map(|e| (radius(e) + 50.).powi(2))
+        .sum::<f64>()
+        .sqrt()
+        .max(180.);
+    let mut order = visible.to_vec();
+    order.sort_by(|left, right| {
+        neighbors[right.id]
+            .len()
+            .cmp(&neighbors[left.id].len())
+            .then_with(|| radius(right).total_cmp(&radius(left)))
+            .then_with(|| left.id.cmp(&right.id))
+    });
+    let mut placements: Vec<Placement> = Vec::new();
+    let mut placed = vec![None; a.entities.len()];
+    let mut cells: BTreeMap<(i32, i32), Vec<usize>> = BTreeMap::new();
+    for e in order {
+        let r = radius(e);
+        let mut entropy = Entropy(entity_seed(e));
+        let anchors: Vec<usize> = neighbors[e.id]
+            .iter()
+            .filter_map(|&id| placed[id])
+            .collect();
+        let (mut x, mut y, mut attempt) = (0., 0., 0_usize);
+        loop {
+            if !placements.is_empty() {
+                let angle = entropy.between(0., 2. * PI);
+                if !anchors.is_empty() && attempt < 64 {
+                    let anchor = &placements[anchors[attempt % anchors.len()]];
+                    let distance = r + anchor.radius + entropy.between(85., 260.);
+                    x = anchor.x + angle.cos() * distance;
+                    y = anchor.y + angle.sin() * distance;
+                } else {
+                    let distance = spread * entropy.unit().sqrt() * (0.9 + attempt as f64 / 240.);
+                    x = distance * angle.cos() * 1.09;
+                    y = distance * angle.sin() * 0.93;
+                }
+            }
+            let cell = ((x / 480.).floor() as i32, (y / 480.).floor() as i32);
+            let collision = (-1..=1).any(|dx| {
+                (-1..=1).any(|dy| {
+                    cells
+                        .get(&(cell.0 + dx, cell.1 + dy))
+                        .is_some_and(|bucket| {
+                            bucket.iter().any(|&index| {
+                                let p = &placements[index];
+                                (p.x - x).hypot(p.y - y) < p.radius + r + 82.
+                            })
+                        })
+                })
+            });
+            if !collision {
+                cells.entry(cell).or_default().push(placements.len());
+                placed[e.id] = Some(placements.len());
+                placements.push(Placement {
+                    id: e.id,
+                    x,
+                    y,
+                    radius: r,
+                });
+                break;
+            }
+            attempt += 1;
+        }
+    }
+    let left = placements
+        .iter()
+        .map(|p| p.x - p.radius * 1.24)
+        .reduce(f64::min)
+        .unwrap_or(0.);
+    let top = placements
+        .iter()
+        .map(|p| p.y - p.radius * 1.24)
+        .reduce(f64::min)
+        .unwrap_or(0.);
+    let right = placements
+        .iter()
+        .map(|p| p.x + p.radius * 1.24)
+        .reduce(f64::max)
+        .unwrap_or(760.);
+    let bottom = placements
+        .iter()
+        .map(|p| p.y + p.radius * 1.24 + 50.)
+        .reduce(f64::max)
+        .unwrap_or(440.);
+    for p in &mut placements {
+        p.x = ((p.x - left + 75.) * 1000.).round() / 1000.;
+        p.y = ((p.y - top + 150.) * 1000.).round() / 1000.;
+    }
+    placements.sort_by_key(|p| p.id);
+    (
+        placements,
+        (right - left + 150.).ceil().max(960.) as u32,
+        (bottom - top + 235.).ceil().max(720.) as u32,
+    )
+}
+fn arc(s: &mut String, x: f64, y: f64, r: f64, start: f64, sweep: f64, opacity: f64) {
+    let end = start + sweep;
+    let _ = write!(
+        s,
+        "<path d='M {:.1} {:.1} A {r:.1} {r:.1} 0 {} 1 {:.1} {:.1}' opacity='{opacity}'/>",
+        x + r * start.cos(),
+        y + r * start.sin(),
+        usize::from(sweep > PI),
+        x + r * end.cos(),
+        y + r * end.sin()
+    );
 }
 fn polygon(cx: f64, cy: f64, r: f64, n: usize, step: usize, rotation: f64) -> String {
     (0..=n)
@@ -89,8 +244,22 @@ fn poly(s: &mut String, x: f64, y: f64, r: f64, n: usize, step: usize, rot: f64)
 fn design(s: &mut String, e: &Entity, x: f64, y: f64, r: f64, large: bool) {
     let seed = hash(&format!("{}{}", e.path, e.name));
     let rotation = (seed % 360) as f64 * PI / 180.;
-    circle(s, x, y, r, 0.75);
-    circle(s, x, y, r - 5., 0.3);
+    let mut fracture = Entropy(seed.wrapping_add(71));
+    let mut angle = rotation;
+    for _ in 0..4 {
+        let sweep = fracture.between(0.5, 1.4);
+        arc(s, x, y, r, angle, sweep, 0.75);
+        angle += sweep + fracture.between(0.12, 0.65);
+    }
+    arc(
+        s,
+        x + r * 0.035,
+        y - r * 0.027,
+        r - 5.,
+        rotation + 0.4,
+        4.7,
+        0.3,
+    );
     if e.kind != "function" {
         match e.kind.as_str() {
             "class" | "impl" => {
@@ -201,10 +370,14 @@ fn design(s: &mut String, e: &Entity, x: f64, y: f64, r: f64, large: bool) {
             circle(s, x, y, inner * 0.66, 0.6);
         }
     }
-    let teeth = if large { 32 } else { 12 };
+    let teeth = if large {
+        23 + (seed % 26) as usize
+    } else {
+        9 + (seed % 9) as usize
+    };
     for i in 0..teeth {
-        let a = i as f64 * 2. * PI / teeth as f64;
-        let rr = r - 10.;
+        let a = i as f64 * 2. * PI / teeth as f64 + fracture.between(-0.035, 0.035);
+        let rr = r - fracture.between(5., 11.);
         let _ = write!(
             s,
             "<path d='M {:.1} {:.1} L {:.1} {:.1}' opacity='.4'/>",
@@ -213,6 +386,46 @@ fn design(s: &mut String, e: &Entity, x: f64, y: f64, r: f64, large: bool) {
             x + (rr - 4.) * a.cos(),
             y + (rr - 4.) * a.sin()
         );
+    }
+    if large {
+        // Partial orbits, little off-axis seals, and crossing inner strokes disturb perfect symmetry.
+        arc(
+            s,
+            x + r * 0.1,
+            y - r * 0.065,
+            r * 0.48,
+            rotation,
+            fracture.between(2.2, 5.2),
+            0.45,
+        );
+        for _ in 0..1 + (seed % 3) {
+            let a = fracture.between(0., 2. * PI);
+            let orbit = r * fracture.between(0.94, 1.08);
+            let sx = x + orbit * a.cos();
+            let sy = y + orbit * a.sin();
+            let small = fracture.between(5., 11.);
+            circle(s, sx, sy, small, 0.6);
+            poly(s, sx, sy, small * 0.74, 3, 1, a);
+            let _ = write!(
+                s,
+                "<path d='M {:.1} {:.1} L {sx:.1} {sy:.1}' opacity='.35'/>",
+                x + r * 0.42 * a.cos(),
+                y + r * 0.42 * a.sin()
+            );
+        }
+        let mut scribble = String::new();
+        for i in 0..7 {
+            let a = rotation + i as f64 * 1.9 + fracture.between(-0.3, 0.3);
+            let rr = r * fracture.between(0.28, 0.66);
+            let _ = write!(
+                scribble,
+                "{} {:.1} {:.1} ",
+                if i == 0 { "M" } else { "L" },
+                x + rr * a.cos(),
+                y + rr * a.sin()
+            );
+        }
+        let _ = write!(s, "<path d='{scribble}' opacity='.28'/>");
     }
     circle(s, x, y, if large { r * 0.26 } else { r * 0.3 }, 0.55);
 }
@@ -231,30 +444,42 @@ pub fn render_with_wingdings(
         .iter()
         .filter(|e| e.kind != "merged_impl")
         .collect();
-    let cols = (visible.len().max(1) as f64).sqrt().ceil() as usize;
-    let rows = visible.len().max(1).div_ceil(cols);
-    let width = (cols * 340 + 160).max(960) as u32;
-    let height = (rows * 340 + 240).max(720) as u32;
-    let mut placements = Vec::new();
-    for (i, e) in visible.iter().enumerate() {
-        placements.push(Placement {
-            id: e.id,
-            x: 120. + (i % cols) as f64 * 340. + 85.,
-            y: 170. + (i / cols) as f64 * 340. + 70.,
-            radius: if e.kind == "function" && e.lines < min_lines {
-                66.
-            } else {
-                118.
-            },
-        });
-    }
+    let (placements, width, height) = scatter_layout(a, &visible, min_lines);
     let (bg, ink, muted) = match palette {
         "parchment" => ("#f0e8d7", "#73502d", "#a59370"),
         "astral" => ("#090d20", "#8cd4ee", "#354968"),
         _ => ("#0c1112", "#d8be87", "#44514a"),
     };
     let fonts = embedded_fonts();
-    let mut s=format!("<svg xmlns='http://www.w3.org/2000/svg' width='{width}' height='{height}' viewBox='0 0 {width} {height}'><defs>{fonts}<pattern id='grid' width='40' height='40' patternUnits='userSpaceOnUse'><path d='M 40 0 L 0 0 0 40' fill='none' stroke='{muted}' stroke-width='.4' opacity='.25'/></pattern><marker id='arrow' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M 0 0 L 10 5 L 0 10' fill='none' stroke='{ink}'/></marker></defs><rect width='100%' height='100%' fill='{bg}'/><rect width='100%' height='100%' fill='url(#grid)'/><g fill='none' stroke='{muted}'><rect x='22' y='22' width='{}' height='{}'/><rect x='28' y='28' width='{}' height='{}'/></g><g fill='{ink}' font-family='Georgia,serif'><text x='54' y='66' font-size='22' letter-spacing='4'>CODE IS MAGIC</text><text x='54' y='91' font-size='12' opacity='.6'>{}</text></g>",width-44,height-44,width-56,height-56,escape(title));
+    let mut s=format!("<svg xmlns='http://www.w3.org/2000/svg' width='{width}' height='{height}' viewBox='0 0 {width} {height}'><defs>{fonts}<marker id='arrow' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M 0 0 L 10 5 L 0 10' fill='none' stroke='{ink}'/></marker></defs><rect width='100%' height='100%' fill='{bg}'/><g fill='none' stroke='{muted}'><rect x='22' y='22' width='{}' height='{}'/><rect x='28' y='28' width='{}' height='{}'/></g><g fill='{ink}' font-family='Georgia,serif'><text x='54' y='66' font-size='22' letter-spacing='4'>CODE IS MAGIC</text><text x='54' y='91' font-size='12' opacity='.6'>{}</text></g>",width-44,height-44,width-56,height-56,escape(title));
+    let mut atmosphere = Entropy(hash("wild grimoire") ^ visible.len() as u64);
+    let _ = write!(s, "<g fill='{ink}' opacity='.17'>");
+    for _ in 0..visible.len().saturating_mul(3).min(360) {
+        let px = atmosphere.between(45., width as f64 - 45.);
+        let py = atmosphere.between(125., height as f64 - 70.);
+        let _ = write!(
+            s,
+            "<circle cx='{px:.1}' cy='{py:.1}' r='{:.1}'/>",
+            atmosphere.between(0.7, 1.9)
+        );
+    }
+    s.push_str("</g>");
+    let _ = write!(s, "<g fill='none' stroke='{muted}' stroke-width='.7'>");
+    for _ in 0..5 {
+        arc(
+            &mut s,
+            width as f64 * 0.51,
+            height as f64 * 0.53,
+            atmosphere.between(
+                width.min(height) as f64 * 0.2,
+                width.max(height) as f64 * 0.6,
+            ),
+            atmosphere.between(0., 2. * PI),
+            atmosphere.between(0.6, 2.8),
+            0.21,
+        );
+    }
+    s.push_str("</g>");
     // Channels are rendered behind seals. Endpoint trimming and arrows express caller -> callee.
     for edge in &a.edges {
         let Some(from) = placements.iter().find(|p| p.id == edge.from) else {
@@ -278,20 +503,33 @@ pub fn render_with_wingdings(
             to.x - ux * (to.radius + 10.),
             to.y - uy * (to.radius + 10.),
         );
-        let bend = if edge.kind == "contains" { 0. } else { 24. };
-        let _=write!(s,"<path d='M {x1:.1} {y1:.1} Q {:.1} {:.1} {x2:.1} {y2:.1}' fill='none' stroke='{ink}' stroke-width='{}' opacity='{}' {} {}/>",(x1+x2)/2.-uy*bend,(y1+y2)/2.+ux*bend,if edge.kind=="contains"{0.8}else{1.3},if edge.kind=="contains"{0.22}else{0.48},if edge.kind=="contains"{"stroke-dasharray='4 7'"}else{""},if edge.kind=="calls"{"marker-end='url(#arrow)'"}else{""});
+        let mut flow = Entropy(hash(&format!("{}:{}:{}", edge.from, edge.to, edge.kind)));
+        let bend = flow.between(-0.3, 0.3) * distance + flow.between(-50., 50.);
+        let c1x = x1 + (x2 - x1) * 0.31 - uy * bend;
+        let c1y = y1 + (y2 - y1) * 0.31 + ux * bend;
+        let c2x = x1 + (x2 - x1) * 0.68 + uy * bend * 0.48;
+        let c2y = y1 + (y2 - y1) * 0.68 - ux * bend * 0.48;
+        let _=write!(s,"<path d='M {x1:.1} {y1:.1} C {c1x:.1} {c1y:.1} {c2x:.1} {c2y:.1} {x2:.1} {y2:.1}' fill='none' stroke='{ink}' stroke-width='{}' opacity='{}' {} {}/>",if edge.kind=="contains"{0.8}else{1.3},if edge.kind=="contains"{0.26}else{0.55},if edge.kind=="contains"{"stroke-dasharray='4 7'"}else{""},if edge.kind=="calls"{"marker-end='url(#arrow)'"}else{""});
     }
     for place in &placements {
         let e = &a.entities[place.id];
         let (x, y, r) = (place.x, place.y, place.radius);
-        let large = r > 100.;
+        let large = e.kind != "function" || e.lines >= min_lines;
         let _=write!(s,"<g id='entity-{}'><title>{} · {}:{} · {} · {} source lines</title><circle cx='{x}' cy='{y}' r='{}' fill='{bg}'/><g fill='none' stroke='{ink}' stroke-width='.85'>",e.id,escape(&e.qualified_name),escape(&e.path),e.line,e.language,e.lines,r+2.);
         design(&mut s, e, x, y, r, large);
         s.push_str("</g>");
-        let count = if large { 44 } else { 20 };
+        let mut script = Entropy(entity_seed(e).wrapping_add(17));
+        let count = if large {
+            34 + (entity_seed(e) % 35) as usize
+        } else {
+            15 + (entity_seed(e) % 13) as usize
+        };
         let _=write!(s,"<g fill='{ink}' font-family='CIMRunic,CIMSymbols,CIMGreek,DejaVu Sans,Segoe UI Symbol,serif' font-size='{}' text-anchor='middle'>",if large{13}else{10});
         for i in 0..count {
-            let angle = i as f64 * 360. / count as f64;
+            let angle = i as f64 * 360. / count as f64 + script.between(-2.7, 2.7);
+            let band = r - script.between(12., 30.);
+            let size = script.between(if large { 10. } else { 8. }, if large { 16. } else { 12. });
+            let lean = script.between(-18., 18.);
             let token = e
                 .tokens
                 .get(i * e.tokens.len().max(1) / count)
@@ -309,7 +547,7 @@ pub fn render_with_wingdings(
             } else {
                 glyph(token)
             };
-            let _=write!(s,"<text transform='translate({x} {y}) rotate({angle}) translate(0 -{})' opacity='.8' font-family='{font}'>{symbol}</text>",r-20.);
+            let _=write!(s,"<text transform='translate({x} {y}) rotate({angle}) translate(0 -{band:.1}) rotate({lean:.1})' opacity='.8' font-size='{size:.1}' font-family='{font}'>{symbol}</text>");
         }
         let _ = write!(
             s,
@@ -334,8 +572,15 @@ pub fn render_with_wingdings(
                 },
             }
         );
-        let label = if e.qualified_name.chars().count() > 32 {
-            format!("{}…", e.qualified_name.chars().take(30).collect::<String>())
+        let label_limit = ((r * 2. / 7.).floor() as usize).clamp(14, 32);
+        let label = if e.qualified_name.chars().count() > label_limit {
+            format!(
+                "{}…",
+                e.qualified_name
+                    .chars()
+                    .take(label_limit - 1)
+                    .collect::<String>()
+            )
         } else {
             e.qualified_name.clone()
         };

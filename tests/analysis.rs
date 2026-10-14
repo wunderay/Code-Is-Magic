@@ -83,7 +83,7 @@ fn threshold_does_not_remove_functions_and_svg_escapes_input() {
     let a = analyze(&[file("a<&.rs", "fn short() { return; }")]);
     let d = render(&a, "<script>alert('x')</script>", 12, "gold");
     assert_eq!(d.placements.len(), 1);
-    assert_eq!(d.placements[0].radius, 66.);
+    assert!(d.placements[0].radius < 90.);
     assert!(!d.svg.contains("<script>"));
     assert!(d.svg.contains("&lt;script&gt;"));
     assert!(d.svg.contains("a&lt;&amp;.rs"));
@@ -152,4 +152,35 @@ fn rust_raw_strings_hide_embedded_source() {
         .entities
         .iter()
         .any(|e| e.name == "illusion" || e.name == "ghost"));
+}
+
+#[test]
+fn chaotic_layout_is_reproducible_and_reserves_space_for_each_seal() {
+    let source = (0..100)
+        .map(|i| format!("fn f{i}() {{ f{}(); }}\n", (i + 1) % 100))
+        .collect::<String>();
+    let a = analyze(&[file("constellation.rs", &source)]);
+    let d = render(&a, "Wild grimoire", 12, "gold");
+    assert_eq!(d.placements.len(), 100);
+    assert_eq!(d.svg, render(&a, "Wild grimoire", 12, "gold").svg);
+    assert!(!d.svg.contains("url(#grid)"));
+    let mut x_positions = std::collections::BTreeSet::new();
+    let mut y_positions = std::collections::BTreeSet::new();
+    let mut radii = std::collections::BTreeSet::new();
+    for (i, p) in d.placements.iter().enumerate() {
+        assert!(p.x.is_finite() && p.y.is_finite());
+        assert!(p.x - p.radius * 1.24 >= 0. && p.y - p.radius * 1.24 >= 0.);
+        assert!(
+            p.x + p.radius * 1.24 < d.width as f64 && p.y + p.radius * 1.24 + 50. < d.height as f64
+        );
+        x_positions.insert((p.x * 1000.).round() as i64);
+        y_positions.insert((p.y * 1000.).round() as i64);
+        radii.insert((p.radius * 1000.).round() as i64);
+        for q in d.placements.iter().skip(i + 1) {
+            assert!((p.x - q.x).hypot(p.y - q.y) + 0.002 >= p.radius + q.radius + 82.);
+        }
+    }
+    assert!(x_positions.len() > 90 && y_positions.len() > 90);
+    assert!(radii.len() > 10);
+    assert_eq!(d.svg.matches("marker-end='url(#arrow)'").count(), 100);
 }
