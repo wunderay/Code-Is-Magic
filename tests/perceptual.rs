@@ -71,6 +71,15 @@ fn keyed_artwork_cannot_be_exported_without_its_key() {
 }
 
 #[test]
+fn source_capsule_is_bound_to_the_jpeg_artwork() {
+    let capsule = capsule();
+    let mut bytes = encode_perceptual_jpeg_with_key(&capsule, None, 96).unwrap();
+    let position = bytes.len() - 3;
+    bytes[position] ^= 1;
+    assert!(decode_image_with_key(&bytes, None).is_err());
+}
+
+#[test]
 fn perceptual_profile_rejects_quality_that_can_be_visibly_lossy() {
     let capsule = capsule();
     assert!(encode_perceptual_jpeg_with_key(&capsule, None, 94).is_err());
