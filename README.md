@@ -1,199 +1,144 @@
 # Code Is Magic
 
-A Rust CLI and GitHub Pages website that turn code into chaotic, connected magic seals **and preserve the complete selected repository snapshot inside the exported image**.
+Code Is Magic turns a source repository into a deterministic field of connected magic circles and can reconstruct the captured repository from the resulting artifact.
 
-The artwork has no readable names, filenames, captions, or SVG text elements. Syntax symbols are vector outlines. Each qualified name has an injective, reversible radial contour built from its exact UTF-8 bytes, length, and checksum. The same qualified name always has the same normalized contour; identical names intentionally repeat that contour. Language motifs and type structures remain distinct.
+New transmutations have **one canonical output format: perceptually compressed SVGZ**. The artwork is allowed only sub-pixel geometry changes selected to be visually imperceptible, while the embedded repository snapshot remains byte-exact. There is no PNG/SVG/JSON choice when transmuting code to magic.
 
-## Exact image → source recovery
+The project itself is not offered under a project-wide license. Bundled font subsets retain their own upstream license notices in `web/fonts/`.
 
-An original exported **PNG** carries the compressed snapshot in the low three bits of its RGB pixel channels. Recovery uses pixel values, not PNG metadata, filename labels, a hash lookup, or external storage. Recompressing without changing decoded RGB values preserves it. **JPEG conversion, resizing, cropping, screenshots, color conversion, and other pixel edits can destroy data.** A damaged capsule produces an error; the program never claims an incomplete reconstruction is exact.
-
-A source-carrying **SVG** keeps the snapshot in a non-rendered metadata element and authenticates the exact drawing bytes. **SVGZ** gzip-compresses the complete SVG without changing its drawing or embedded source. Its visible name contours are also independently reversible from the polygon geometry. A JSON diagram preserves the complete snapshot beside the visualization.
-
-## Lossless image compression
-
-Every new export uses these storage optimizations automatically:
-
-- Repeated glyph outlines are defined once and referenced locally. Original paths, transforms, stroke/fill, colors, and coordinate precision are preserved.
-- Capsules select the smaller of DEFLATE level 9 and Brotli quality 9 with a 4 MiB window, **before encryption**. Bounded decoders accept both codecs and the original zlib format.
-- SVG capsules store the repository once and bind it to a SHA-256 digest of the visible SVG, avoiding a second copy of the entire drawing. For keyed SVG, that digest is inside the authenticated ciphertext.
-- PNG selects the smallest result among adaptive row filtering and all five fixed PNG filters at maximum DEFLATE compression. Opaque alpha is omitted; exact grayscale or 1/2/4/8-bit palette storage is considered only when it reproduces every RGBA value. The legacy encoding remains a size floor. There is no quantization, downsampling, color approximation, or rounded geometry.
-- SVGZ provides deterministic gzip transport for the full vector file. The website and CLI both export it and recover its exact source.
-
-Compress existing exports without re-rendering the repository:
+## Canonical transmutation
 
 ```sh
-code-is-magic --optimize original.png --output smaller.png
-code-is-magic --optimize original.svg --key-file ../my-magic.key --output smaller.svg
-code-is-magic --optimize original.svg --key-file ../my-magic.key --output smaller.svgz
-code-is-magic smaller.svgz --key-file ../my-magic.key --output recovered.zip
+cargo run --release -- https://github.com/wunderay/Code-Is-Magic --output code-is-magic.svgz
 ```
 
-PNG optimization preserves **every decoded RGBA pixel**, including the hidden source bits, and needs no key. SVG optimization preserves the outlines and transforms; a keyed SVG needs its original key to authenticate and rebuild its capsule. Existing exports remain readable. After importing a PNG on the website, PNG download compresses its original pixels. New downloads are cached for the displayed diagram. Compression costs additional export time, performed in the browser worker so the interface stays responsive. Keep ordinary SVG for editors that do not support SVGZ.
-
-Measured on the same 237-seal repository drawing (57 tracked entries), with full-resolution vector rendering and exact source/name recovery checked:
-
-| Existing export | Original bytes | Optimized bytes | Reduction |
-| --- | ---: | ---: | ---: |
-| PNG, every original pixel preserved | 10,477,420 | 7,917,161 | 24.4% |
-| SVG, identical outlines and rendered pixels | 13,036,716 | 6,620,030 | 49.2% |
-| SVGZ, same vector drawing | 13,036,716 | 1,646,657 | 87.4% |
-
-Results depend on the drawing and source payload. These measurements retain the original repository snapshot rather than regenerating a different diagram. `cargo run --release --example check_compression -- original.png smaller.png smaller.svg smaller.svgz ../my-magic.key` checks matching source, contour names, and vector raster pixels at the original PNG resolution.
-
-Captured data includes every tracked file's exact bytes and path, Git file mode (`100644` / `100755`), symlink target bytes (`120000`), blob object ID, the selected commit ID, and submodule commit pointers (`160000`). Unsupported programming languages, binary files, configuration, fonts, lockfiles, and line-ending/BOM differences are preserved even when the structural visualizer cannot parse them.
-
-Recovery downloads a deterministic ZIP with:
-
-- `repository/`: the original file tree, exact bytes, executable bits, and ZIP symlink attributes;
-- `restoration.json`: the complete snapshot, including commit/blob IDs and submodule pointers.
-
-This is the selected **tracked working tree**, not the repository's entire Git history. External submodule contents and expanded Git LFS objects are not stored in the parent Git tree; their tracked pointers are preserved exactly. Uncommitted files, filesystem timestamps, ACLs, and other untracked filesystem metadata are outside that snapshot. Exported images contain the code itself, including private repository content when supplied.
-
-## Terminal
-
-Install [Rust](https://rustup.rs), then:
+For a local source tree:
 
 ```sh
-git clone https://github.com/wunderay/Code-Is-Magic.git
-cd Code-Is-Magic
-cargo install --path . --locked
-code-is-magic https://github.com/owner/repo --output magic.png
-code-is-magic magic.png --output recovered.zip
-code-is-magic --decode-names magic.png
+cargo run --release -- ./my-project --output my-project.svgz
 ```
 
-Windows Command Prompt setup:
+`magic.svgz` is the default output name, so `--output` is optional.
 
-```bat
-git clone https://github.com/wunderay/Code-Is-Magic.git && cd Code-Is-Magic && cargo install --path . --locked
-```
+The canonical pipeline is deliberately vector-first. Code Is Magic drawings are synthetic geometry with sharp glyphs, thin rings, braided invocation channels, and large flat regions; a JPEG-like raster was substantially larger than the already-compressed vector representation at visually conservative settings. The canonical encoder therefore:
 
-More examples:
+1. analyzes and renders the repository deterministically;
+2. shares repeated glyph outlines without changing their shapes;
+3. rounds ordinary path coordinates to 0.01 SVG units and ordinary scalar placement geometry to 0.001 SVG units;
+4. keeps transform parameters at 0.000001 precision so tiny glyph scale factors do not suffer proportionally large changes;
+5. leaves the independent reversible name-sigil geometry byte-for-byte unchanged;
+6. embeds the complete repository snapshot in the existing authenticated source capsule;
+7. compresses the complete result as deterministic gzip/SVGZ with a zero timestamp.
+
+For the project reference drawing at 4258×3758, the selected geometry strategy measured about **51 dB PSNR** with roughly **0.08 mean absolute channel error** against the unquantized vector render. The final transform precision is stricter than that benchmarked candidate. More aggressive precision reduction was rejected. The quality rule is intentionally conservative because the smallest runes and braided strokes are more sensitive than ordinary photographic detail.
+
+The output remains deterministic: equal canonical source, options, and key produce equal bytes.
+
+## Exact source recovery
+
+Recover the repository from a canonical magic artifact:
 
 ```sh
-code-is-magic ./my-project --output magic.png --json diagram.json
-code-is-magic https://github.com/owner/repo.git --reference COMMIT_SHA --palette parchment --output magic.svg
-code-is-magic https://github.com/owner/repo --language-colors --output magic.png
-code-is-magic --decode magic.svg --output recovered.zip --json snapshot.json
-code-is-magic --decode-names magic.svg
+cargo run --release -- code-is-magic.svgz --output recovered.zip
 ```
 
-The same positional `INPUT` accepts a GitHub link, a local source directory, or an original exported PNG/SVG. Image input automatically recovers the complete source snapshot into `recovered.zip` unless `--output` specifies another path. The explicit `--decode` option remains available.
-
-`--palette` accepts `gold`, `astral`, or `parchment`. `--reference` accepts a branch, tag, or commit; all GitHub reads use the resolved commit's immutable blob IDs. Set `GITHUB_TOKEN` in your shell environment for private repositories or more API quota. Tokens are never put into the snapshot.
-
-`--language-colors` optionally gives each seal its language's hue. The website has the same **Language colors** checkbox, off by default, with matching legend swatches. Base colors come from [GitHub Linguist](https://github.com/github-linguist/linguist/blob/main/lib/linguist/languages.yml) and are authored in the native-language profiles. Tones adapt to the selected background for readability. Connections retain the chosen palette's ink. Colors affect neither geometry nor source recovery, and exported PNG/SVG/JSON diagrams preserve the setting.
-
-Local CLI mode preserves file bytes, executable flags, and symlink targets without following symlinks. It excludes directories named `.git`, `target`, `node_modules`, and `pkg`; GitHub mode preserves every entry in the selected tracked tree. Windows files do not expose Unix executable flags through ordinary local metadata; use GitHub input to preserve the Git modes precisely.
-
-## Optional cryptographic magic key
-
-A random **32-byte key** (64 hexadecimal digits) changes the central emblems, contour geometry, rune alphabet, collar rotations, satellites, constellation layout, and braided connections. Circular rings, language motifs, graph relationships, optional language colors, and function area scaling remain. Same canonical snapshot, key, renderer version, and settings give the same output bytes in native Rust and WebAssembly; a different key produces a different inscription. Without a key, existing output and older image recovery remain compatible.
-
-Generate a key **outside your source folder**, then use it in either direction:
+or equivalently:
 
 ```sh
-code-is-magic --generate-key ../my-magic.key
-code-is-magic ./my-project --key-file ../my-magic.key --output keyed.png
-code-is-magic keyed.png --key-file ../my-magic.key --output recovered.zip
-code-is-magic --decode-names keyed.png --key-file ../my-magic.key
+cargo run --release -- --decode code-is-magic.svgz --output recovered.zip
 ```
 
-The CLI also accepts `CODE_IS_MAGIC_KEY` from the environment. In Bash:
+The recovered snapshot preserves every captured tracked entry's exact bytes and path, Git file mode (`100644` / `100755`), symlink target bytes (`120000`), blob object ID when available, the selected commit ID, and submodule commit pointers (`160000`). Unsupported languages, binary files, configuration, lockfiles, line endings, and BOMs are preserved even when they are not structurally visualized.
+
+The visual layer is perceptually compressed; **the source capsule is not lossy**.
+
+## Optional magic key
+
+Generate a 256-bit key outside the source tree:
 
 ```sh
-export CODE_IS_MAGIC_KEY="$(cat ../my-magic.key)"
-code-is-magic https://github.com/owner/repo --output keyed.png
-code-is-magic keyed.png --output recovered.zip
-unset CODE_IS_MAGIC_KEY
+cargo run --release -- --generate-key ../my-magic.key
+cargo run --release -- ./my-project --key-file ../my-magic.key --output my-project.svgz
 ```
 
-In Windows PowerShell:
+Or set `CODE_IS_MAGIC_KEY` to the same 64-hex-digit value.
 
-```powershell
-$env:CODE_IS_MAGIC_KEY = (Get-Content ..\my-magic.key -Raw).Trim()
-code-is-magic https://github.com/owner/repo --output keyed.png
-code-is-magic keyed.png --output recovered.zip
-Remove-Item Env:CODE_IS_MAGIC_KEY
+A key deterministically changes circle geometry, glyph choices, inscriptions, and connection ornament while preserving structural meaning. The source capsule is protected with RustCrypto AES-256-SIV, so keyed recovery requires the original key and rejects the wrong key or altered authenticated data. Keep the key separately from the repository being captured.
+
+```sh
+cargo run --release -- my-project.svgz --key-file ../my-magic.key --output recovered.zip
 ```
 
-`--key-file` overrides the environment; `--key-file -` reads the key from stdin. Secrets are not accepted as command-line values, printed in errors, or serialized into images. Key generation uses the OS cryptographic random generator, creates a new file without overwriting an existing file, and applies mode `0600` on Unix. Windows file permissions follow the destination folder's ACL. A key file inside the captured local directory is rejected. Keep keys and files containing secrets out of captured source trees. These are random keys, **not passphrases**: arbitrary passwords are rejected instead of being silently weakened into encryption keys.
+## Legacy artifacts
 
-On the website, **Optional magic key** accepts the same hex key for transmutation and image recovery. **Generate** uses Web Crypto's secure random generator; **Save key** downloads the key separately. The key stays in this tab's memory and is sent only to the local Rust WebAssembly worker, never to GitHub or a backend, and is not kept in browser storage. Enter the original key before submitting a keyed image. Downloads use the key associated with the displayed artwork. PNG, SVG, and keyed offline JSON all encrypt the embedded source capsule; keyed JSON contains public artwork and ciphertext, not plaintext analysis/source. Import keyed JSON with its original key. Explicit source recovery downloads an ordinary source ZIP.
+Older Code Is Magic PNG, SVG, and SVGZ exports remain readable so existing artifacts are not stranded. They are recovery/migration formats only; the CLI and website no longer offer them as alternate outputs for a new code-to-magic transmutation.
 
-The scheme uses RustCrypto **AES-256-SIV** ([RFC 5297](https://www.rfc-editor.org/rfc/rfc5297.html)) for deterministic authenticated encryption, with domain-separated HMAC-SHA-512 derivation from the 32-byte key. Different domains separate source capsules, name contours, visual seeds, and the glyph permutation. Encrypted name contour v2 remains independently reversible from SVG coordinates with the key. An encrypted capsule starts with `CIMKEY01`; the existing PNG frame transports this ciphertext in pixel bits. Recovery authenticates it before decompressing or exposing files. Missing/wrong keys and altered ciphertext fail; keyed SVG recovery also validates its visible artwork against the authenticated copy. Tests include an independent Python AESSIV vector, key separation, legacy recovery, and native/WASM byte parity.
+Existing artifacts can still be losslessly optimized without rerendering:
 
-**Keep the key:** it cannot be recovered from the image. Deterministic encryption reveals repeated identical inputs under the same key. The public diagram also reveals structure, seal sizes, language motifs/colors, and approximate name lengths; it is an encrypted source carrier with a visible visualization, not a way to hide every fact about a repository. Retain the original exported PNG for recovery; resizing and other pixel edits can still destroy its payload.
+```sh
+cargo run --release -- --optimize old.png --output smaller.png
+cargo run --release -- --optimize old.svg --output smaller.svgz
+```
+
+A keyed legacy SVG/SVGZ needs its original key when its authenticated source capsule is rebuilt.
 
 ## Website
 
-The website's main **GitHub link or magic image** input accepts both directions. Paste a GitHub link and select **Transmute** to generate circles on the canvas. Choose, drop, or paste an original exported PNG/SVG in that same input and select **Recover source** to download the complete reconstructed source ZIP entirely in your browser. Editing the field switches back to repository input. Source folder input, pan/zoom, an inspector outside the artwork, three palettes, PNG/SVG/JSON downloads, and a geometry name decoder are also available.
+The static website is built entirely for GitHub Pages. It can:
 
-The website is an inscription chamber with a manuscript-style index, engraved controls, and **Light mode / Dark mode**. The theme button also selects vellum/bronze or midnight/gold ink for freshly generated diagrams. Imported offline diagrams retain their original ink until a source-based re-render. The theme preference is stored locally; secret keys are never stored.
+- transmute a public or authorized GitHub repository into the same canonical perceptual SVGZ used by the native CLI;
+- transmute a selected local folder in the browser;
+- apply an optional magic key without storing it;
+- display the manuscript-style interactive source atlas with light/dark themes, glow, and motion;
+- recover exact source ZIPs from canonical SVGZ and supported legacy artifacts;
+- decode reversible geometric declaration names.
 
-**Glow** adds luminous ink and **Motion** animates quiet collar filaments and sparks following the actual braided-channel curves. Both can be toggled independently. Motion starts paused when the browser requests reduced motion and pauses when the tab or canvas is not visible. Raster layers are cached at viewport resolution, so the animation does not re-analyze or re-rasterize the entire SVG every frame. These effects belong only to live playback; exported PNG/SVG/JSON retain static deterministic artwork and the complete recoverable source capsule.
+Native Rust and WebAssembly use the same encoder, and the test suite requires their canonical output bytes to match.
 
-PNG export uses the same Rust `resvg` rasterizer, pixel codec, and PNG encoder as the native CLI. It does not use browser canvas serialization, so native and WebAssembly output bytes are tested for equality. Equal canonical snapshots, artwork, and options produce identical PNG, SVG capsule, and ZIP bytes. There are no timestamps or random seeds in the output format; the apparent chaos is deterministic.
+The browser File API cannot expose Unix executable modes or symlinks for ordinary folder selection. Use GitHub input or the native CLI when those filesystem details matter.
 
-Browser folder input preserves every selected regular file's bytes, but the browser File API does **not** provide Unix executable modes or symlinks. Use GitHub or the native CLI when those matter. No source is uploaded to a backend; the optional token is sent only to `api.github.com`, cleared from the input, and never saved.
+## What becomes a magic circle
 
-Build and serve locally (Bash, Git Bash, or WSL):
+The structural visualizer currently has authored profiles for:
 
-```sh
-bash scripts/build-web.sh
-python3 -m http.server 8000 --directory web
-```
-
-Open `http://localhost:8000`. `file://` cannot load the WebAssembly worker. The build script installs the wasm-bindgen CLI matching `Cargo.lock`; no Node package installation is required.
-
-### GitHub Pages
-
-1. Open **Settings → Pages → Source → GitHub Actions**.
-2. Push to `main` or run **Actions → Build and publish grimoire**.
-3. The workflow verifies the code, builds WebAssembly, and publishes `web/`.
-
-The expected project URL after successful publication is `https://wunderay.github.io/Code-Is-Magic/`. All assets use relative URLs.
-
-## Visual grammar
-
-Function seal **area is directly proportional to non-comment body source lines**: radius = 24 × √lines. Four times as much code produces twice the radius. Equal-length functions have equal-sized seals regardless of their names, with no size cap or name-based jitter. The adjustable default of 12 lines controls ornament detail, not circle size. Braided invocation channels connect unambiguous caller → callee targets, with engraved knots and round endpoint seals. No arrowheads are drawn; direction remains in the inspector and graph metadata. Dotted tethers with diamond joints express type membership. Recursive calls use woven return loops. Structs use hexagons, enums diamonds, classes frames, interfaces opposing triangles, and named JavaScript object literals cubes. The reversible name contour distinguishes different names independently of those motifs.
-
-Outer collars stay circular. A name-derived center chooses and varies twelve original emblem families: ritual triangles, crescents, floral knots, heraldic crests, eyes, interlocking facets, branching runes, hourglasses, square labyrinths, orbital seals, flames, and curved triquetras. The exact reversible name contour sits inside the emblem rather than deforming the rim. Its normalized geometry and v1 decoder remain compatible with earlier images. Source recovery preserves the original artwork and its separate full seal radius.
-
-Visual references include TYPE-MOON / Fate, *Frieren*, *Witch Hat Atelier*, *Fairy Tail*, and *High School DxD*: concentric collars, script bands, distinct central emblems, and smaller subordinate seals. All rendered geometry is procedural; reference artwork is not bundled.
-
-| Language | Extensions | Motif |
+| Language | Typical source | Visual family |
 | --- | --- | --- |
-| Rust | `.rs` | Eight angular forge notches |
-| Python | `.py` | Six lunar crescents |
-| JavaScript | `.js .jsx .mjs .cjs` | Solar wheel |
-| TypeScript | `.ts .tsx` | Prismatic seal |
-| Go | `.go` | Flowing triad |
-| C / C++ | `.c .h / .cpp .hpp .cc` | Twelve gear teeth / sixteen linked square pairs |
-| Java | `.java` | Four cathedral arches |
-| C# | `.cs` | Diamond lattice |
+| Rust | `.rs` | Forge / runic |
+| Python | `.py` | Lunar |
+| JavaScript | `.js`, `.mjs`, `.cjs` | Solar |
+| TypeScript | `.ts`, `.tsx` | Prism |
+| Go | `.go` | Triad |
+| C | `.c`, `.h` | Clockwork |
+| C++ | `.cc`, `.cpp`, `.cxx`, `.hpp`, `.hh`, `.hxx` | Linked facets |
+| Java | `.java` | Cathedral |
+| C# | `.cs` | Lattice |
 
-The symbol atlas contains **478 measured glyphs in ten families**: Runic (89), Ogham (28), Greek including archaic forms (78), alchemical (116), celestial (44), geometric (35), dingbat (44), mathematical (6), ancient marks (14), and original bind sigils (24). Rune variants, historical marks, and broad symbols keep their natural proportions. Representative syntax includes Δ for branches, ∞ for loops, Ω for returns, and ᚠ for bindings; each seal mixes a seeded palette with syntax-derived choices. Ring inscriptions can use a continuous script, phrase-like spacing, two concentric rows on larger seals, or paired glyphs.
+Functions, methods, and related declarations become seals. Calls become braided invocation channels without arrowheads. Circle area follows source-code length independently of declaration-name length. `--language-colors` optionally colors seals using their language palette while adapting tones for the selected background.
 
-Visible outline bounds determine sizing and angular cells. Glyph height scales with the annular band instead of a fixed pixel cap. Each rotated outline fits its radial and angular cell; stacked glyphs have separate space. Circle-size scaling, contours, call relationships, and source recovery are unchanged. Variation is deterministic, including key-based alphabet permutations. Source recovery reads the complete capsule, not decorative syntax samples. Older images keep their original artwork when recovered and re-exported.
+The analyzer is structural rather than a compiler. Dynamic dispatch, macros, complex generics, expression-bodied functions, import resolution, and uncommon syntax may be unresolved; this affects visualization only, never byte-exact source recovery.
 
-All inscriptions are vector geometry. `--wingdings` emphasizes portable vector dingbats; no proprietary font or readable source text is embedded in the artwork. Font outlines and original bind-sigil geometry are compiled with `python3 scripts/build-glyphs.py`; the Unicode selection and font provenance are recorded in `scripts/glyph-sources.json`. With `fonttools==4.61.1` installed, `python3 scripts/build-glyphs.py --check` verifies regeneration from bundled font subsets without downloads.
+## Inscriptions
 
-The **visualizer** is a structural lexer, not a compiler: dynamic dispatch, macros, complex generics, expression-bodied functions, import resolution, and uncommon syntax may be unresolved. This does **not** affect byte-exact source recovery: the full original tracked file bytes are archived independently of parsing.
+The built-in symbol atlas contains 478 measured glyphs in ten families: Runic, Ogham, Greek including archaic forms, alchemical, celestial, geometric, dingbat, mathematical, ancient marks, and original bind sigils.
 
-## Format and limits
+Visible glyph bounds determine sizing and angular cells. Larger seals may use multiple concentric inscription rows or paired glyphs. Variation is deterministic, including key-based alphabet permutations. The artwork contains vector geometry rather than readable source names or SVG text.
 
-Language-specific policies and designs are authored in their own languages under [`languages/`](languages/README.md). A build-time compiler generates portable profiles for the shared Rust parser/renderer and browser extension filter. Native and WASM builds embed identical policies and need no additional user runtimes. See the authoring guide for regeneration and all-nine-language CI checks.
+Declaration names also have an independent reversible contour representation. The perceptual encoder deliberately excludes every `data-name-sigil='1'` element from geometry quantization so this recovery path remains exact.
 
-- Name contour v1: framed UTF-8 bytes encoded as 16 radial levels; geometry validates length and CRC32. No case folding or Unicode normalization is applied.
-- Source capsule v1: canonical sorted snapshot plus the original vector artwork, serialized in fixed field order and compressed deterministically.
-- PNG framing: `CIMPNG01`, compressed length, CRC32, then payload, in RGB low bits. The decoder bounds dimensions, payload size, decompression, paths, duplicates, and modes before exposing files.
-- ZIP: stored entries, UTF-8 path flag, fixed 1980 date, fixed modes; no nondeterministic timestamps.
-- Budget: 5,000 tracked entries, 2 MB per file, 50 MB file bytes, 128 MB uncompressed capsule, 64 million PNG pixels. Exceeding a budget fails instead of omitting files.
-- Recovery uses original exported files. Arbitrary artwork or screenshots do not contain a reconstructible repository. Unkeyed checksums detect corruption; optional keyed capsules authenticate and encrypt the source. Neither mode is a digital signature.
+## Limits
 
-## Verification
+A captured snapshot is bounded to protect native and browser decoders:
+
+- at most 5,000 entries;
+- at most 2 MB per individual file;
+- at most 50 MB of captured file content;
+- bounded image/vector decode budgets.
+
+Git history, expanded Git LFS objects, and the contents of external submodules are not embedded. A submodule entry records its commit pointer.
+
+## Development and verification
+
+Run the same core checks used by CI:
 
 ```sh
 cargo fmt --all -- --check
@@ -208,6 +153,4 @@ bash scripts/build-web.sh
 node --test tests/wasm.test.js
 ```
 
-Tests cover name round trips and distinctions, text-free geometry recovery, binary/CRLF/BOM source recovery, modes/symlinks/submodule pointers, pixel-preserving PNG recompression, corruption rejection, safe archive paths, native/WASM artifact parity, source acquisition, declarations, call graphs, and keyed deterministic encryption/recovery through environment, key files, stdin, and browser APIs.
-
-`src/glyphs.json` contains vector outlines derived from [Noto fonts](https://github.com/notofonts/noto-fonts), with the third-party font notice in `web/fonts/OFL.txt`. No project-wide license is specified. Captured source repositories retain their own notices.
+The verification suite checks, among other things, deterministic canonical SVGZ output, native/WebAssembly byte parity, a rasterized perceptual-quality regression floor, exact source and mode recovery, exact reversible names, keyed authentication, wrong-key rejection, legacy migration, glyph spacing, and rejection of PNG/SVG as new transmutation outputs.
