@@ -69,8 +69,7 @@ fn quantize_numbers(input: &str, decimals: usize) -> String {
             }
         }
         let begins_number = has_digits
-            && (start == 0
-                || !matches!(bytes[start - 1], b'0'..=b'9' | b'.' | b'e' | b'E'));
+            && (start == 0 || !matches!(bytes[start - 1], b'0'..=b'9' | b'.' | b'e' | b'E'));
         if begins_number && j > start {
             let token = &input[start..j];
             if has_fraction || token.contains('e') || token.contains('E') {
@@ -98,10 +97,7 @@ fn replacement(
         let range = attribute.range();
         let original = &svg[range.clone()];
         let quote = if original.contains('"') { '"' } else { '\'' };
-        (
-            range,
-            format!("{}={quote}{value}{quote}", attribute.name()),
-        )
+        (range, format!("{}={quote}{value}{quote}", attribute.name()))
     })
 }
 
@@ -168,10 +164,7 @@ pub fn perceptual_svg(svg: &str) -> Result<String, String> {
 
 /// The only canonical transmutation format: visually-imperceptible SVGZ plus an
 /// exact, optionally authenticated/encrypted source capsule.
-pub fn encode_magic_with_key(
-    capsule: &Capsule,
-    key: Option<&MagicKey>,
-) -> Result<Vec<u8>, String> {
+pub fn encode_magic_with_key(capsule: &Capsule, key: Option<&MagicKey>) -> Result<Vec<u8>, String> {
     let mut perceptual = capsule.clone();
     perceptual.svg = perceptual_svg(&perceptual.svg)?;
     let svg = embed_svg_with_key(&perceptual, key)?;
