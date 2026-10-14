@@ -1,4 +1,7 @@
-use code_is_magic::{analyze, perceptual_svg, render_with_options, SourceFile};
+use code_is_magic::{
+    analyze, encode_magic, encode_svgz_with_key, perceptual_svg, render_with_options, ArchiveEntry,
+    Capsule, Snapshot, SourceFile,
+};
 
 fn raster(svg: &str, width: u32, height: u32) -> Vec<u8> {
     let tree = resvg::usvg::Tree::from_str(svg, &resvg::usvg::Options::default()).unwrap();
@@ -40,10 +43,16 @@ fn representative_source() -> SourceFile {
     }
 }
 
+fn representative_diagram() -> (SourceFile, code_is_magic::Diagram) {
+    let source = representative_source();
+    let analysis = analyze(std::slice::from_ref(&source));
+    let diagram = render_with_options(&analysis, "perceptual-regression", 12, "gold", true, true);
+    (source, diagram)
+}
+
 #[test]
 fn canonical_geometry_stays_below_a_conservative_visual_error_floor() {
-    let analysis = analyze(&[representative_source()]);
-    let diagram = render_with_options(&analysis, "perceptual-regression", 12, "gold", true, true);
+    let (_, diagram) = representative_diagram();
     let perceptual = perceptual_svg(&diagram.svg).unwrap();
     assert!(
         perceptual.len() <= diagram.svg.len(),
@@ -70,9 +79,40 @@ fn canonical_geometry_stays_below_a_conservative_visual_error_floor() {
         10.0 * ((255.0 * 255.0) / mse).log10()
     };
 
-    // The production reference drawing measured ~51 dB / ~0.08 MAE. These gates
-    // intentionally leave headroom for harmless renderer evolution while rejecting
-    // precision changes large enough to become visible on thin glyphs and channels.
+    // The production reference drawing measured ~51 dB / ~0.08 MAE with the
+    // earlier, less-conservative transform rounding. These gates leave headroom for
+    // harmless renderer evolution while rejecting visible precision regressions.
     assert!(psnr >= 45.0, "perceptual PSNR regressed to {psnr:.2} dB");
     assert!(mae <= 0.35, "perceptual MAE regressed to {mae:.4}");
+}
+
+#[test]
+fn canonical_artifact_is_smaller_than_exact_svgz_for_representative_magic() {
+    let (source, diagram) = representative_diagram();
+    let capsule = Capsule {
+        version: 1,
+        snapshot: Snapshot {
+            version: 1,
+            title: "perceptual-regression".into(),
+            commit: None,
+            entries: vec![ArchiveEntry {
+                path: source.path,
+                mode: "100644".into(),
+                data: base64::Engine::encode(
+                    &base64::engine::general_purpose::STANDARD,
+                    source.content.as_bytes(),
+                ),
+                sha: None,
+            }],
+        },
+        svg: diagram.svg,
+    };
+    let exact = encode_svgz_with_key(&capsule, None).unwrap();
+    let canonical = encode_magic(&capsule).unwrap();
+    assert!(
+        canonical.len() < exact.len(),
+        "canonical perceptual SVGZ ({} bytes) must be smaller than exact SVGZ ({} bytes)",
+        canonical.len(),
+        exact.len()
+    );
 }
