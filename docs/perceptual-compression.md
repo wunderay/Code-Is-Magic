@@ -9,6 +9,7 @@ Code Is Magic supports an opt-in visually imperceptible JPEG carrier for cases w
 - The protected source capsule records SHA-256 of the exact JPEG visual stream with Code Is Magic APP15 segments removed. Recovery reconstructs that stream and rejects a capsule transplanted onto a different picture or any other change to the bound JPEG bytes.
 - With a magic key, the source payload and JPEG-stream binding are authenticated and encrypted with the existing AES-256-SIV machinery under a dedicated `perceptual-source/v1` domain before they enter the JPEG container.
 - The default visual profile is quality 96, progressive JPEG, RGB 4:4:4 (no chroma subsampling), and optimized Huffman tables.
+- Rasterization preserves the vector canvas aspect ratio and scales down only when necessary to stay within the deterministic 16-million-pixel safety budget; it does not crop or stretch the artwork.
 - The CLI accepts perceptual qualities 95 through 100 only. Lower values are deliberately rejected rather than silently permitting visibly degraded output.
 - Given the same canonical snapshot, artwork, key, quality, and pinned codec version, the encoder emits the same bytes.
 - Exact PNG, SVG, and SVGZ export behavior is unchanged.
