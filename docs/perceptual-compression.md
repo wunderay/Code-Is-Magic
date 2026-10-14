@@ -6,7 +6,8 @@ Code Is Magic supports an opt-in visually imperceptible JPEG carrier for cases w
 
 - Source recovery remains byte-exact. The JPEG pixel stream is never used to reconstruct source bytes.
 - The source snapshot is canonicalized, compressed independently, integrity-checked, and stored in deterministic JPEG APP15 segments.
-- With a magic key, the source payload is authenticated and encrypted with the existing AES-256-SIV machinery under a dedicated `perceptual-source/v1` domain before it enters the JPEG container.
+- The protected source capsule records SHA-256 of the exact JPEG visual stream with Code Is Magic APP15 segments removed. Recovery reconstructs that stream and rejects a capsule transplanted onto a different picture or any other change to the bound JPEG bytes.
+- With a magic key, the source payload and JPEG-stream binding are authenticated and encrypted with the existing AES-256-SIV machinery under a dedicated `perceptual-source/v1` domain before they enter the JPEG container.
 - The default visual profile is quality 96, progressive JPEG, RGB 4:4:4 (no chroma subsampling), and optimized Huffman tables.
 - The CLI accepts perceptual qualities 95 through 100 only. Lower values are deliberately rejected rather than silently permitting visibly degraded output.
 - Given the same canonical snapshot, artwork, key, quality, and pinned codec version, the encoder emits the same bytes.
@@ -22,7 +23,7 @@ The JPEG is an ordinary standards-compliant JPEG image plus one or more APP15 se
 - CRC-32 of the complete protected payload;
 - one chunk of the protected payload.
 
-The source payload itself is the smaller of maximum DEFLATE and Brotli quality 9 with a 4 MiB window. Keyed payloads are wrapped with `CIMVKEY1` after deterministic authenticated encryption. Decoding rejects missing, duplicated, inconsistent, oversized, or CRC-invalid chunks rather than returning partial source.
+The source payload itself is the smaller of maximum DEFLATE and Brotli quality 9 with a 4 MiB window. It contains the canonical source snapshot and the SHA-256 binding to the exact JPEG visual stream. Keyed payloads are wrapped with `CIMVKEY1` after deterministic authenticated encryption. Decoding rejects missing, duplicated, inconsistent, oversized, CRC-invalid, or artwork-mismatched chunks rather than returning partial or misleading source.
 
 This separation is intentional. Exact PNGs hide source bits inside RGB pixels, which makes those low bits look like compression-resistant noise. Perceptual JPEG stores the visible image and exact source as different streams, so the visual codec can optimize the artwork without ever being responsible for source recovery.
 
@@ -57,6 +58,6 @@ Use PNG when decoded RGBA pixels must be identical. Use SVG/SVGZ when exact vect
 
 ## Preservation warning
 
-Keep the original Code Is Magic JPEG if you need source recovery. Image editors, social networks, optimization services, or metadata scrubbers may preserve the visible JPEG pixels while deleting APP15 segments. A stripped file remains viewable but no longer contains the exact source capsule. Re-encoding also changes the visible pixels.
+Keep the original Code Is Magic JPEG if you need source recovery. Image editors, social networks, optimization services, or metadata scrubbers may preserve the visible JPEG pixels while deleting APP15 segments. A stripped file remains viewable but no longer contains the exact source capsule. Re-encoding also changes the visible pixels and therefore fails the JPEG-stream binding check.
 
 This is different from the exact PNG carrier: converting an exact PNG to an ordinary JPEG destroys the PNG’s pixel-embedded source bits. Generate a perceptual JPEG directly from Code Is Magic instead.
