@@ -1,7 +1,7 @@
+use crate::inscription::{inscribe, Atlas, Outline};
 use crate::profiles::{profile_for_language, CollarOperation};
 use crate::{encode_name_with_key, MagicKey};
 use crate::{Analysis, Entity};
-use serde::Deserialize;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::f64::consts::PI;
@@ -22,26 +22,26 @@ pub struct Diagram {
     pub placements: Vec<Placement>,
     pub analysis: Analysis,
 }
-fn hash(s: &str) -> u64 {
+pub(crate) fn hash(s: &str) -> u64 {
     s.bytes().fold(14695981039346656037, |h, b| {
         (h ^ b as u64).wrapping_mul(1099511628211)
     })
 }
 // Source-seeded entropy keeps the chaos identical in native Rust and WebAssembly.
-struct Entropy(u64);
+pub(crate) struct Entropy(pub(crate) u64);
 impl Entropy {
-    fn unit(&mut self) -> f64 {
+    pub(crate) fn unit(&mut self) -> f64 {
         self.0 = self
             .0
             .wrapping_mul(6364136223846793005)
             .wrapping_add(1442695040888963407);
         (self.0 >> 11) as f64 / (1_u64 << 53) as f64
     }
-    fn between(&mut self, low: f64, high: f64) -> f64 {
+    pub(crate) fn between(&mut self, low: f64, high: f64) -> f64 {
         low + self.unit() * (high - low)
     }
 }
-fn entity_seed(e: &Entity, key: Option<&MagicKey>) -> u64 {
+pub(crate) fn entity_seed(e: &Entity, key: Option<&MagicKey>) -> u64 {
     keyed_seed(key, b"entity", &e.qualified_name)
 }
 fn keyed_seed(key: Option<&MagicKey>, domain: &[u8], value: &str) -> u64 {
@@ -195,43 +195,6 @@ fn polygon(cx: f64, cy: f64, r: f64, n: usize, step: usize, rotation: f64) -> St
         })
         .collect::<Vec<_>>()
         .join(" ")
-}
-fn glyph(token: &str) -> &'static str {
-    match token {
-        "if" | "else" | "match" | "switch" => "Δ",
-        "for" | "while" | "loop" => "∞",
-        "return" | "yield" => "Ω",
-        "let" | "const" | "var" => "ᚠ",
-        "=" | "=>" => "ᚷ",
-        "+" | "+=" => "✚",
-        "-" => "ᚾ",
-        "*" => "✶",
-        "/" => "ϕ",
-        "(" | ")" => "☾",
-        "{" | "}" => "⊹",
-        "[" | "]" => "◇",
-        ":" | "::" | "." => "☿",
-        ";" | "," => "·",
-        "==" | "!=" | "<" | ">" | "<=" | ">=" => "⚖",
-        "&&" | "and" => "ᛗ",
-        "||" | "or" => "ᛞ",
-        "async" | "await" => "☽",
-        "try" | "catch" | "?" => "Ψ",
-        "literal" => "◈",
-        "self" | "this" => "Θ",
-        "pub" | "public" => "☉",
-        "mut" => "ᛏ",
-        "new" => "✧",
-        "true" | "false" | "None" | "null" => "☯",
-        _ => {
-            const RUNES: [&str; 36] = [
-                "ᚠ", "ᚢ", "ᚦ", "ᚨ", "ᚱ", "ᚲ", "ᚷ", "ᚹ", "ᚺ", "ᚾ", "ᛁ", "ᛃ", "ᛇ", "ᛈ", "ᛉ", "ᛊ",
-                "ᛏ", "ᛒ", "ᛖ", "ᛗ", "ᛚ", "ᛜ", "ᛞ", "ᛟ", "α", "β", "γ", "λ", "ξ", "π", "ϙ", "ϝ",
-                "ϟ", "ϡ", "∴", "∵",
-            ];
-            RUNES[(hash(token) % RUNES.len() as u64) as usize]
-        }
-    }
 }
 fn circle(s: &mut String, x: f64, y: f64, r: f64, opacity: f64) {
     let _ = write!(
@@ -644,18 +607,9 @@ pub fn render_with_key(
         "astral" => ("#090d20", "#8cd4ee", "#354968"),
         _ => ("#0c1112", "#d8be87", "#44514a"),
     };
-    let outlines: BTreeMap<String, Outline> =
-        serde_json::from_str(include_str!("glyphs.json")).expect("bundled glyph paths are valid");
-    // Permute the vector-symbol alphabet with the key. Ring glyphs stay legible,
-    // but the ordinary syntax-to-symbol mapping cannot be used on keyed art.
-    let symbols: Vec<_> = outlines.keys().collect();
-    let mut shuffled = symbols.clone();
-    if let Some(key) = key {
-        shuffled.sort_by_key(|symbol| (key.seed(b"glyph-alphabet", symbol.as_bytes()), *symbol));
-    }
-    let alphabet: BTreeMap<_, _> = symbols.into_iter().zip(shuffled).collect();
+    let atlas = Atlas::new(key);
     let _ = title; // Provenance lives in the recoverable archive, never in the artwork.
-    let mut s=format!("<svg xmlns='http://www.w3.org/2000/svg' width='{width}' height='{height}' viewBox='0 0 {width} {height}' data-language-colors='{language_colors}'><rect width='100%' height='100%' fill='{bg}'/>");
+    let mut s=format!("<svg xmlns='http://www.w3.org/2000/svg' width='{width}' height='{height}' viewBox='0 0 {width} {height}' data-language-colors='{language_colors}' data-inscription-version='2'><rect width='100%' height='100%' fill='{bg}'/>");
     if key.is_some() {
         // This is a format flag, never a key or key fingerprint.
         s = s.replacen("viewBox=", "data-magic-key='1' viewBox=", 1);
@@ -722,44 +676,11 @@ pub fn render_with_key(
         let contour = encode_name_with_key(&e.qualified_name, key)?;
         let core = r * 0.52;
         let _=write!(s,"<polygon data-name-sigil='1' data-entity='{}' data-seal-radius='{r}' points='{}' transform='translate({x} {y}) scale({core})' stroke-width='.007' opacity='.65' stroke-linejoin='round'/> </g>",e.id,contour.svg_points());
-        let mut script = Entropy(entity_seed(e, key).wrapping_add(17));
-        let count = if large {
-            34 + (entity_seed(e, key) % 35) as usize
-        } else {
-            15 + (entity_seed(e, key) % 13) as usize
-        };
         let _ = write!(s, "<g fill='{ink}'>");
-        for i in 0..count {
-            let angle = i as f64 * 360. / count as f64 + script.between(-2.7, 2.7);
-            let band = r * script.between(0.80, 0.87);
-            let size = script
-                .between(if large { 10. } else { 8. }, if large { 16. } else { 12. })
-                .min(r * 0.28);
-            let lean = script.between(-18., 18.);
-            let token = e
-                .tokens
-                .get(i * e.tokens.len().max(1) / count)
-                .map_or(e.name.as_str(), |x| x.as_str());
-            let symbol = glyph(token);
-            let symbol = alphabet
-                .get(&symbol.to_string())
-                .map_or(symbol, |s| s.as_str());
-            let _ = write!(s,"<g transform='translate({x} {y}) rotate({angle:.3}) translate(0 -{band:.1}) rotate({lean:.1})' opacity='.8'>");
-            if wingdings && i % 3 == 0 {
-                // Portable dingbat ornaments are vector geometry, not installed-font text.
-                let points = polygon(0., 0., size * 0.43, 5, 2, PI / 2.);
-                let _ = write!(
-                    s,
-                    "<polyline points='{points}' fill='none' stroke='{ink}' stroke-width='.7'/>"
-                );
-            } else {
-                draw_outline(&mut s, &outlines, symbol, 0., 0., size);
-            }
-            s.push_str("</g>");
-        }
+        inscribe(&mut s, &atlas, e, x, y, r, large, wingdings, key);
         draw_outline(
             &mut s,
-            &outlines,
+            &atlas.outlines,
             match e.kind.as_str() {
                 "class" | "impl" => "♜",
                 "enum" => "◈",
@@ -770,7 +691,7 @@ pub fn render_with_key(
             },
             x,
             y,
-            (if large { 26_f64 } else { 20_f64 }).min(r * 0.45),
+            r * 0.25,
         );
         s.push_str("</g></g>");
     }
@@ -784,13 +705,6 @@ pub fn render_with_key(
     })
 }
 
-#[derive(Deserialize)]
-struct Outline {
-    path: String,
-    cx: f64,
-    cy: f64,
-    units: f64,
-}
 fn draw_outline(
     s: &mut String,
     outlines: &BTreeMap<String, Outline>,
@@ -800,7 +714,7 @@ fn draw_outline(
     size: f64,
 ) {
     if let Some(o) = outlines.get(symbol) {
-        let scale = size / o.units;
+        let scale = size / o.width.max(o.height);
         let _=write!(s,"<path d='{}' transform='translate({x:.3} {y:.3}) scale({scale:.8} -{scale:.8}) translate({:.3} {:.3})'/>",o.path,-o.cx,-o.cy);
     } else {
         let _ = write!(

@@ -99,6 +99,10 @@ The scheme uses RustCrypto **AES-256-SIV** ([RFC 5297](https://www.rfc-editor.or
 
 The website's main **GitHub link or magic image** input accepts both directions. Paste a GitHub link and select **Transmute** to generate circles on the canvas. Choose, drop, or paste an original exported PNG/SVG in that same input and select **Recover source** to download the complete reconstructed source ZIP entirely in your browser. Editing the field switches back to repository input. Source folder input, pan/zoom, an inspector outside the artwork, three palettes, PNG/SVG/JSON downloads, and a geometry name decoder are also available.
 
+The website is an inscription chamber with a manuscript-style index, engraved controls, and **Light mode / Dark mode**. The theme button also selects vellum/bronze or midnight/gold ink for freshly generated diagrams. Imported offline diagrams retain their original ink until a source-based re-render. The theme preference is stored locally; secret keys are never stored.
+
+**Glow** adds luminous ink and **Motion** animates quiet collar filaments and sparks following the actual braided-channel curves. Both can be toggled independently. Motion starts paused when the browser requests reduced motion and pauses when the tab or canvas is not visible. Raster layers are cached at viewport resolution, so the animation does not re-analyze or re-rasterize the entire SVG every frame. These effects belong only to live playback; exported PNG/SVG/JSON retain static deterministic artwork and the complete recoverable source capsule.
+
 PNG export uses the same Rust `resvg` rasterizer, pixel codec, and PNG encoder as the native CLI. It does not use browser canvas serialization, so native and WebAssembly output bytes are tested for equality. Equal canonical snapshots, artwork, and options produce identical PNG, SVG capsule, and ZIP bytes. There are no timestamps or random seeds in the output format; the apparent chaos is deterministic.
 
 Browser folder input preserves every selected regular file's bytes, but the browser File API does **not** provide Unix executable modes or symlinks. Use GitHub or the native CLI when those matter. No source is uploaded to a backend; the optional token is sent only to `api.github.com`, cleared from the input, and never saved.
@@ -139,7 +143,11 @@ Visual references include TYPE-MOON / Fate, *Frieren*, *Witch Hat Atelier*, *Fai
 | Java | `.java` | Four cathedral arches |
 | C# | `.cs` | Diamond lattice |
 
-Branches map to Δ, loops ∞, returns Ω, bindings ᚠ, assignment ᚷ, and comparisons ⚖. Greek, Norse, alchemical, and dingbat symbols are vector geometry. The legacy `--wingdings` flag now enables portable vector dingbat ornament; no proprietary font or ordinary text is embedded in the artwork.
+The symbol atlas contains **478 measured glyphs in ten families**: Runic (89), Ogham (28), Greek including archaic forms (78), alchemical (116), celestial (44), geometric (35), dingbat (44), mathematical (6), ancient marks (14), and original bind sigils (24). Rune variants, historical marks, and broad symbols keep their natural proportions. Representative syntax includes Δ for branches, ∞ for loops, Ω for returns, and ᚠ for bindings; each seal mixes a seeded palette with syntax-derived choices. Ring inscriptions can use a continuous script, phrase-like spacing, two concentric rows on larger seals, or paired glyphs.
+
+Visible outline bounds determine sizing and angular cells. Glyph height scales with the annular band instead of a fixed pixel cap. Each rotated outline fits its radial and angular cell; stacked glyphs have separate space. Circle-size scaling, contours, call relationships, and source recovery are unchanged. Variation is deterministic, including key-based alphabet permutations. Source recovery reads the complete capsule, not decorative syntax samples. Older images keep their original artwork when recovered and re-exported.
+
+All inscriptions are vector geometry. `--wingdings` emphasizes portable vector dingbats; no proprietary font or readable source text is embedded in the artwork. Font outlines and original bind-sigil geometry are compiled with `python3 scripts/build-glyphs.py`; the Unicode selection and font provenance are recorded in `scripts/glyph-sources.json`. With `fonttools==4.61.1` installed, `python3 scripts/build-glyphs.py --check` verifies regeneration from bundled font subsets without downloads.
 
 The **visualizer** is a structural lexer, not a compiler: dynamic dispatch, macros, complex generics, expression-bodied functions, import resolution, and uncommon syntax may be unresolved. This does **not** affect byte-exact source recovery: the full original tracked file bytes are archived independently of parsing.
 
@@ -160,6 +168,9 @@ Language-specific policies and designs are authored in their own languages under
 cargo fmt --all -- --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked
+python3 -m pip install fonttools==4.61.1
+python3 scripts/build-glyphs.py --check
+python3 tests/inscriptions.py
 python3 tests/recovery_cli.py
 node --test tests/repository.test.js
 bash scripts/build-web.sh

@@ -1,0 +1,2302 @@
+{
+  "version": 1,
+  "fonts": [
+    {
+      "path": "web/fonts/NotoSans-Regular.ttf",
+      "source": "https://github.com/notofonts/noto-fonts/blob/main/hinted/ttf/NotoSans/NotoSans-Regular.ttf"
+    },
+    {
+      "path": "web/fonts/NotoSansRunic-Regular.ttf",
+      "source": "https://github.com/notofonts/noto-fonts/blob/main/hinted/ttf/NotoSansRunic/NotoSansRunic-Regular.ttf"
+    },
+    {
+      "path": "web/fonts/NotoSansOgham-Regular.ttf",
+      "source": "https://github.com/notofonts/noto-fonts/blob/main/hinted/ttf/NotoSansOgham/NotoSansOgham-Regular.ttf"
+    },
+    {
+      "path": "web/fonts/NotoSansSymbols-Regular.ttf",
+      "source": "https://github.com/notofonts/noto-fonts/blob/main/hinted/ttf/NotoSansSymbols/NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "path": "web/fonts/NotoSansSymbols2-Regular.ttf",
+      "source": "https://github.com/notofonts/noto-fonts/blob/main/hinted/ttf/NotoSansSymbols2/NotoSansSymbols2-Regular.ttf"
+    }
+  ],
+  "glyphs": [
+    {
+      "symbol": "·",
+      "family": "mathematical",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Ͱ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ͱ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Ͳ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ͳ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Ͷ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ͷ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Ϳ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Α",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Β",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Γ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Δ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Ε",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Ζ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Η",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Θ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Ι",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Κ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Λ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Μ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Ν",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Ξ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Ο",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Π",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Ρ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Σ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Τ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Υ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Φ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Χ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Ψ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Ω",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "α",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "β",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "γ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "δ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ε",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ζ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "η",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "θ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ι",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "κ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "λ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "μ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ν",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ξ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ο",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "π",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ρ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ς",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "σ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "τ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "υ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "φ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "χ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ψ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ω",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ϐ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ϑ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ϒ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ϕ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ϖ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Ϙ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ϙ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Ϛ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ϛ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Ϝ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ϝ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Ϟ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ϟ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "Ϡ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ϡ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ϰ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ϱ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ϲ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ϳ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ϴ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ϵ",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "϶",
+      "family": "greek",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "ᚁ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚂ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚃ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚄ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚅ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚆ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚇ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚈ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚉ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚊ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚋ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚌ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚍ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚎ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚏ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚐ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚑ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚒ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚓ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚔ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚕ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚖ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚗ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚘ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚙ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚚ",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "᚛",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "᚜",
+      "family": "ogham",
+      "font": "NotoSansOgham-Regular.ttf"
+    },
+    {
+      "symbol": "ᚠ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚡ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚢ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚣ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚤ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚥ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚦ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚧ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚨ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚩ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚪ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚫ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚬ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚭ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚮ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚯ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚰ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚱ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚲ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚳ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚴ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚵ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚶ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚷ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚸ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚹ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚺ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚻ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚼ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚽ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚾ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᚿ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛀ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛁ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛂ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛃ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛄ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛅ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛆ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛇ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛈ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛉ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛊ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛋ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛌ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛍ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛎ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛏ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛐ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛑ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛒ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛓ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛔ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛕ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛖ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛗ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛘ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛙ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛚ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛛ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛜ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛝ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛞ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛟ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛠ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛡ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛢ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛣ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛤ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛥ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛦ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛧ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛨ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛩ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛪ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "᛫",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "᛬",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "᛭",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛮ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛯ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛰ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛱ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛲ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛳ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛴ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛵ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛶ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛷ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "ᛸ",
+      "family": "runic",
+      "font": "NotoSansRunic-Regular.ttf"
+    },
+    {
+      "symbol": "∞",
+      "family": "mathematical",
+      "path": "M-450 0C-450-340-200-340 0-90C200-340 450-340 450 0C450 340 200 340 0 90C-200 340-450 340-450 0ZM-370 0C-370 210-210 210-55 0C-210-210-370-210-370 0ZM55 0C210 210 370 210 370 0C370-210 210-210 55 0Z",
+      "units": 1000
+    },
+    {
+      "symbol": "∴",
+      "family": "mathematical",
+      "path": "M-50 230A50 50 0 1 0 50 230A50 50 0 1 0-50 230ZM-260-180A50 50 0 1 0-160-180A50 50 0 1 0-260-180ZM160-180A50 50 0 1 0 260-180A50 50 0 1 0 160-180Z",
+      "units": 1000
+    },
+    {
+      "symbol": "∵",
+      "family": "mathematical",
+      "path": "M-50-230A50 50 0 1 0 50-230A50 50 0 1 0-50-230ZM-260 180A50 50 0 1 0-160 180A50 50 0 1 0-260 180ZM160 180A50 50 0 1 0 260 180A50 50 0 1 0 160 180Z",
+      "units": 1000
+    },
+    {
+      "symbol": "≋",
+      "family": "mathematical",
+      "path": "M-400-230Q-200-50 0-230Q200-410 400-230L400-170Q200-350 0-170Q-200 10-400-170ZM-400-30Q-200 150 0-30Q200-210 400-30L400 30Q200-150 0 30Q-200 210-400 30ZM-400 170Q-200 350 0 170Q200-10 400 170L400 230Q200 50 0 230Q-200 410-400 230Z",
+      "units": 1000
+    },
+    {
+      "symbol": "⊙",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "⊹",
+      "family": "geometric",
+      "path": "M-40-380L40-380L40-40L380-40L380 40L40 40L40 380L-40 380L-40 40L-380 40L-380-40L-40-40Z",
+      "units": 1000
+    },
+    {
+      "symbol": "⋄",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "⏣",
+      "family": "geometric",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "⏧",
+      "family": "geometric",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "△",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "▷",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "▽",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "◁",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "◇",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "◈",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "◉",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "◊",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "○",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "◌",
+      "family": "geometric",
+      "font": "NotoSans-Regular.ttf"
+    },
+    {
+      "symbol": "◍",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "◎",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "◐",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "◑",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "◒",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "◓",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "◔",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "◕",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "◖",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "◗",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "◬",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "◭",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "◮",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "◯",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "☀",
+      "family": "celestial",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "☄",
+      "family": "celestial",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "☉",
+      "family": "celestial",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "☊",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "☋",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "☌",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "☍",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "☥",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "☦",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "☧",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "☨",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "☩",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "☪",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "☫",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "☬",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "☮",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "☯",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "☸",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "☽",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "☾",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "☿",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "♀",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "♁",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "♂",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "♃",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "♄",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "♅",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "♆",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "♇",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "♈",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "♉",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "♊",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "♋",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "♌",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "♍",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "♎",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "♏",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "♐",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "♑",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "♒",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "♓",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "♜",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "⚕",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "⚖",
+      "family": "mathematical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "⚙",
+      "family": "geometric",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "⚚",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "⚛",
+      "family": "celestial",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "✚",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✛",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✜",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✝",
+      "family": "dingbat",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "✞",
+      "family": "dingbat",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "✟",
+      "family": "dingbat",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "✠",
+      "family": "dingbat",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "✡",
+      "family": "dingbat",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "✢",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✣",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✤",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✥",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✦",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✧",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✩",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✪",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✫",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✬",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✭",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✮",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✯",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✰",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✱",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✲",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✳",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✴",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✵",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✶",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✷",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✸",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✹",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✺",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✻",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✼",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✽",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✾",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "✿",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "❀",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "❁",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "❂",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "❃",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "❖",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "❧",
+      "family": "dingbat",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "⬟",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "⬠",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "⬡",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "⬢",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "⬣",
+      "family": "geometric",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "𐆐",
+      "family": "ancient-marks",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "𐆑",
+      "family": "ancient-marks",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "𐆒",
+      "family": "ancient-marks",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "𐆓",
+      "family": "ancient-marks",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "𐆔",
+      "family": "ancient-marks",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "𐆕",
+      "family": "ancient-marks",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "𐆖",
+      "family": "ancient-marks",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "𐆗",
+      "family": "ancient-marks",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "𐆘",
+      "family": "ancient-marks",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "𐆙",
+      "family": "ancient-marks",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "𐆚",
+      "family": "ancient-marks",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "𐆛",
+      "family": "ancient-marks",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "𐆜",
+      "family": "ancient-marks",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "𐆠",
+      "family": "ancient-marks",
+      "font": "NotoSansSymbols2-Regular.ttf"
+    },
+    {
+      "symbol": "🜀",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜁",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜂",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜃",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜄",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜅",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜆",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜇",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜈",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜉",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜊",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜋",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜌",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜍",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜎",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜏",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜐",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜑",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜒",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜓",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜔",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜕",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜖",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜗",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜘",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜙",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜚",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜛",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜜",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜝",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜞",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜟",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜠",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜡",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜢",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜣",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜤",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜥",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜦",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜧",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜨",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜩",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜪",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜫",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜬",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜭",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜮",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜯",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜰",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜱",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜲",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜳",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜴",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜵",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜶",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜷",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜸",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜹",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜺",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜻",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜼",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜽",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜾",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🜿",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝀",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝁",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝂",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝃",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝄",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝅",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝆",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝇",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝈",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝉",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝊",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝋",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝌",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝍",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝎",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝏",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝐",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝑",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝒",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝓",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝔",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝕",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝖",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝗",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝘",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝙",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝚",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝛",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝜",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝝",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝞",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝟",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝠",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝡",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝢",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝣",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝤",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝥",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝦",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝧",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝨",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝩",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝪",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝫",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝬",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝭",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝮",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝯",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝰",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝱",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝲",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    },
+    {
+      "symbol": "🝳",
+      "family": "alchemical",
+      "font": "NotoSansSymbols-Regular.ttf"
+    }
+  ]
+}

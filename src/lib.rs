@@ -2,6 +2,7 @@ mod analyze;
 mod archive;
 mod crypto;
 pub use crypto::MagicKey;
+mod inscription;
 mod profiles;
 mod render;
 mod sigil;
