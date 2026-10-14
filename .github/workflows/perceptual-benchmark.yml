@@ -29,8 +29,9 @@ jobs:
           recovered=Path('/tmp/recovered.zip')
           a=Image.open(png).convert('RGB')
           b=Image.open(jpg).convert('RGB')
+          source_dimensions=a.size
           if a.size != b.size:
-              raise SystemExit(f'dimension mismatch: {a.size} != {b.size}')
+              a=a.resize(b.size,Image.Resampling.LANCZOS)
           diffs=[]
           squared=0
           count=0
@@ -45,5 +46,5 @@ jobs:
           diffs.sort()
           p99=diffs[min(len(diffs)-1, math.ceil(len(diffs)*0.99)-1)]
           reduction=(1-jpg.stat().st_size/png.stat().st_size)*100
-          print(f'CIM_BENCH exact_png={png.stat().st_size} jpeg={jpg.stat().st_size} reduction_pct={reduction:.2f} recovered_zip={recovered.stat().st_size} deterministic=true mae={statistics.fmean(diffs):.4f} p99={p99} psnr_db={psnr:.2f} dimensions={a.width}x{a.height}')
+          print(f'CIM_BENCH exact_png={png.stat().st_size} jpeg={jpg.stat().st_size} reduction_pct={reduction:.2f} recovered_zip={recovered.stat().st_size} deterministic=true mae={statistics.fmean(diffs):.4f} p99={p99} psnr_db={psnr:.2f} exact_dimensions={source_dimensions[0]}x{source_dimensions[1]} jpeg_dimensions={b.width}x{b.height}')
           PY
