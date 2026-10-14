@@ -29,7 +29,7 @@ struct Args {
     decode_names: Option<PathBuf>,
     #[arg(short, long, default_value = "magic.png")]
     output: PathBuf,
-    /// Minimum non-comment source lines for a full circle; smaller functions become compact seals
+    /// Minimum non-comment source lines for full ornament detail; size always follows code lines
     #[arg(long, default_value_t = 12)]
     min_lines: usize,
     #[arg(long,default_value="gold",value_parser=["gold","astral","parchment"])]

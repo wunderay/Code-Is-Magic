@@ -78,7 +78,7 @@ The expected project URL after successful publication is `https://wunderay.githu
 
 ## Visual grammar
 
-Large functions get full seals; functions below the adjustable default of 12 non-comment body lines get compact ones. Call arrows connect unambiguous caller → callee targets; dashed links express type membership. Structs use hexagons, enums diamonds, classes frames, interfaces opposing triangles, and named JavaScript object literals cubes. The reversible name contour distinguishes different names independently of those motifs.
+Function seal **area is directly proportional to non-comment body source lines**: radius = 24 × √lines. Four times as much code produces twice the radius. Equal-length functions have equal-sized seals regardless of their names, with no size cap or name-based jitter. The adjustable default of 12 lines controls ornament detail, not circle size. Call arrows connect unambiguous caller → callee targets; dashed links express type membership. Structs use hexagons, enums diamonds, classes frames, interfaces opposing triangles, and named JavaScript object literals cubes. The reversible name contour distinguishes different names independently of those motifs.
 
 | Language | Extensions | Motif |
 | --- | --- | --- |

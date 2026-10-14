@@ -43,11 +43,7 @@ impl Entropy {
 fn entity_seed(e: &Entity) -> u64 {
     hash(&e.qualified_name)
 }
-fn scatter_layout(
-    a: &Analysis,
-    visible: &[&Entity],
-    min_lines: usize,
-) -> (Vec<Placement>, u32, u32) {
+fn scatter_layout(a: &Analysis, visible: &[&Entity]) -> (Vec<Placement>, u32, u32) {
     let mut neighbors = vec![Vec::new(); a.entities.len()];
     for edge in &a.edges {
         if edge.from != edge.to {
@@ -55,17 +51,22 @@ fn scatter_layout(
             neighbors[edge.to].push(edge.from);
         }
     }
+    // Function area is proportional to non-comment body source lines.
+    // Name-derived variation belongs to the contour, never to function size.
     let radius = |e: &Entity| {
-        let variance = (entity_seed(e) % 37) as f64;
-        if e.kind == "function" && e.lines < min_lines {
-            43. + variance * 0.72
-        } else if e.kind == "function" {
-            ((102. + (e.lines.max(1) as f64).ln() * 9. + variance).min(184.) * 1000.).round()
-                / 1000.
+        if e.kind == "function" {
+            24. * (e.lines.max(1) as f64).sqrt()
         } else {
-            92. + variance
+            92. + (entity_seed(e) % 37) as f64
         }
     };
+    // A neighboring-cell lookup must remain safe even for very large functions.
+    let max_radius = visible
+        .iter()
+        .map(|e| radius(e))
+        .reduce(f64::max)
+        .unwrap_or(24.);
+    let cell_size = (2. * max_radius + 82.).max(128.);
     let spread = visible
         .iter()
         .map(|e| (radius(e) + 50.).powi(2))
@@ -105,7 +106,10 @@ fn scatter_layout(
                     y = distance * angle.sin() * 0.93;
                 }
             }
-            let cell = ((x / 480.).floor() as i32, (y / 480.).floor() as i32);
+            let cell = (
+                (x / cell_size).floor() as i32,
+                (y / cell_size).floor() as i32,
+            );
             let collision = (-1..=1).any(|dx| {
                 (-1..=1).any(|dy| {
                     cells
@@ -433,7 +437,7 @@ pub fn render_with_wingdings(
         .iter()
         .filter(|e| e.kind != "merged_impl")
         .collect();
-    let (placements, width, height) = scatter_layout(a, &visible, min_lines);
+    let (placements, width, height) = scatter_layout(a, &visible);
     let (bg, ink, muted) = match palette {
         "parchment" => ("#f0e8d7", "#73502d", "#a59370"),
         "astral" => ("#090d20", "#8cd4ee", "#354968"),
@@ -519,8 +523,10 @@ pub fn render_with_wingdings(
         let _ = write!(s, "<g fill='{ink}'>");
         for i in 0..count {
             let angle = i as f64 * 360. / count as f64 + script.between(-2.7, 2.7);
-            let band = r - script.between(12., 30.);
-            let size = script.between(if large { 10. } else { 8. }, if large { 16. } else { 12. });
+            let band = r * script.between(0.68, 0.88);
+            let size = script
+                .between(if large { 10. } else { 8. }, if large { 16. } else { 12. })
+                .min(r * 0.28);
             let lean = script.between(-18., 18.);
             let token = e
                 .tokens
@@ -562,7 +568,7 @@ pub fn render_with_wingdings(
             },
             x,
             y,
-            if large { 26. } else { 20. },
+            (if large { 26_f64 } else { 20_f64 }).min(r * 0.45),
         );
         s.push_str("</g></g>");
     }

@@ -181,6 +181,48 @@ fn chaotic_layout_is_reproducible_and_reserves_space_for_each_seal() {
         }
     }
     assert!(x_positions.len() > 90 && y_positions.len() > 90);
-    assert!(radii.len() > 10);
+    assert_eq!(radii.len(), 1);
     assert_eq!(d.svg.matches("marker-end='url(#arrow)'").count(), 100);
+}
+
+#[test]
+fn function_area_tracks_code_length_independently_of_names_and_detail_threshold() {
+    fn body(name: &str, lines: usize) -> String {
+        format!(
+            "fn {name}() {{\n{}\n}}",
+            (0..lines)
+                .map(|i| format!("let n{i} = {i};"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        )
+    }
+    let source = format!(
+        "{}\n{}\n{}\n{}",
+        body("short", 2),
+        body("a_completely_different_name", 2),
+        body("medium", 14),
+        body("huge", 398)
+    );
+    let a = analyze(&[file("size.rs", &source)]);
+    let d = render(&a, "ignored", 12, "gold");
+    let radius = |name: &str| {
+        let e = a.entities.iter().find(|e| e.name == name).unwrap();
+        d.placements.iter().find(|p| p.id == e.id).unwrap().radius
+    };
+    assert_eq!(radius("short"), radius("a_completely_different_name"));
+    assert_eq!(radius("medium"), 2. * radius("short")); // 16 versus 4 occupied body lines.
+    assert_eq!(radius("huge"), 10. * radius("short")); // 400 versus 4; no old 184px cap.
+    for p in &d.placements {
+        let e = &a.entities[p.id];
+        assert!((p.radius * p.radius - 576. * e.lines as f64).abs() < 0.000001);
+    }
+    let detailed = render(&a, "ignored", 1, "gold");
+    for (left, right) in d.placements.iter().zip(&detailed.placements) {
+        assert_eq!(left.radius, right.radius);
+    }
+    for (i, p) in d.placements.iter().enumerate() {
+        for q in d.placements.iter().skip(i + 1) {
+            assert!((p.x - q.x).hypot(p.y - q.y) + 0.002 >= p.radius + q.radius + 82.);
+        }
+    }
 }
