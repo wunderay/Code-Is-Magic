@@ -10,6 +10,8 @@ An original exported **PNG** carries the compressed snapshot in the low three bi
 
 A source-carrying **SVG** keeps the snapshot in a non-rendered metadata element and authenticates the exact drawing bytes. **SVGZ** gzip-compresses the complete SVG without changing its drawing or embedded source. Its visible name contours are also independently reversible from the polygon geometry. A JSON diagram preserves the complete snapshot beside the visualization.
 
+A **perceptual JPEG** is the opt-in small-raster format. Its visible pixels use deterministic quality-96 progressive JPEG with 4:4:4 chroma, while the exact source snapshot is compressed separately into integrity-checked APP15 segments. The JPEG is visually rather than pixel lossless: source recovery remains byte-exact, but the decoded RGB samples are intentionally allowed to differ slightly. Keyed JPEGs encrypt and authenticate the source capsule under a dedicated domain. Keep the original JPEG because image editors and metadata scrubbers may remove APP segments even when the picture still looks unchanged. See [`docs/perceptual-compression.md`](docs/perceptual-compression.md) for the format contract.
+
 ## Lossless image compression
 
 Every new export uses these storage optimizations automatically:
@@ -73,13 +75,15 @@ More examples:
 
 ```sh
 code-is-magic ./my-project --output magic.png --json diagram.json
+code-is-magic ./my-project --output magic.jpg
+code-is-magic ./my-project --perceptual-quality 98 --output magic.jpg
 code-is-magic https://github.com/owner/repo.git --reference COMMIT_SHA --palette parchment --output magic.svg
 code-is-magic https://github.com/owner/repo --language-colors --output magic.png
 code-is-magic --decode magic.svg --output recovered.zip --json snapshot.json
 code-is-magic --decode-names magic.svg
 ```
 
-The same positional `INPUT` accepts a GitHub link, a local source directory, or an original exported PNG/SVG. Image input automatically recovers the complete source snapshot into `recovered.zip` unless `--output` specifies another path. The explicit `--decode` option remains available.
+The same positional `INPUT` accepts a GitHub link, a local source directory, or an original exported PNG/JPEG/SVG/SVGZ. Image input automatically recovers the complete source snapshot into `recovered.zip` unless `--output` specifies another path. `--perceptual-quality` controls direct JPEG export and is intentionally restricted to 95–100; the default is 96. The explicit `--decode` option remains available.
 
 `--palette` accepts `gold`, `astral`, or `parchment`. `--reference` accepts a branch, tag, or commit; all GitHub reads use the resolved commit's immutable blob IDs. Set `GITHUB_TOKEN` in your shell environment for private repositories or more API quota. Tokens are never put into the snapshot.
 
@@ -120,21 +124,21 @@ Remove-Item Env:CODE_IS_MAGIC_KEY
 
 `--key-file` overrides the environment; `--key-file -` reads the key from stdin. Secrets are not accepted as command-line values, printed in errors, or serialized into images. Key generation uses the OS cryptographic random generator, creates a new file without overwriting an existing file, and applies mode `0600` on Unix. Windows file permissions follow the destination folder's ACL. A key file inside the captured local directory is rejected. Keep keys and files containing secrets out of captured source trees. These are random keys, **not passphrases**: arbitrary passwords are rejected instead of being silently weakened into encryption keys.
 
-On the website, **Optional magic key** accepts the same hex key for transmutation and image recovery. **Generate** uses Web Crypto's secure random generator; **Save key** downloads the key separately. The key stays in this tab's memory and is sent only to the local Rust WebAssembly worker, never to GitHub or a backend, and is not kept in browser storage. Enter the original key before submitting a keyed image. Downloads use the key associated with the displayed artwork. PNG, SVG, and keyed offline JSON all encrypt the embedded source capsule; keyed JSON contains public artwork and ciphertext, not plaintext analysis/source. Import keyed JSON with its original key. Explicit source recovery downloads an ordinary source ZIP.
+On the website, **Optional magic key** accepts the same hex key for transmutation and image recovery. **Generate** uses Web Crypto's secure random generator; **Save key** downloads the key separately. The key stays in this tab's memory and is sent only to the local Rust WebAssembly worker, never to GitHub or a backend, and is not kept in browser storage. Enter the original key before submitting a keyed image. Downloads use the key associated with the displayed artwork. PNG, perceptual JPEG, SVG, and keyed offline JSON all encrypt the embedded source capsule; keyed JSON contains public artwork and ciphertext, not plaintext analysis/source. Import keyed JSON with its original key. Explicit source recovery downloads an ordinary source ZIP.
 
 The scheme uses RustCrypto **AES-256-SIV** ([RFC 5297](https://www.rfc-editor.org/rfc/rfc5297.html)) for deterministic authenticated encryption, with domain-separated HMAC-SHA-512 derivation from the 32-byte key. Different domains separate source capsules, name contours, visual seeds, and the glyph permutation. Encrypted name contour v2 remains independently reversible from SVG coordinates with the key. An encrypted capsule starts with `CIMKEY01`; the existing PNG frame transports this ciphertext in pixel bits. Recovery authenticates it before decompressing or exposing files. Missing/wrong keys and altered ciphertext fail; keyed SVG recovery also validates its visible artwork against the authenticated copy. Tests include an independent Python AESSIV vector, key separation, legacy recovery, and native/WASM byte parity.
 
-**Keep the key:** it cannot be recovered from the image. Deterministic encryption reveals repeated identical inputs under the same key. The public diagram also reveals structure, seal sizes, language motifs/colors, and approximate name lengths; it is an encrypted source carrier with a visible visualization, not a way to hide every fact about a repository. Retain the original exported PNG for recovery; resizing and other pixel edits can still destroy its payload.
+**Keep the key:** it cannot be recovered from the image. Deterministic encryption reveals repeated identical inputs under the same key. The public diagram also reveals structure, seal sizes, language motifs/colors, and approximate name lengths; it is an encrypted source carrier with a visible visualization, not a way to hide every fact about a repository. Retain original recovery carriers. Resizing or pixel edits can destroy the PNG payload; re-saving a perceptual JPEG can strip its APP15 source segments.
 
 ## Website
 
-The website's main **GitHub link or magic image** input accepts both directions. Paste a GitHub link and select **Transmute** to generate circles on the canvas. Choose, drop, or paste an original exported PNG/SVG in that same input and select **Recover source** to download the complete reconstructed source ZIP entirely in your browser. Editing the field switches back to repository input. Source folder input, pan/zoom, an inspector outside the artwork, three palettes, PNG/SVG/JSON downloads, and a geometry name decoder are also available.
+The website's main **GitHub link or magic image** input accepts both directions. Paste a GitHub link and select **Transmute** to generate circles on the canvas. Choose, drop, or paste an original exported PNG/JPEG/SVG/SVGZ in that same input and select **Recover source** to download the complete reconstructed source ZIP entirely in your browser. Editing the field switches back to repository input. Source folder input, pan/zoom, an inspector outside the artwork, three palettes, PNG/JPEG/SVG/SVGZ/JSON downloads, and a geometry name decoder are also available.
 
 The website is an inscription chamber with a manuscript-style index, engraved controls, and **Light mode / Dark mode**. The theme button also selects vellum/bronze or midnight/gold ink for freshly generated diagrams. Imported offline diagrams retain their original ink until a source-based re-render. The theme preference is stored locally; secret keys are never stored.
 
 **Glow** adds luminous ink and **Motion** animates quiet collar filaments and sparks following the actual braided-channel curves. Both can be toggled independently. Motion starts paused when the browser requests reduced motion and pauses when the tab or canvas is not visible. Raster layers are cached at viewport resolution, so the animation does not re-analyze or re-rasterize the entire SVG every frame. These effects belong only to live playback; exported PNG/SVG/JSON retain static deterministic artwork and the complete recoverable source capsule.
 
-PNG export uses the same Rust `resvg` rasterizer, pixel codec, and PNG encoder as the native CLI. It does not use browser canvas serialization, so native and WebAssembly output bytes are tested for equality. Equal canonical snapshots, artwork, and options produce identical PNG, SVG capsule, and ZIP bytes. There are no timestamps or random seeds in the output format; the apparent chaos is deterministic.
+PNG and perceptual JPEG export use the same Rust `resvg` rasterizer as the native CLI; the browser does not use canvas serialization for either format. Equal canonical snapshots, artwork, keys, options, and pinned codec versions produce deterministic PNG, JPEG, SVG capsule, and ZIP bytes. There are no timestamps or random seeds in the output format; the apparent chaos is deterministic.
 
 Browser folder input preserves every selected regular file's bytes, but the browser File API does **not** provide Unix executable modes or symlinks. Use GitHub or the native CLI when those matter. No source is uploaded to a backend; the optional token is sent only to `api.github.com`, cleared from the input, and never saved.
 
