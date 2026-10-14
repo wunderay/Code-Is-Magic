@@ -253,17 +253,23 @@ fn render_rgb(svg: &str) -> Result<(Vec<u8>, u16, u16), String> {
     let tree = resvg::usvg::Tree::from_str(svg, &resvg::usvg::Options::default())
         .map_err(|_| "Invalid vector artwork")?;
     let size = tree.size();
-    let natural = (size.width() as usize)
-        .checked_mul(size.height() as usize)
+    let natural_width = size.width().ceil().max(1.0) as u32;
+    let natural_height = size.height().ceil().max(1.0) as u32;
+    let natural = (natural_width as usize)
+        .checked_mul(natural_height as usize)
         .ok_or("Artwork dimensions overflow")?;
-    let pixels = natural.clamp(64 * 64, MAX_PIXELS);
-    let aspect = (size.width() as f64 / size.height() as f64).clamp(0.1, 10.0);
-    let width = ((pixels as f64 * aspect).sqrt().ceil() as u32).max(64);
-    let height = (pixels.div_ceil(width as usize) as u32).max(64);
-    if width as usize * height as usize > MAX_PIXELS
-        || width > u16::MAX as u32
-        || height > u16::MAX as u32
+    let (width, height) = if natural <= MAX_PIXELS
+        && natural_width <= u16::MAX as u32
+        && natural_height <= u16::MAX as u32
     {
+        (natural_width, natural_height)
+    } else {
+        let scale = (MAX_PIXELS as f64 / natural as f64).sqrt();
+        let width = ((natural_width as f64 * scale).floor() as u32).max(1);
+        let height = ((natural_height as f64 * scale).floor() as u32).max(1);
+        (width.min(u16::MAX as u32), height.min(u16::MAX as u32))
+    };
+    if width as usize * height as usize > MAX_PIXELS {
         return Err("Perceptual image dimensions exceed budget".into());
     }
     let mut pixmap =
