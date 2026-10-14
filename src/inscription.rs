@@ -7,6 +7,8 @@ use std::{collections::BTreeMap, f64::consts::PI, fmt::Write};
 
 #[derive(Deserialize)]
 pub(crate) struct Outline {
+    #[serde(skip)]
+    pub id: usize,
     pub path: String,
     pub cx: f64,
     pub cy: f64,
@@ -22,8 +24,11 @@ pub(crate) struct Atlas {
 }
 impl Atlas {
     pub fn new(key: Option<&MagicKey>) -> Self {
-        let outlines: BTreeMap<String, Outline> =
+        let mut outlines: BTreeMap<String, Outline> =
             serde_json::from_str(include_str!("glyphs.json")).expect("bundled measured glyphs");
+        for (id, outline) in outlines.values_mut().enumerate() {
+            outline.id = id;
+        }
         let symbols: Vec<_> = outlines.keys().cloned().collect();
         let mut shuffled = symbols.clone();
         if let Some(key) = key {
@@ -47,6 +52,19 @@ impl Atlas {
             alphabet,
             families,
         }
+    }
+    pub fn definitions(&self, svg: &str) -> String {
+        let used: std::collections::BTreeSet<usize> = svg
+            .split("href='#glyph-")
+            .skip(1)
+            .filter_map(|s| s.split_once('\'')?.0.parse().ok())
+            .collect();
+        let mut defs = String::from("<defs>");
+        for glyph in self.outlines.values().filter(|g| used.contains(&g.id)) {
+            let _ = write!(defs, "<path id='glyph-{}' d='{}'/>", glyph.id, glyph.path);
+        }
+        defs.push_str("</defs>");
+        defs
     }
     fn choose(&self, family: &str, seed: u64) -> &Outline {
         let pool = &self.families[family];
@@ -178,7 +196,7 @@ fn fit_glyph(s: &mut String, glyph: &Outline, width: f64, height: f64, offset: f
     let scale = (width / rotated_width).min(height / rotated_height);
     let actual_width = rotated_width * scale;
     let actual_height = rotated_height * scale;
-    let _ = write!(s, "<path data-glyph='1' data-family='{}' data-width='{actual_width:.6}' data-height='{actual_height:.6}' data-offset='{offset:.6}' d='{}' transform='translate(0 {offset:.6}) rotate({lean:.6}) scale({scale:.10} -{scale:.10}) translate({:.6} {:.6})'/>", glyph.family, glyph.path, -glyph.cx, -glyph.cy);
+    let _ = write!(s, "<use data-glyph='1' data-family='{}' data-width='{actual_width:.6}' data-height='{actual_height:.6}' data-offset='{offset:.6}' href='#glyph-{}' transform='translate(0 {offset:.6}) rotate({lean:.6}) scale({scale:.10} -{scale:.10}) translate({:.6} {:.6})'/>", glyph.family, glyph.id, -glyph.cx, -glyph.cy);
 }
 
 #[allow(clippy::too_many_arguments)]

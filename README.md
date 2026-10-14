@@ -8,7 +8,38 @@ The artwork has no readable names, filenames, captions, or SVG text elements. Sy
 
 An original exported **PNG** carries the compressed snapshot in the low three bits of its RGB pixel channels. Recovery uses pixel values, not PNG metadata, filename labels, a hash lookup, or external storage. Recompressing without changing decoded RGB values preserves it. **JPEG conversion, resizing, cropping, screenshots, color conversion, and other pixel edits can destroy data.** A damaged capsule produces an error; the program never claims an incomplete reconstruction is exact.
 
-A source-carrying **SVG** keeps the same capsule in a non-rendered metadata element. Its visible name contours are also independently reversible from the polygon geometry. A JSON diagram preserves the complete snapshot beside the visualization.
+A source-carrying **SVG** keeps the snapshot in a non-rendered metadata element and authenticates the exact drawing bytes. **SVGZ** gzip-compresses the complete SVG without changing its drawing or embedded source. Its visible name contours are also independently reversible from the polygon geometry. A JSON diagram preserves the complete snapshot beside the visualization.
+
+## Lossless image compression
+
+Every new export uses these storage optimizations automatically:
+
+- Repeated glyph outlines are defined once and referenced locally. Original paths, transforms, stroke/fill, colors, and coordinate precision are preserved.
+- Capsules select the smaller of DEFLATE level 9 and Brotli quality 9 with a 4 MiB window, **before encryption**. Bounded decoders accept both codecs and the original zlib format.
+- SVG capsules store the repository once and bind it to a SHA-256 digest of the visible SVG, avoiding a second copy of the entire drawing. For keyed SVG, that digest is inside the authenticated ciphertext.
+- PNG selects the smallest result among adaptive row filtering and all five fixed PNG filters at maximum DEFLATE compression. Opaque alpha is omitted; exact grayscale or 1/2/4/8-bit palette storage is considered only when it reproduces every RGBA value. The legacy encoding remains a size floor. There is no quantization, downsampling, color approximation, or rounded geometry.
+- SVGZ provides deterministic gzip transport for the full vector file. The website and CLI both export it and recover its exact source.
+
+Compress existing exports without re-rendering the repository:
+
+```sh
+code-is-magic --optimize original.png --output smaller.png
+code-is-magic --optimize original.svg --key-file ../my-magic.key --output smaller.svg
+code-is-magic --optimize original.svg --key-file ../my-magic.key --output smaller.svgz
+code-is-magic smaller.svgz --key-file ../my-magic.key --output recovered.zip
+```
+
+PNG optimization preserves **every decoded RGBA pixel**, including the hidden source bits, and needs no key. SVG optimization preserves the outlines and transforms; a keyed SVG needs its original key to authenticate and rebuild its capsule. Existing exports remain readable. After importing a PNG on the website, PNG download compresses its original pixels. New downloads are cached for the displayed diagram. Compression costs additional export time, performed in the browser worker so the interface stays responsive. Keep ordinary SVG for editors that do not support SVGZ.
+
+Measured on the same 237-seal repository drawing (57 tracked entries), with full-resolution vector rendering and exact source/name recovery checked:
+
+| Existing export | Original bytes | Optimized bytes | Reduction |
+| --- | ---: | ---: | ---: |
+| PNG, every original pixel preserved | 10,477,420 | 7,917,161 | 24.4% |
+| SVG, identical outlines and rendered pixels | 13,036,716 | 6,620,030 | 49.2% |
+| SVGZ, same vector drawing | 13,036,716 | 1,646,657 | 87.4% |
+
+Results depend on the drawing and source payload. These measurements retain the original repository snapshot rather than regenerating a different diagram. `cargo run --release --example check_compression -- original.png smaller.png smaller.svg smaller.svgz ../my-magic.key` checks matching source, contour names, and vector raster pixels at the original PNG resolution.
 
 Captured data includes every tracked file's exact bytes and path, Git file mode (`100644` / `100755`), symlink target bytes (`120000`), blob object ID, the selected commit ID, and submodule commit pointers (`160000`). Unsupported programming languages, binary files, configuration, fonts, lockfiles, and line-ending/BOM differences are preserved even when the structural visualizer cannot parse them.
 

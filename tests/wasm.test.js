@@ -27,13 +27,13 @@ for(const [wingdings,languageColors,palette] of [[false,false,'gold'],[true,fals
   // Keep generated outputs outside the captured input folder for this comparison.
   rmSync(output);
   execFileSync('cargo',['run','--locked','--',folder,'--output',nativePng,...options],{stdio:'pipe'});
-  assert.deepEqual(Buffer.from(wasmPng),readFileSync(nativePng));
+  assert.ok(Buffer.from(wasmPng).equals(readFileSync(nativePng)),'Native/WASM PNG bytes differ');
   const roundTrip=JSON.parse(recover_image(wasmPng));
   assert.deepEqual(roundTrip.snapshot,recovered.snapshot);
  }finally{rmSync(folder,{recursive:true,force:true});}
 });
 
-const {transmute_keyed,pack_png_keyed,pack_svg_keyed,recover_image_keyed,recover_names_keyed}=await import('../web/pkg/code_is_magic.js');
+const {transmute_keyed,pack_png_keyed,pack_svg_keyed,pack_svgz_keyed,optimize_png,recover_image_keyed,recover_names_keyed}=await import('../web/pkg/code_is_magic.js');
 for(const palette of ['gold','parchment'])test(`keyed native/WASM artifact parity and authenticated recovery: ${palette}`,()=>{
  const folder=mkdtempSync(join(tmpdir(),'code-magic-keyed-'));
  const key='01'.repeat(32),wrong='02'.repeat(32);
@@ -54,11 +54,23 @@ for(const palette of ['gold','parchment'])test(`keyed native/WASM artifact parit
   assert.equal(JSON.parse(recover_names_keyed(browser.svg,key)).length,28);
   assert.throws(()=>recover_names_keyed(browser.svg,wrong),/Wrong magic key/);
   assert.equal(pack_svg_keyed(JSON.stringify(c),key),exported.toString());
+  const svgzPath=join(folder,'out.svgz');
+  execFileSync('cargo',['run','--locked','--',source,'--output',svgzPath,...options],{env,stdio:'pipe'});
+  const svgz=pack_svgz_keyed(JSON.stringify(c),key);
+  assert.ok(Buffer.from(svgz).equals(readFileSync(svgzPath)),'Native/WASM SVGZ bytes differ');
+  assert.deepEqual(JSON.parse(recover_image_keyed(svgz,key)),c);
+  assert.throws(()=>recover_image_keyed(svgz,wrong),/Wrong magic key/);
   execFileSync('cargo',['run','--locked','--',source,'--output',pngPath,...options],{env,stdio:'pipe'});
   const wasmPng=pack_png_keyed(JSON.stringify(c),key);
-  assert.deepEqual(Buffer.from(wasmPng),readFileSync(pngPath));
+  assert.ok(Buffer.from(wasmPng).equals(readFileSync(pngPath)),'Keyed native/WASM PNG bytes differ');
   assert.deepEqual(JSON.parse(recover_image_keyed(wasmPng,key)),c);
   assert.throws(()=>recover_image_keyed(wasmPng,wrong),/Wrong magic key/);
-  assert.deepEqual(Buffer.from(pack_png_keyed(recover_image_keyed(wasmPng,key),key)),readFileSync(pngPath));
+  assert.ok(Buffer.from(pack_png_keyed(recover_image_keyed(wasmPng,key),key)).equals(readFileSync(pngPath)),'Recovered PNG re-export differs');
+  const optimizedPath=join(folder,'optimized.png');
+  execFileSync('cargo',['run','--locked','--','--optimize',pngPath,'--output',optimizedPath],{stdio:'pipe'});
+  const smaller=optimize_png(wasmPng);
+  assert.ok(Buffer.from(smaller).equals(readFileSync(optimizedPath)),'Native/WASM PNG optimization bytes differ');
+  assert.ok(smaller.length<=wasmPng.length);
+  assert.deepEqual(JSON.parse(recover_image_keyed(smaller,key)),c);
  }finally{rmSync(folder,{recursive:true,force:true});}
 });

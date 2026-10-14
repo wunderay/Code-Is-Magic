@@ -696,6 +696,8 @@ pub fn render_with_key(
         s.push_str("</g></g>");
     }
     s.push_str("</svg>");
+    let definitions = atlas.definitions(&s);
+    s.insert_str(s.find('>').unwrap() + 1, &definitions);
     Ok(Diagram {
         svg: s,
         width,
@@ -715,7 +717,7 @@ fn draw_outline(
 ) {
     if let Some(o) = outlines.get(symbol) {
         let scale = size / o.width.max(o.height);
-        let _=write!(s,"<path d='{}' transform='translate({x:.3} {y:.3}) scale({scale:.8} -{scale:.8}) translate({:.3} {:.3})'/>",o.path,-o.cx,-o.cy);
+        let _=write!(s,"<use href='#glyph-{}' transform='translate({x:.3} {y:.3}) scale({scale:.8} -{scale:.8}) translate({:.3} {:.3})'/>",o.id,-o.cx,-o.cy);
     } else {
         let _ = write!(
             s,

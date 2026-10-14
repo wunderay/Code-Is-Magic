@@ -1,6 +1,8 @@
 mod analyze;
 mod archive;
+mod compression;
 mod crypto;
+pub use compression::{compact_svg, optimize_png};
 pub use crypto::MagicKey;
 mod inscription;
 mod profiles;
@@ -8,9 +10,9 @@ mod render;
 mod sigil;
 pub use analyze::{analyze, supported, Analysis, Edge, Entity, SourceFile};
 pub use archive::{
-    decode_png, decode_png_with_key, decode_svg, decode_svg_with_key, embed_svg,
-    embed_svg_with_key, encode_png, encode_png_with_key, snapshot_zip, ArchiveEntry, Capsule,
-    Snapshot,
+    decode_image_with_key, decode_png, decode_png_with_key, decode_svg, decode_svg_with_key,
+    embed_svg, embed_svg_with_key, encode_png, encode_png_with_key, encode_svgz_with_key,
+    snapshot_zip, ArchiveEntry, Capsule, Snapshot,
 };
 pub use profiles::{language_profiles, profile_for_language, profile_for_path, LanguageProfile};
 pub use render::{
@@ -63,6 +65,10 @@ pub fn pack_png(capsule_json: &str) -> Result<Vec<u8>, JsValue> {
         serde_json::from_str(capsule_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
     encode_png(&capsule).map_err(|e| JsValue::from_str(&e))
 }
+#[wasm_bindgen(js_name = optimize_png)]
+pub fn optimize_png_browser(bytes: &[u8]) -> Result<Vec<u8>, JsValue> {
+    optimize_png(bytes).map_err(|e| JsValue::from_str(&e))
+}
 #[wasm_bindgen]
 pub fn pack_svg(capsule_json: &str) -> Result<String, JsValue> {
     let capsule: Capsule =
@@ -71,14 +77,7 @@ pub fn pack_svg(capsule_json: &str) -> Result<String, JsValue> {
 }
 #[wasm_bindgen]
 pub fn recover_image(bytes: &[u8]) -> Result<String, JsValue> {
-    let capsule = if bytes.starts_with(b"\x89PNG") {
-        decode_png(bytes)
-    } else {
-        std::str::from_utf8(bytes)
-            .map_err(|_| "Not a source-carrying PNG or SVG".to_string())
-            .and_then(decode_svg)
-    }
-    .map_err(|e| JsValue::from_str(&e))?;
+    let capsule = decode_image_with_key(bytes, None).map_err(|e| JsValue::from_str(&e))?;
     serde_json::to_string(&capsule).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 #[wasm_bindgen]
@@ -138,21 +137,15 @@ pub fn pack_png_keyed(capsule_json: &str, key_hex: &str) -> Result<Vec<u8>, JsVa
 #[wasm_bindgen]
 pub fn pack_svg_keyed(capsule_json: &str, key_hex: &str) -> Result<String, JsValue> {
     let key = optional_key(key_hex)?;
-    let capsule: Capsule =
+    let mut capsule: Capsule =
         serde_json::from_str(capsule_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
+    capsule.svg = compact_svg(&capsule.svg).map_err(|e| JsValue::from_str(&e))?;
     embed_svg_with_key(&capsule, key.as_ref()).map_err(|e| JsValue::from_str(&e))
 }
 #[wasm_bindgen]
 pub fn recover_image_keyed(bytes: &[u8], key_hex: &str) -> Result<String, JsValue> {
     let key = optional_key(key_hex)?;
-    let capsule = if bytes.starts_with(b"\x89PNG") {
-        decode_png_with_key(bytes, key.as_ref())
-    } else {
-        std::str::from_utf8(bytes)
-            .map_err(|_| "Not a source-carrying PNG or SVG".to_string())
-            .and_then(|svg| decode_svg_with_key(svg, key.as_ref()))
-    }
-    .map_err(|e| JsValue::from_str(&e))?;
+    let capsule = decode_image_with_key(bytes, key.as_ref()).map_err(|e| JsValue::from_str(&e))?;
     serde_json::to_string(&capsule).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 #[wasm_bindgen]
@@ -160,4 +153,13 @@ pub fn recover_names_keyed(svg: &str, key_hex: &str) -> Result<String, JsValue> 
     let key = optional_key(key_hex)?;
     let names = decode_svg_names_with_key(svg, key.as_ref()).map_err(|e| JsValue::from_str(&e))?;
     serde_json::to_string(&names).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
+#[wasm_bindgen]
+pub fn pack_svgz_keyed(capsule_json: &str, key_hex: &str) -> Result<Vec<u8>, JsValue> {
+    let key = optional_key(key_hex)?;
+    let mut capsule: Capsule =
+        serde_json::from_str(capsule_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
+    capsule.svg = compact_svg(&capsule.svg).map_err(|e| JsValue::from_str(&e))?;
+    encode_svgz_with_key(&capsule, key.as_ref()).map_err(|e| JsValue::from_str(&e))
 }

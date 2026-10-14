@@ -2,6 +2,7 @@ import { readRepository, SOURCE_PATTERN, sourceFiles, encodeBytes, snapshotFromS
 import { demoFiles } from './demo.js';
 import { languageColors } from './languages.js';
 import { LivingInk } from './effects.js';
+import { validateSvg } from './svg.js';
 const $ = id => document.getElementById(id);
 let livingInk=new LivingInk();
 let glowing=true,moving=!matchMedia('(prefers-reduced-motion: reduce)').matches,animationFrame=null,animationEpoch=performance.now(),lastAnimationFrame=0,previewVisible=true;
@@ -11,9 +12,11 @@ let snapshot = snapshotFromSources(demoFiles,title);
 let inputImage = null;
 let diagramKey = '';
 const resultKeys = new WeakMap();
+const resultPngs = new WeakMap();
+const cachedPngs = new WeakMap();
 let zoom = 1, panX = 0, panY = 0, selected = null, controller = null, busy = false, imported = false, reframe = true;
 function status(message, type = '') { $('status').textContent = message; $('status').className = `status ${type}`; }
-function setBusy(value) { if(value)clearTimeout(debounce);busy = value;for(const id of ['download-png','download-svg','download-json','decode-names'])$(id).disabled=value||!diagram; for(const id of ['magic-key','generate-key','save-key','clear-key','palette','min-lines','wingdings','language-colors','theme-toggle'])$(id).disabled=value; $('generate').disabled = value; $('choose-image').disabled = value; $('repo').readOnly = value; $('demo').disabled = value; $('cancel').hidden = !value; $('progress').hidden = !value; }
+function setBusy(value) { if(value)clearTimeout(debounce);busy = value;for(const id of ['download-png','download-svg','download-svgz','download-json','decode-names'])$(id).disabled=value||!diagram; for(const id of ['magic-key','generate-key','save-key','clear-key','palette','min-lines','wingdings','language-colors','theme-toggle'])$(id).disabled=value; $('generate').disabled = value; $('choose-image').disabled = value; $('repo').readOnly = value; $('demo').disabled = value; $('cancel').hidden = !value; $('progress').hidden = !value; }
 function getWorker() {
   if (!worker) {
     worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
@@ -54,7 +57,7 @@ async function install(next) {
   $('canvas-stats').textContent = `${visible.length} SEALS · ${calls} CALL CHANNELS`;
   $('coverage').textContent = `${next.analysis.files} visualized source files · ${snapshot?.entries.length||0} entries preserved`;
   canvas.setAttribute('aria-label', `${visible.length} magic seals with ${calls} call channels for ${title}`);
-  for (const id of ['download-png','download-svg','download-json']) $(id).disabled = false;
+  for (const id of ['download-png','download-svg','download-svgz','download-json']) $(id).disabled = false;
   listEntities(); inspect(null);
 }
 function draw(time=performance.now()-animationEpoch) {
@@ -103,12 +106,13 @@ function inspect(id) {
 }
 function download(blob,extension) {const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`${title.split(' @ ')[0].replace(/[^a-zA-Z0-9_-]/g,'-') || 'code-is-magic'}.${extension}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 $('download-svg').onclick=async()=>{try{setBusy(true);download(new Blob([await engine({op:'svg',capsule:capsule(),key:diagramKey})],{type:'image/svg+xml'}),'svg');status('Source-carrying SVG downloaded.');}catch(e){status(e.message,'error');}finally{setBusy(false);}};
+$('download-svgz').onclick=async()=>{try{setBusy(true);download(new Blob([await engine({op:'svgz',capsule:capsule(),key:diagramKey})],{type:'application/gzip'}),'svgz');status('Compressed vector downloaded. SVGZ preserves the complete drawing and source.');}catch(e){status(e.message,'error');}finally{setBusy(false);}};
 $('download-json').onclick=async()=>{
   try{setBusy(true);const data=diagramKey?{version:2,svg:await engine({op:'svg',capsule:capsule(),key:diagramKey})}:{...diagram,snapshot};download(new Blob([JSON.stringify(data)],{type:'application/json'}),'json');status('Offline diagram downloaded. Keyed diagrams require the same key on import.');}
   catch(e){status(e.message,'error');}finally{setBusy(false);}
 };
 $('download-png').onclick=async()=>{
-  try {setBusy(true);status('Encoding the complete repository into lossless PNG pixels…','busy');const bytes=await engine({op:'png',capsule:capsule(),key:diagramKey});download(new Blob([bytes],{type:'image/png'}),'png');status('Recoverable PNG downloaded. Keep the original PNG without resizing or JPEG conversion.');}
+  try {setBusy(true);status('Compressing recoverable PNG without reducing fidelity…','busy');const original=resultPngs.get(diagram);const bytes=cachedPngs.get(diagram)||(original?await engine({op:'optimize-png',bytes:original}):await engine({op:'png',capsule:capsule(),key:diagramKey}));cachedPngs.set(diagram,bytes);download(new Blob([bytes],{type:'image/png'}),'png');status(original?'Compressed PNG downloaded. Every original pixel and source bit preserved.':'Recoverable PNG downloaded. Keep the original PNG without resizing or JPEG conversion.');}
   catch(e){status(e.message,'error');}finally{setBusy(false);}
 };
 function restoreArtwork(next,svg) {
@@ -133,11 +137,13 @@ async function recoverSource(file) {
   try {
     setBusy(true);status('Recovering exact repository bytes from the image…','busy');
     if(file.size>150_000_000)throw new Error('Image exceeds the upload budget.');
-    const recovered=await engine({op:'recover',key:$('magic-key').value.trim(),bytes:new Uint8Array(await file.arrayBuffer())});
+    const originalBytes=new Uint8Array(await file.arrayBuffer());
+    const recovered=await engine({op:'recover',key:$('magic-key').value.trim(),bytes:originalBytes});
     const zip=await engine({op:'zip',snapshot:recovered.snapshot});
     snapshot=recovered.snapshot;files=sourceFiles(snapshot);title=snapshot.title;reframe=true;imported=false;
     const next=await transmute(files,title);
     restoreArtwork(next,recovered.svg);
+    if(originalBytes[0]===137&&originalBytes[1]===80)resultPngs.set(next,originalBytes);
     await install(next);
     download(new Blob([zip],{type:'application/zip'}),'zip');
     status(`Recovered ${snapshot.entries.length} tracked entries with exact bytes. Source ZIP downloaded.`);
@@ -147,13 +153,13 @@ function inputMode() {
   $('input-mark').textContent=inputImage?'◇':'⌘';
   $('generate').textContent=inputImage?'Recover source':'Transmute';
   const arrow=document.createElement('span');arrow.textContent=inputImage?'↓':'↗';$('generate').append(arrow);
-  $('input-help').textContent=inputImage?'Image selected. Recover source downloads its exact files as a ZIP. Edit the field to use a GitHub link.':'GitHub link → magic circles · original PNG / SVG → source ZIP. Choose, drop, or paste an image.';
+  $('input-help').textContent=inputImage?'Image selected. Recover source downloads its exact files as a ZIP. Edit the field to use a GitHub link.':'GitHub link → magic circles · original PNG / SVG / SVGZ → source ZIP. Choose, drop, or paste an image.';
 }
 function chooseImage(inputs) {
   if(busy)return;
-  if(inputs.length!==1){status('Choose one original PNG or SVG image.','error');return;}
+  if(inputs.length!==1){status('Choose one original PNG, SVG, or SVGZ image.','error');return;}
   const file=inputs[0];
-  if(!/\.(png|svg)$/i.test(file.name)&&!['image/png','image/svg+xml'].includes(file.type)){status('Choose an original exported PNG or SVG image.','error');return;}
+  if(!/\.(png|svg|svgz)$/i.test(file.name)&&!['image/png','image/svg+xml','application/gzip'].includes(file.type)){status('Choose an original exported PNG, SVG, or SVGZ image.','error');return;}
   if(file.size>150_000_000){status('Image exceeds the upload budget.','error');return;}
   inputImage=file;$('repo').value=file.name;inputMode();
   status('Magic image ready. Select Recover source to download its source code.');$('generate').focus();
@@ -210,7 +216,7 @@ $('json').onchange=async event=>{if(busy)return;const file=event.target.files[0]
       // Work on recovered bytes only after successful key authentication.
       next=await transmute(sourceFiles(recovered.snapshot),recovered.snapshot.title);
       next.snapshot=recovered.snapshot;restoreArtwork(next,recovered.svg);
-    }if(!next.analysis?.entities||!Array.isArray(next.placements)||typeof next.svg!=='string'||!Number.isFinite(next.width)||!Number.isFinite(next.height)||next.width<1||next.height<1||next.width>100000||next.height>100000)throw new Error('Choose a JSON diagram exported by Code Is Magic.');const document=new DOMParser().parseFromString(next.svg,'image/svg+xml');if(document.querySelector('parsererror,script,foreignObject,image,use')||document.documentElement.localName!=='svg')throw new Error('Imported SVG contains unsupported elements.');for(const style of document.querySelectorAll('style')){const allowed=/@font-face\s*\{\s*font-family:\s*'CIM(?:Runic|Symbols|Greek)';\s*src:\s*url\('data:font\/ttf;base64,[A-Za-z0-9+/=]+'\)\s*format\('truetype'\);\s*\}/g;if(style.textContent.replace(allowed,'').trim())throw new Error('Imported SVG contains unsupported styling.');}for(const node of document.querySelectorAll('*'))for(const attr of node.attributes)if(/^on/i.test(attr.name)||/href/i.test(attr.name)||/url\(\s*['"]?(?!#)/i.test(attr.value))throw new Error('Imported SVG contains an external resource or executable attribute.');$('language-colors').checked=document.documentElement.getAttribute('data-language-colors')==='true';colorLegend();title=`Imported grimoire · ${file.name}`;snapshot=next.snapshot||null;reframe=true;await install(next);imported=true;status('Offline diagram opened. Original styling preserved.');}catch(e){status(e.message,'error');}finally{setBusy(false);event.target.value='';}};
+    }if(!next.analysis?.entities||!Array.isArray(next.placements)||typeof next.svg!=='string'||!Number.isFinite(next.width)||!Number.isFinite(next.height)||next.width<1||next.height<1||next.width>100000||next.height>100000)throw new Error('Choose a JSON diagram exported by Code Is Magic.');const document=new DOMParser().parseFromString(next.svg,'image/svg+xml');validateSvg(document);$('language-colors').checked=document.documentElement.getAttribute('data-language-colors')==='true';colorLegend();title=`Imported grimoire · ${file.name}`;snapshot=next.snapshot||null;reframe=true;await install(next);imported=true;status('Offline diagram opened. Original styling preserved.');}catch(e){status(e.message,'error');}finally{setBusy(false);event.target.value='';}};
 function updateKey(){if(busy)return;if($('magic-key').value.trim()===diagramKey)return;if(imported&&snapshot){files=sourceFiles(snapshot);imported=false;}rerender();}
 $('magic-key').onchange=updateKey;
 $('generate-key').onclick=()=>{

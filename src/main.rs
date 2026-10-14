@@ -1,9 +1,9 @@
 use base64::Engine;
 use clap::Parser;
 use code_is_magic::{
-    analyze, decode_png_with_key, decode_svg_names_with_key, decode_svg_with_key,
-    embed_svg_with_key, encode_png_with_key, render_with_key, snapshot_zip, ArchiveEntry, Capsule,
-    MagicKey, Snapshot,
+    analyze, compact_svg, decode_image_with_key, decode_svg_names_with_key, embed_svg_with_key,
+    encode_png_with_key, encode_svgz_with_key, optimize_png, render_with_key, snapshot_zip,
+    ArchiveEntry, Capsule, MagicKey, Snapshot,
 };
 use reqwest::blocking::Client;
 use serde_json::Value;
@@ -25,6 +25,9 @@ struct Args {
     /// GitHub repository URL, local source directory, or original exported PNG/SVG image
     #[arg(value_name = "INPUT")]
     repository: Option<String>,
+    /// Losslessly optimize an existing PNG, SVG, or SVGZ; PNG optimization needs no key
+    #[arg(long, conflicts_with_all = ["repository", "decode", "decode_names", "generate_key"])]
+    optimize: Option<PathBuf>,
     /// Recover the complete snapshot from an original exported PNG or SVG into a ZIP
     #[arg(long)]
     decode: Option<PathBuf>,
@@ -283,14 +286,33 @@ fn local(
 }
 fn read_capsule(path: &Path, key: Option<&MagicKey>) -> Result<Capsule, Box<dyn Error>> {
     let bytes = fs::read(path)?;
-    if bytes.starts_with(b"\x89PNG") {
-        Ok(decode_png_with_key(&bytes, key)?)
-    } else {
-        Ok(decode_svg_with_key(std::str::from_utf8(&bytes)?, key)?)
-    }
+    Ok(decode_image_with_key(&bytes, key)?)
 }
 fn run() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
+    if let Some(path) = &args.optimize {
+        if path == &args.output
+            || fs::canonicalize(&args.output)
+                .ok()
+                .is_some_and(|output| fs::canonicalize(path).ok() == Some(output))
+        {
+            return Err("Choose a separate output path to preserve the original image".into());
+        }
+        let bytes = fs::read(path)?;
+        if bytes.starts_with(b"\x89PNG") {
+            if !args.output.extension().is_some_and(|e| e == "png") {
+                return Err("Use a .png output path for pixel-preserving PNG optimization".into());
+            }
+            let optimized = optimize_png(&bytes)?;
+            fs::write(&args.output, &optimized)?;
+            println!(
+                "Lossless PNG: {} → {} bytes; every pixel and source bit preserved",
+                bytes.len(),
+                optimized.len()
+            );
+            return Ok(());
+        }
+    }
     if let Some(path) = &args.generate_key {
         let mut bytes = Zeroizing::new([0_u8; 32]);
         getrandom::getrandom(bytes.as_mut()).map_err(|_| "Secure key generation failed")?;
@@ -330,6 +352,29 @@ fn run() -> Result<(), Box<dyn Error>> {
         .map(|text| MagicKey::from_hex(text))
         .transpose()?;
     drop(key_text);
+    if let Some(path) = &args.optimize {
+        if !args
+            .output
+            .extension()
+            .is_some_and(|e| e == "svg" || e == "svgz")
+        {
+            return Err("Choose a .svg or .svgz output path for vector optimization".into());
+        }
+        let mut capsule = read_capsule(path, key.as_ref())?;
+        capsule.svg = compact_svg(&capsule.svg)?;
+        let bytes = if args.output.extension().is_some_and(|e| e == "svgz") {
+            encode_svgz_with_key(&capsule, key.as_ref())?
+        } else {
+            embed_svg_with_key(&capsule, key.as_ref())?.into_bytes()
+        };
+        fs::write(&args.output, &bytes)?;
+        println!(
+            "Lossless vector: {} → {} bytes; exact outlines and source preserved",
+            fs::metadata(path)?.len(),
+            bytes.len()
+        );
+        return Ok(());
+    }
     let image_input = args.decode.clone().or_else(|| {
         if args.decode_names.is_some() {
             None
@@ -360,8 +405,8 @@ fn run() -> Result<(), Box<dyn Error>> {
     }
     if let Some(path) = &args.decode_names {
         let bytes = fs::read(path)?;
-        let svg = if bytes.starts_with(b"\x89PNG") {
-            decode_png_with_key(&bytes, key.as_ref())?.svg
+        let svg = if bytes.starts_with(b"\x89PNG") || bytes.starts_with(b"\x1f\x8b") {
+            decode_image_with_key(&bytes, key.as_ref())?.svg
         } else {
             String::from_utf8(bytes)?
         };
@@ -416,6 +461,8 @@ fn run() -> Result<(), Box<dyn Error>> {
     };
     if args.output.extension().is_some_and(|e| e == "png") {
         fs::write(&args.output, encode_png_with_key(&capsule, key.as_ref())?)?;
+    } else if args.output.extension().is_some_and(|e| e == "svgz") {
+        fs::write(&args.output, encode_svgz_with_key(&capsule, key.as_ref())?)?;
     } else {
         fs::write(&args.output, embed_svg_with_key(&capsule, key.as_ref())?)?;
     }

@@ -49,7 +49,8 @@ with tempfile.TemporaryDirectory(prefix='magic-inscriptions-') as temp:
             assert abs(sum(float(c.get('data-sector')) for c in cells) - 2 * math.pi) < 1e-7
             for cell in cells:
                 sector = float(cell.get('data-sector'))
-                glyphs = cell.findall('s:path[@data-glyph]', namespace)
+                glyphs = cell.findall('s:use[@data-glyph]', namespace)
+                assert glyphs, 'Missing shared glyph outlines'
                 for glyph in glyphs:
                     seen.add(glyph.get('data-family'))
                     width, height, offset = [float(glyph.get('data-' + k)) for k in ['width', 'height', 'offset']]
