@@ -1,0 +1,25 @@
+name: Refresh perceptual lockfile
+on:
+  push:
+    branches: [feature/perceptual-compression]
+permissions:
+  contents: write
+jobs:
+  lockfile:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/perceptual-compression
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo generate-lockfile
+      - name: Commit lockfile if needed
+        run: |
+          if ! git diff --quiet -- Cargo.lock; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add Cargo.lock
+            git commit -m "Update Cargo.lock for perceptual compression"
+            git push origin HEAD:feature/perceptual-compression
+          fi
