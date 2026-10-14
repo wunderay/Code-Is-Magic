@@ -5,7 +5,8 @@
 //! reference drawing. The canonical export therefore applies deterministic sub-pixel
 //! geometry quantization, keeps source/name recovery exact, then writes reproducible
 //! SVGZ. Path geometry is rounded to 0.01 SVG units and placement geometry to 0.001
-//! units. Name-sigil polygon points are left byte-for-byte unchanged.
+//! units. Reversible name-sigil polygon and placement geometry is left byte-for-byte
+//! unchanged.
 use crate::{compact_svg, embed_svg_with_key, Capsule, MagicKey};
 use std::{io::Write, ops::Range};
 
@@ -72,17 +73,17 @@ fn quantize_numbers(input: &str, decimals: usize) -> String {
                 || !matches!(bytes[start - 1], b'0'..=b'9' | b'.' | b'e' | b'E'));
         if begins_number && j > start {
             let token = &input[start..j];
-            if (has_fraction || token.contains(['e', 'E']))
-                && token.parse::<f64>().is_ok()
-            {
-                let value = token.parse::<f64>().unwrap();
-                out.push_str(&trim_number(format!("{value:.decimals$}")));
-                i = j;
-                continue;
+            if has_fraction || token.contains('e') || token.contains('E') {
+                if let Ok(value) = token.parse::<f64>() {
+                    out.push_str(&trim_number(format!("{value:.decimals$}")));
+                    i = j;
+                    continue;
+                }
             }
         }
-        out.push(input[i..].chars().next().unwrap());
-        i += input[i..].chars().next().unwrap().len_utf8();
+        let ch = input[i..].chars().next().unwrap();
+        out.push(ch);
+        i += ch.len_utf8();
     }
     out
 }
@@ -132,19 +133,22 @@ pub fn perceptual_svg(svg: &str) -> Result<String, String> {
     ];
     let mut replacements = Vec::new();
     for node in document.descendants().filter(|node| node.is_element()) {
-        if node.has_tag_name("path") {
+        let name_sigil = node.attribute("data-name-sigil") == Some("1");
+        if node.has_tag_name("path") && !name_sigil {
             if let Some(attribute) = node.attribute_node("d") {
                 if let Some(edit) = replacement(&compact, attribute, PATH_DECIMALS) {
                     replacements.push(edit);
                 }
             }
         }
-        // Name contours are intentionally excluded: their polygon points are a
-        // reversible geometric channel independent of the source capsule.
-        for name in placement {
-            if let Some(attribute) = node.attribute_node(name) {
-                if let Some(edit) = replacement(&compact, attribute, PLACEMENT_DECIMALS) {
-                    replacements.push(edit);
+        // The name contour is an independent reversible channel. Preserve every
+        // geometric attribute on that element exactly, not merely its polygon points.
+        if !name_sigil {
+            for name in placement {
+                if let Some(attribute) = node.attribute_node(name) {
+                    if let Some(edit) = replacement(&compact, attribute, PLACEMENT_DECIMALS) {
+                        replacements.push(edit);
+                    }
                 }
             }
         }
@@ -203,15 +207,17 @@ mod tests {
                     sha: None,
                 }],
             },
-            svg: "<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><path d='M0.123456 1.987654L99.876543 98.012345'/><polygon data-name-sigil='1' data-entity='0' data-seal-radius='8.123456' points='0.123456,0.987654 1.111111,2.222222' transform='translate(50.123456 49.987654) scale(8.123456)'/></svg>".into(),
+            svg: "<svg xmlns='http://www.w3.org/2000/svg' width='100.123456' height='100.987654'><path d='M0.123456 1.987654L99.876543 98.012345'/><polygon data-name-sigil='1' data-entity='0' data-seal-radius='8.123456' points='0.123456,0.987654 1.111111,2.222222' transform='translate(50.123456 49.987654) scale(8.123456)'/></svg>".into(),
         }
     }
 
     #[test]
-    fn rounds_only_subpixel_geometry() {
+    fn rounds_only_non_recovery_subpixel_geometry() {
         let svg = perceptual_svg(&capsule().svg).unwrap();
+        assert!(svg.contains("width='100.123'"));
+        assert!(svg.contains("height='100.988'"));
         assert!(svg.contains("d='M0.12 1.99L99.88 98.01'"));
-        assert!(svg.contains("transform='translate(50.123 49.988) scale(8.123)'"));
+        assert!(svg.contains("transform='translate(50.123456 49.987654) scale(8.123456)'"));
         assert!(svg.contains("points='0.123456,0.987654 1.111111,2.222222'"));
         assert!(svg.contains("data-seal-radius='8.123456'"));
     }
