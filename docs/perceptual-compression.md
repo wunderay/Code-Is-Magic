@@ -47,7 +47,7 @@ code-is-magic ./my-project --key-file ../my-magic.key --output magic.jpg
 code-is-magic magic.jpg --key-file ../my-magic.key --output recovered.zip
 ```
 
-The website exposes the same path through **JPEG ↓** and can recover source from an original Code Is Magic JPEG.
+The website exposes the same path through **JPEG ↓** and can recover source from an original Code Is Magic JPEG. A perceptual JPEG does not retain the exact vector drawing, so after source recovery the interactive website deterministically re-renders the recovered source instead of pretending that the lossy JPEG pixels were an exact SVG.
 
 ## What “visually imperceptible” means here
 
