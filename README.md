@@ -24,12 +24,13 @@ The canonical pipeline is deliberately vector-first. Code Is Magic drawings are 
 
 1. analyzes and renders the repository deterministically;
 2. shares repeated glyph outlines without changing their shapes;
-3. rounds ordinary path coordinates to 0.01 SVG units and ordinary placement geometry to 0.001 SVG units;
-4. leaves the independent reversible name-sigil geometry byte-for-byte unchanged;
-5. embeds the complete repository snapshot in the existing authenticated source capsule;
-6. compresses the complete result as deterministic gzip/SVGZ with a zero timestamp.
+3. rounds ordinary path coordinates to 0.01 SVG units and ordinary scalar placement geometry to 0.001 SVG units;
+4. keeps transform parameters at 0.000001 precision so tiny glyph scale factors do not suffer proportionally large changes;
+5. leaves the independent reversible name-sigil geometry byte-for-byte unchanged;
+6. embeds the complete repository snapshot in the existing authenticated source capsule;
+7. compresses the complete result as deterministic gzip/SVGZ with a zero timestamp.
 
-For the project reference drawing at 4258×3758, the selected geometry precision measured about **51 dB PSNR** with roughly **0.08 mean absolute channel error** against the unquantized vector render. More aggressive precision reduction was rejected. The quality rule is intentionally conservative because the smallest runes and braided strokes are more sensitive than ordinary photographic detail.
+For the project reference drawing at 4258×3758, the selected geometry strategy measured about **51 dB PSNR** with roughly **0.08 mean absolute channel error** against the unquantized vector render. The final transform precision is stricter than that benchmarked candidate. More aggressive precision reduction was rejected. The quality rule is intentionally conservative because the smallest runes and braided strokes are more sensitive than ordinary photographic detail.
 
 The output remains deterministic: equal canonical source, options, and key produce equal bytes.
 
@@ -152,4 +153,4 @@ bash scripts/build-web.sh
 node --test tests/wasm.test.js
 ```
 
-The verification suite checks, among other things, deterministic canonical SVGZ output, native/WebAssembly byte parity, exact source and mode recovery, exact reversible names, keyed authentication, wrong-key rejection, legacy migration, glyph spacing, and rejection of PNG/SVG as new transmutation outputs.
+The verification suite checks, among other things, deterministic canonical SVGZ output, native/WebAssembly byte parity, a rasterized perceptual-quality regression floor, exact source and mode recovery, exact reversible names, keyed authentication, wrong-key rejection, legacy migration, glyph spacing, and rejection of PNG/SVG as new transmutation outputs.
