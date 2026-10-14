@@ -80,15 +80,19 @@ The expected project URL after successful publication is `https://wunderay.githu
 
 Function seal **area is directly proportional to non-comment body source lines**: radius = 24 × √lines. Four times as much code produces twice the radius. Equal-length functions have equal-sized seals regardless of their names, with no size cap or name-based jitter. The adjustable default of 12 lines controls ornament detail, not circle size. Call arrows connect unambiguous caller → callee targets; dashed links express type membership. Structs use hexagons, enums diamonds, classes frames, interfaces opposing triangles, and named JavaScript object literals cubes. The reversible name contour distinguishes different names independently of those motifs.
 
+Outer collars stay circular. A name-derived center chooses and varies twelve original emblem families: ritual triangles, crescents, floral knots, heraldic crests, eyes, interlocking facets, branching runes, hourglasses, square labyrinths, orbital seals, flames, and curved triquetras. The exact reversible name contour sits inside the emblem rather than deforming the rim. Its normalized geometry and v1 decoder remain compatible with earlier images. Source recovery preserves the original artwork and its separate full seal radius.
+
+Visual references include TYPE-MOON / Fate, *Frieren*, *Witch Hat Atelier*, *Fairy Tail*, and *High School DxD*: concentric collars, script bands, distinct central emblems, and smaller subordinate seals. All rendered geometry is procedural; reference artwork is not bundled.
+
 | Language | Extensions | Motif |
 | --- | --- | --- |
-| Rust | `.rs` | Angular forge |
-| Python | `.py` | Lunar spiral |
+| Rust | `.rs` | Eight angular forge notches |
+| Python | `.py` | Six lunar crescents |
 | JavaScript | `.js .jsx .mjs .cjs` | Solar wheel |
 | TypeScript | `.ts .tsx` | Prismatic seal |
 | Go | `.go` | Flowing triad |
-| C / C++ | `.c .h / .cpp .hpp .cc` | Twelve / sixteen-sided clockwork |
-| Java | `.java` | Cathedral frame |
+| C / C++ | `.c .h / .cpp .hpp .cc` | Twelve gear teeth / sixteen linked square pairs |
+| Java | `.java` | Four cathedral arches |
 | C# | `.cs` | Diamond lattice |
 
 Branches map to Δ, loops ∞, returns Ω, bindings ᚠ, assignment ᚷ, and comparisons ⚖. Greek, Norse, alchemical, and dingbat symbols are vector geometry. The legacy `--wingdings` flag now enables portable vector dingbat ornament; no proprietary font or ordinary text is embedded in the artwork.

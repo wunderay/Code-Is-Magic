@@ -114,7 +114,9 @@ $('restore').onchange=async event=>{
     next.placements=[...original.querySelectorAll('polygon[data-name-sigil="1"]')].map(node=>{
       const match=node.getAttribute('transform')?.match(/^translate\(([-\d.]+) ([-\d.]+)\) scale\(([-\d.]+)\)$/);
       if(!match)throw new Error('Invalid original name contour transform.');
-      return {id:Number(node.getAttribute('data-entity')),x:Number(match[1]),y:Number(match[2]),radius:Number(match[3])};
+      const radius=Number(node.getAttribute('data-seal-radius')??match[3]);
+      if(!Number.isFinite(radius)||radius<=0)throw new Error('Invalid original seal radius.');
+      return {id:Number(node.getAttribute('data-entity')),x:Number(match[1]),y:Number(match[2]),radius};
     });
     const background=original.querySelector('rect')?.getAttribute('fill');
     $('palette').value=background==='#f0e8d7'?'parchment':background==='#090d20'?'astral':'gold';

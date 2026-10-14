@@ -171,7 +171,7 @@ fn arc(s: &mut String, x: f64, y: f64, r: f64, start: f64, sweep: f64, opacity: 
     let end = start + sweep;
     let _ = write!(
         s,
-        "<path d='M {:.1} {:.1} A {r:.1} {r:.1} 0 {} 1 {:.1} {:.1}' opacity='{opacity}'/>",
+        "<path d='M {:.4} {:.4} A {r:.4} {r:.4} 0 {} 1 {:.4} {:.4}' opacity='{opacity}'/>",
         x + r * start.cos(),
         y + r * start.sin(),
         usize::from(sweep > PI),
@@ -183,7 +183,7 @@ fn polygon(cx: f64, cy: f64, r: f64, n: usize, step: usize, rotation: f64) -> St
     (0..=n)
         .map(|i| {
             let a = rotation + (i * step % n) as f64 * 2.0 * PI / n as f64;
-            format!("{:.1},{:.1}", cx + r * a.cos(), cy + r * a.sin())
+            format!("{:.4},{:.4}", cx + r * a.cos(), cy + r * a.sin())
         })
         .collect::<Vec<_>>()
         .join(" ")
@@ -228,199 +228,208 @@ fn glyph(token: &str) -> &'static str {
 fn circle(s: &mut String, x: f64, y: f64, r: f64, opacity: f64) {
     let _ = write!(
         s,
-        "<circle cx='{x:.1}' cy='{y:.1}' r='{r:.1}' opacity='{opacity}'/>"
+        "<circle cx='{x:.4}' cy='{y:.4}' r='{r:.4}' opacity='{opacity}'/>"
     );
 }
 fn poly(s: &mut String, x: f64, y: f64, r: f64, n: usize, step: usize, rot: f64) {
     let _ = write!(s, "<polyline points='{}'/>", polygon(x, y, r, n, step, rot));
 }
-fn design(s: &mut String, e: &Entity, x: f64, y: f64, r: f64, large: bool) {
+// Original emblems inspired by ritual diagrams, drawn in normalized local coordinates.
+// The exact name contour remains a separate lossless geometry layer.
+fn center_emblem(s: &mut String, e: &Entity, x: f64, y: f64, r: f64) {
     let seed = entity_seed(e);
-    let rotation = (seed % 360) as f64 * PI / 180.;
-    let mut fracture = Entropy(seed.wrapping_add(71));
-    let mut angle = rotation;
-    for _ in 0..4 {
-        let sweep = fracture.between(0.5, 1.4);
-        arc(s, x, y, r, angle, sweep, 0.75);
-        angle += sweep + fracture.between(0.12, 0.65);
-    }
-    arc(
-        s,
-        x + r * 0.035,
-        y - r * 0.027,
-        r - 5.,
-        rotation + 0.4,
-        4.7,
-        0.3,
-    );
+    let mut ink = Entropy(seed.wrapping_add(913));
+    let family = (seed ^ (seed >> 23)) % 12;
+    let rotation = ink.between(-180., 180.);
+    let span = r * ink.between(0.58, 0.66);
+    let weight = 0.014_f64.max(0.9 / span);
+    let _ = write!(s, "<g data-center='{family}' transform='translate({x} {y}) rotate({rotation:.3}) scale({span:.3})' stroke-width='{weight:.6}' stroke-linejoin='round' stroke-linecap='round'>");
     if e.kind != "function" {
         match e.kind.as_str() {
             "class" | "impl" => {
-                poly(s, x, y, r * 0.70, 4, 1, PI / 4.);
-                poly(s, x, y, r * 0.56, 4, 1, PI / 4.);
-                poly(s, x, y, r * 0.85, 8, 1, PI / 8.);
+                poly(s, 0., 0., 0.94, 4, 1, PI / 4.);
+                poly(s, 0., 0., 0.74, 4, 1, PI / 4.);
+                s.push_str("<path d='M -.66 -.4 L .66 -.4 M -.66 .4 L .66 .4 M -.4 -.66 L -.4 .66 M .4 -.66 L .4 .66'/>");
             }
             "enum" => {
-                poly(s, x, y, r * 0.72, 4, 1, 0.);
-                poly(s, x, y, r * 0.65, 4, 1, PI / 4.);
-            }
-            "object" => {
-                poly(s, x, y, r * 0.7, 6, 1, PI / 6.);
-                for i in 0..3 {
-                    let a = PI / 6. + i as f64 * 2. * PI / 3.;
-                    let _ = write!(
-                        s,
-                        "<path d='M {x} {y} L {} {}'/>",
-                        x + r * 0.7 * a.cos(),
-                        y + r * 0.7 * a.sin()
-                    );
-                }
+                poly(s, 0., 0., 1., 4, 1, 0.);
+                poly(s, 0., 0., 0.67, 4, 1, 0.);
+                s.push_str("<path d='M 0 -1 L 0 -.67 M 1 0 L .67 0 M 0 1 L 0 .67 M -1 0 L -.67 0'/>");
             }
             "interface" => {
-                poly(s, x, y, r * 0.74, 3, 1, -PI / 2.);
-                poly(s, x, y, r * 0.65, 3, 1, PI / 2.);
+                poly(s, 0., 0., 1., 3, 1, -PI / 2.);
+                poly(s, 0., 0., 0.94, 3, 1, PI / 2.);
+            }
+            "object" => s.push_str("<path d='M 0 -.95 L .82 -.48 L .82 .48 L 0 .95 L -.82 .48 L -.82 -.48 Z M 0 0 L 0 .95 M 0 0 L .82 -.48 M 0 0 L -.82 -.48'/>"),
+            _ => {
+                poly(s, 0., 0., 1., 6, 1, PI / 6.);
+                poly(s, 0., 0., 0.73, 6, 1, PI / 6.);
+            }
+        }
+    } else {
+        match family {
+            0 => {
+                poly(s, 0., 0., 1., 3, 1, -PI / 2.);
+                poly(s, 0., 0., ink.between(0.77, 0.96), 3, 1, PI / 2.);
+                for i in 0..3 {
+                    let a = i as f64 * 2. * PI / 3.;
+                    circle(s, 0.64 * a.cos(), 0.64 * a.sin(), 0.16, 0.9);
+                }
+            }
+            1 => {
+                s.push_str("<path d='M .25 -.96 C -1.06 -.88 -1.06 .88 .25 .96 C -.48 .45 -.48 -.45 .25 -.96 Z M -.12 -.72 L .57 0 L -.12 .72 L .18 0 Z'/>");
+                poly(s, 0.53, -0.38, 0.25, 4, 1, 0.);
+                poly(s, 0.61, 0.48, 0.17, 4, 1, 0.);
+            }
+            2 => {
+                let petals = 4 + seed % 5;
+                for i in 0..petals {
+                    let a = i as f64 * 360. / petals as f64;
+                    let width = ink.between(0.25, 0.43);
+                    let _ = write!(s, "<path transform='rotate({a:.3})' d='M 0 -.08 C -{width:.3} -.48 -{width:.3} -.8 0 -1 C {width:.3} -.8 {width:.3} -.48 0 -.08'/>");
+                }
+                poly(s, 0., 0., 0.47, petals as usize, 1, -PI / 2.);
+            }
+            3 => {
+                s.push_str("<path d='M 0 -.93 L .2 -.38 C .32 -.83 .85 -.8 .92 -.4 C .76 -.57 .55 -.45 .47 -.12 L .8 .02 L .36 .2 L .5 .73 L .08 .48 L 0 .98 L -.08 .48 L -.5 .73 L -.36 .2 L -.8 .02 L -.47 -.12 C -.55 -.45 -.76 -.57 -.92 -.4 C -.85 -.8 -.32 -.83 -.2 -.38 Z M 0 -.7 L 0 .7 M -.45 -.22 L .45 .28 M .45 -.22 L -.45 .28'/>");
+            }
+            4 => {
+                s.push_str("<path d='M -1 0 Q 0 -1.2 1 0 Q 0 1.2 -1 0 Z M 0 -.94 L .14 -.36 M 0 .94 L -.14 .36 M -.92 -.35 L -.63 -.07 M .92 .35 L .63 .07'/>");
+                poly(s, 0., 0., ink.between(0.34, 0.48), 4, 1, 0.);
+                arc(s, 0., 0., 0.68, PI * 1.15, PI * 0.7, 0.7);
+                arc(s, 0., 0., 0.68, PI * 0.15, PI * 0.7, 0.7);
+            }
+            5 => {
+                for i in 0..3 {
+                    let a = i as f64 * 2. * PI / 3.;
+                    poly(s, 0.37 * a.cos(), 0.37 * a.sin(), 0.63, 4, 1, a);
+                }
+                poly(s, 0., 0., 0.28, 3, 1, PI / 2.);
+            }
+            6 => {
+                s.push_str("<path d='M 0 1 L 0 -.95 M -.17 -.73 L 0 -.95 L .17 -.73 M -.25 .98 L 0 .7 L .25 .98'/>");
+                for i in 0..4 {
+                    let y = -0.56 + i as f64 * 0.34;
+                    let extent = ink.between(0.48, 0.92);
+                    let _ = write!(s, "<path d='M -{extent:.3} {:.3} L 0 {y:.3} L {extent:.3} {:.3} M -{extent:.3} {y:.3} L -{extent:.3} {:.3} M {extent:.3} {y:.3} L {extent:.3} {:.3}'/>", y - 0.23, y - 0.23, y - 0.23, y - 0.23);
+                }
+            }
+            7 => {
+                s.push_str("<path d='M -.8 -.9 L .8 -.9 L -.8 .9 L .8 .9 Z M -.56 -.65 L .56 -.65 L -.56 .65 L .56 .65 Z M -1 0 L -.42 -.24 L 0 0 L .42 -.24 L 1 0 L .42 .24 L 0 0 L -.42 .24 Z'/>");
+            }
+            8 => {
+                s.push_str("<g transform='scale(.8)'>");
+                s.push_str("<path d='M -.95 -.95 L .95 -.95 L .95 .95 L -.95 .95 Z M -.74 -.74 L .74 -.74 L .74 .52 L -.52 .52 L -.52 -.52 L .52 -.52 L .52 .3 L -.3 .3 L -.3 -.3 L .3 -.3 M -.95 0 L -.74 0 M 0 .95 L 0 .52'/>");
+                poly(s, 0., 0., 0.36, 4, 1, 0.);
+                s.push_str("</g>");
+            }
+            9 => {
+                let satellites = 3 + seed % 3;
+                for i in 0..satellites {
+                    let a = i as f64 * 2. * PI / satellites as f64;
+                    circle(s, 0.64 * a.cos(), 0.64 * a.sin(), 0.28, 0.9);
+                    poly(s, 0.64 * a.cos(), 0.64 * a.sin(), 0.17, 3, 1, a);
+                }
+                poly(
+                    s,
+                    0.,
+                    0.,
+                    0.74,
+                    satellites as usize,
+                    if satellites == 4 { 1 } else { 2 },
+                    PI / 2.,
+                );
+            }
+            10 => {
+                let flames = 3 + seed % 4;
+                for i in 0..flames {
+                    let a = i as f64 * 360. / flames as f64;
+                    let _ = write!(s, "<path transform='rotate({a:.3})' d='M -.13 -.16 C -.62 -.45 -.16 -.8 .26 -1 C -.08 -.5 .57 -.32 .14 -.07 C .33 -.37 .03 -.43 -.13 -.16 Z'/>");
+                }
+                poly(s, 0., 0., 0.32, flames as usize, 1, 0.);
             }
             _ => {
-                poly(s, x, y, r * 0.77, 6, 1, 0.);
-                poly(s, x, y, r * 0.66, 6, 1, 0.);
+                for i in 0..3 {
+                    let a = i as f64 * 120.;
+                    let _ = write!(s, "<path transform='rotate({a:.3})' d='M 0 -.98 C .8 -.38 .69 .63 0 .48 C -.35 .4 -.2 -.08 .08 -.04 C .5 .01 .29 -.52 0 -.98 Z'/>");
+                }
+                poly(s, 0., 0., 0.2, 3, 1, -PI / 2.);
             }
         }
     }
-    let inner = if large { r * 0.67 } else { r * 0.70 };
-    match e.language.as_str() {
-        "Rust" => {
-            poly(s, x, y, inner, 8, 3, rotation);
-            poly(s, x, y, inner * 0.74, 4, 1, rotation);
-        }
-        "Python" => {
-            circle(s, x - inner * 0.20, y, inner * 0.65, 0.55);
-            circle(s, x + inner * 0.20, y, inner * 0.65, 0.55);
-            let mut d = String::new();
-            for i in 0..100 {
-                let a = i as f64 * 0.14;
-                let rr = inner * 0.8 * i as f64 / 100.;
-                let _ = write!(
-                    d,
-                    "{} {:.1} {:.1} ",
-                    if i == 0 { "M" } else { "L" },
-                    x + rr * a.cos(),
-                    y + rr * a.sin()
-                );
-            }
-            let _ = write!(s, "<path d='{d}' opacity='.45'/>");
-        }
-        "JavaScript" => {
-            circle(s, x, y, inner * 0.75, 0.5);
-            poly(s, x, y, inner, 12, 5, rotation);
-        }
-        "TypeScript" => {
-            poly(s, x, y, inner, 3, 1, -PI / 2.);
-            poly(s, x, y, inner * 0.9, 3, 1, PI / 2.);
-            poly(s, x, y, inner * 0.65, 6, 1, 0.);
-        }
-        "Go" => {
-            for i in 0..3 {
-                let a = i as f64 * 2. * PI / 3. + rotation;
-                circle(
-                    s,
-                    x + inner * 0.3 * a.cos(),
-                    y + inner * 0.3 * a.sin(),
-                    inner * 0.57,
-                    0.6,
-                );
-            }
-            poly(s, x, y, inner, 3, 1, rotation);
-        }
-        "Java" => {
-            poly(s, x, y, inner, 4, 1, PI / 4.);
-            poly(s, x, y, inner, 4, 1, 0.);
-            for i in 0..4 {
-                let a = i as f64 * PI / 2.;
-                circle(
-                    s,
-                    x + inner * 0.65 * a.cos(),
-                    y + inner * 0.65 * a.sin(),
-                    inner * 0.24,
-                    0.55,
-                );
-            }
-        }
-        "C#" => {
-            poly(s, x, y, inner, 4, 1, 0.);
-            poly(s, x, y, inner * 0.7, 4, 1, 0.);
-            poly(s, x, y, inner, 8, 3, PI / 8.);
-        }
-        _ => {
-            poly(
-                s,
-                x,
-                y,
-                inner,
-                if e.language == "C++" { 16 } else { 12 },
-                1,
-                rotation,
-            );
-            circle(s, x, y, inner * 0.66, 0.6);
-        }
-    }
-    let teeth = if large {
-        23 + (seed % 26) as usize
-    } else {
-        9 + (seed % 9) as usize
+    s.push_str("</g>");
+}
+fn design(s: &mut String, e: &Entity, x: f64, y: f64, r: f64, large: bool) {
+    let seed = entity_seed(e);
+    let rotation = (seed % 360) as f64 * PI / 180.;
+    let mut ink = Entropy(seed.wrapping_add(71));
+    // A calm circular collar contrasts with the wilder name-derived center.
+    let _ = write!(
+        s,
+        "<g data-ring='1' stroke-width='{:.3}'>",
+        (r * 0.004).max(0.85)
+    );
+    circle(s, x, y, r, 0.92);
+    circle(s, x, y, r * 0.93, 0.65);
+    circle(s, x, y, r * 0.73, 0.72);
+    let repeats = match e.language.as_str() {
+        "Rust" => 8,
+        "Python" => 6,
+        "JavaScript" => 12,
+        "TypeScript" => 3,
+        "Go" => 3,
+        "C" => 12,
+        "C++" => 16,
+        "Java" => 4,
+        _ => 8,
     };
-    for i in 0..teeth {
-        let a = i as f64 * 2. * PI / teeth as f64 + fracture.between(-0.035, 0.035);
-        let rr = r - fracture.between(5., 11.);
-        let _ = write!(
-            s,
-            "<path d='M {:.1} {:.1} L {:.1} {:.1}' opacity='.4'/>",
-            x + rr * a.cos(),
-            y + rr * a.sin(),
-            x + (rr - 4.) * a.cos(),
-            y + (rr - 4.) * a.sin()
-        );
+    for i in 0..repeats {
+        let angle = rotation + i as f64 * 2. * PI / repeats as f64;
+        let degrees = angle * 180. / PI;
+        let _ = write!(s, "<g transform='translate({x} {y}) rotate({degrees:.3}) scale({r})' stroke-width='.007'>");
+        match e.language.as_str() {
+            "Rust" => s.push_str("<path d='M -.024 -.94 L 0 -.99 L .024 -.94 M 0 -.99 L 0 -.90'/>"),
+            "Python" => s.push_str("<path d='M -.035 -.965 Q 0 -.925 .035 -.965 Q 0 -.995 -.035 -.965 Z'/>"),
+            "JavaScript" => s.push_str("<path d='M 0 -.99 L 0 -.94 M -.018 -.982 L .018 -.947 M .018 -.982 L -.018 -.947'/>"),
+            "TypeScript" => {
+                poly(s, 0., -0.87, 0.115, 3, 1, -PI / 2.);
+                poly(s, 0., -0.87, 0.07, 3, 1, PI / 2.);
+            }
+            "Go" => s.push_str("<path d='M -.12 -.965 Q -.04 -.99 0 -.955 T .12 -.965 M -.1 -.938 Q -.03 -.965 .02 -.936 T .1 -.938'/>"),
+            "C" => s.push_str("<path d='M -.03 -.94 L -.03 -.983 L .03 -.983 L .03 -.94'/>"),
+            "C++" => {
+                poly(s, -0.017, -0.964, 0.027, 4, 1, PI / 4.);
+                poly(s, 0.017, -0.964, 0.027, 4, 1, PI / 4.);
+            }
+            "Java" => s.push_str("<path d='M -.028 -.94 L -.028 -.965 Q 0 -1.02 .028 -.965 L .028 -.94 M 0 -.99 L 0 -.94'/>"),
+            _ => poly(s, 0., -0.964, 0.031, 4, 1, 0.),
+        }
+        s.push_str("</g>");
     }
+    s.push_str("</g>");
+    center_emblem(s, e, x, y, r);
     if large {
-        // Partial orbits, little off-axis seals, and crossing inner strokes disturb perfect symmetry.
+        // Offset satellites and partial orbits keep the overall inscription unruly.
         arc(
             s,
-            x + r * 0.1,
-            y - r * 0.065,
-            r * 0.48,
+            x + r * 0.025,
+            y - r * 0.02,
+            r * 1.045,
             rotation,
-            fracture.between(2.2, 5.2),
-            0.45,
+            ink.between(2.2, 4.6),
+            0.35,
         );
-        for _ in 0..1 + (seed % 3) {
-            let a = fracture.between(0., 2. * PI);
-            let orbit = r * fracture.between(0.94, 1.08);
+        for _ in 0..1 + seed % 3 {
+            let a = ink.between(0., 2. * PI);
+            let orbit = r * ink.between(0.58, 0.70);
             let sx = x + orbit * a.cos();
             let sy = y + orbit * a.sin();
-            let small = fracture.between(5., 11.);
-            circle(s, sx, sy, small, 0.6);
-            poly(s, sx, sy, small * 0.74, 3, 1, a);
-            let _ = write!(
-                s,
-                "<path d='M {:.1} {:.1} L {sx:.1} {sy:.1}' opacity='.35'/>",
-                x + r * 0.42 * a.cos(),
-                y + r * 0.42 * a.sin()
-            );
+            let small = (r * ink.between(0.085, 0.14)).min(22.);
+            circle(s, sx, sy, small, 0.85);
+            circle(s, sx, sy, small * 0.76, 0.55);
+            poly(s, sx, sy, small * 0.5, 3 + (seed % 3) as usize, 1, a);
         }
-        let mut scribble = String::new();
-        for i in 0..7 {
-            let a = rotation + i as f64 * 1.9 + fracture.between(-0.3, 0.3);
-            let rr = r * fracture.between(0.28, 0.66);
-            let _ = write!(
-                scribble,
-                "{} {:.1} {:.1} ",
-                if i == 0 { "M" } else { "L" },
-                x + rr * a.cos(),
-                y + rr * a.sin()
-            );
-        }
-        let _ = write!(s, "<path d='{scribble}' opacity='.28'/>");
     }
-    circle(s, x, y, if large { r * 0.26 } else { r * 0.3 }, 0.55);
 }
 pub fn render(a: &Analysis, title: &str, min_lines: usize, palette: &str) -> Diagram {
     render_with_wingdings(a, title, min_lines, palette, false)
@@ -513,7 +522,8 @@ pub fn render_with_wingdings(
         let _=write!(s,"<g id='entity-{}'><circle cx='{x}' cy='{y}' r='{}' fill='{bg}'/><g fill='none' stroke='{ink}' stroke-width='.85'>",e.id,r+2.);
         design(&mut s, e, x, y, r, large);
         let contour = encode_name(&e.qualified_name);
-        let _=write!(s,"<polygon data-name-sigil='1' data-entity='{}' points='{}' transform='translate({x} {y}) scale({r})' stroke-width='.008' stroke-linejoin='round'/> </g>",e.id,contour.svg_points());
+        let core = r * 0.52;
+        let _=write!(s,"<polygon data-name-sigil='1' data-entity='{}' data-seal-radius='{r}' points='{}' transform='translate({x} {y}) scale({core})' stroke-width='.007' opacity='.65' stroke-linejoin='round'/> </g>",e.id,contour.svg_points());
         let mut script = Entropy(entity_seed(e).wrapping_add(17));
         let count = if large {
             34 + (entity_seed(e) % 35) as usize
@@ -523,7 +533,7 @@ pub fn render_with_wingdings(
         let _ = write!(s, "<g fill='{ink}'>");
         for i in 0..count {
             let angle = i as f64 * 360. / count as f64 + script.between(-2.7, 2.7);
-            let band = r * script.between(0.68, 0.88);
+            let band = r * script.between(0.80, 0.87);
             let size = script
                 .between(if large { 10. } else { 8. }, if large { 16. } else { 12. })
                 .min(r * 0.28);
