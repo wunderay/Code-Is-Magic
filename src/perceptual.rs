@@ -254,11 +254,11 @@ pub fn encode_perceptual_jpeg_with_key(
     if !(95..=100).contains(&quality) {
         return Err("Perceptual JPEG quality must be between 95 and 100".into());
     }
-    if capsule.svg.contains("data-magic-key='1'") {
-        let key = key.ok_or("A magic key is required to export this keyed artwork")?;
-        if capsule.svg.contains("data-name-sigil='1'") {
-            decode_svg_names_with_key(&capsule.svg, Some(key))?;
-        }
+    // Name contours are the key-sensitive part of keyed artwork. Decode them before export so
+    // a caller can never accidentally turn a keyed diagram into a plaintext-source JPEG by
+    // omitting or supplying the wrong key. Unkeyed contours decode successfully with any key.
+    if capsule.svg.contains("data-name-sigil=") {
+        decode_svg_names_with_key(&capsule.svg, key)?;
     }
     let payload = protect_source(&capsule.snapshot, key)?;
     let (rgb, width, height) = render_rgb(&capsule.svg)?;
