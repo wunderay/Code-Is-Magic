@@ -1,6 +1,6 @@
 use code_is_magic::{
-    decode_image_with_key, encode_perceptual_jpeg_with_key, ArchiveEntry, Capsule, MagicKey,
-    Snapshot, DEFAULT_PERCEPTUAL_QUALITY,
+    decode_image_with_key, encode_name_with_key, encode_perceptual_jpeg_with_key, ArchiveEntry,
+    Capsule, MagicKey, Snapshot, DEFAULT_PERCEPTUAL_QUALITY,
 };
 
 fn capsule() -> Capsule {
@@ -19,6 +19,16 @@ fn capsule() -> Capsule {
         },
         svg: "<svg xmlns='http://www.w3.org/2000/svg' width='320' height='240' viewBox='0 0 320 240'><rect width='320' height='240' fill='#090d20'/><circle cx='160' cy='120' r='86' fill='none' stroke='#f5dfaa' stroke-width='2'/><path d='M90 120L160 54L230 120L160 186Z' fill='none' stroke='#d8b86a' stroke-width='2'/></svg>".into(),
     }
+}
+
+fn keyed_capsule(key: &MagicKey) -> Capsule {
+    let mut capsule = capsule();
+    let sigil = encode_name_with_key("crate::secret", Some(key)).unwrap();
+    capsule.svg = format!(
+        "<svg xmlns='http://www.w3.org/2000/svg' width='320' height='240' viewBox='0 0 320 240'><rect width='320' height='240' fill='#090d20'/><polygon data-name-sigil='1' data-entity='0' points='{}' fill='none' stroke='#f5dfaa'/></svg>",
+        sigil.svg_points()
+    );
+    capsule
 }
 
 #[test]
@@ -48,6 +58,16 @@ fn perceptual_jpeg_keyed_source_requires_the_original_key() {
         decode_image_with_key(&bytes, Some(&key)).unwrap().snapshot,
         capsule.snapshot
     );
+}
+
+#[test]
+fn keyed_artwork_cannot_be_exported_without_its_key() {
+    let key = MagicKey::from_hex(&"41".repeat(32)).unwrap();
+    let wrong = MagicKey::from_hex(&"42".repeat(32)).unwrap();
+    let capsule = keyed_capsule(&key);
+    assert!(encode_perceptual_jpeg_with_key(&capsule, None, 96).is_err());
+    assert!(encode_perceptual_jpeg_with_key(&capsule, Some(&wrong), 96).is_err());
+    assert!(encode_perceptual_jpeg_with_key(&capsule, Some(&key), 96).is_ok());
 }
 
 #[test]
