@@ -256,7 +256,7 @@ fn render_rgb(svg: &str) -> Result<(Vec<u8>, u16, u16), String> {
     let natural = (size.width() as usize)
         .checked_mul(size.height() as usize)
         .ok_or("Artwork dimensions overflow")?;
-    let pixels = natural.min(MAX_PIXELS).max(64 * 64);
+    let pixels = natural.clamp(64 * 64, MAX_PIXELS);
     let aspect = (size.width() as f64 / size.height() as f64).clamp(0.1, 10.0);
     let width = ((pixels as f64 * aspect).sqrt().ceil() as u32).max(64);
     let height = (pixels.div_ceil(width as usize) as u32).max(64);
