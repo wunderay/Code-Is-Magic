@@ -20,6 +20,7 @@
           "op": "path"
         }
       ],
+      "color": "#555555",
       "controls": [
         "if",
         "for",
@@ -123,6 +124,7 @@
           "step": 1
         }
       ],
+      "color": "#f34b7d",
       "controls": [
         "if",
         "for",
@@ -218,6 +220,7 @@
           "step": 1
         }
       ],
+      "color": "#7355dd",
       "controls": [
         "if",
         "for",
@@ -306,6 +309,7 @@
           "op": "path"
         }
       ],
+      "color": "#00ADD8",
       "controls": [
         "if",
         "for",
@@ -394,6 +398,7 @@
           "op": "path"
         }
       ],
+      "color": "#b07219",
       "controls": [
         "if",
         "for",
@@ -482,6 +487,7 @@
           "op": "path"
         }
       ],
+      "color": "#f1e05a",
       "controls": [
         "if",
         "for",
@@ -573,6 +579,7 @@
           "op": "path"
         }
       ],
+      "color": "#3572A5",
       "controls": [
         "if",
         "for",
@@ -664,6 +671,7 @@
           "op": "path"
         }
       ],
+      "color": "#dea584",
       "controls": [
         "if",
         "for",
@@ -766,6 +774,7 @@
           "step": 1
         }
       ],
+      "color": "#3178c6",
       "controls": [
         "if",
         "for",

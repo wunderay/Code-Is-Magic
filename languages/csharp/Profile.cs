@@ -12,6 +12,6 @@ public static class Profile {
         string[] quotedExtensions = Array.ConvertAll(extensions, Quoted);
         Console.WriteLine("{\"id\":\"csharp\",\"base\":\"java\",\"name\":" + Quoted(name)
           + ",\"extensions\":[" + String.Join(",", quotedExtensions) + "],\"call_group\":\"csharp\","
-          + "\"sigil\":\"✧\",\"repeats\":8,\"collar\":[{\"op\":\"polygon\",\"cx\":0,\"cy\":-0.964,\"r\":0.031,\"n\":4,\"step\":1,\"rotation_degrees\":0}]}");
+          + "\"color\":\"#7355dd\",\"sigil\":\"✧\",\"repeats\":8,\"collar\":[{\"op\":\"polygon\",\"cx\":0,\"cy\":-0.964,\"r\":0.031,\"n\":4,\"step\":1,\"rotation_degrees\":0}]}");
     }
 }

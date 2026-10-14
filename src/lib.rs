@@ -8,7 +8,7 @@ pub use archive::{
     decode_png, decode_svg, embed_svg, encode_png, snapshot_zip, ArchiveEntry, Capsule, Snapshot,
 };
 pub use profiles::{language_profiles, profile_for_language, profile_for_path, LanguageProfile};
-pub use render::{render, render_with_wingdings, Diagram, Placement};
+pub use render::{render, render_with_options, render_with_wingdings, Diagram, Placement};
 pub use sigil::{decode_name, decode_svg_names, encode_name, DecodedName, NameSigil};
 use wasm_bindgen::prelude::*;
 
@@ -21,15 +21,28 @@ pub fn transmute(
     palette: &str,
     wingdings: bool,
 ) -> Result<String, JsValue> {
+    transmute_with_options(files_json, title, min_lines, palette, wingdings, false)
+}
+
+#[wasm_bindgen]
+pub fn transmute_with_options(
+    files_json: &str,
+    title: &str,
+    min_lines: usize,
+    palette: &str,
+    wingdings: bool,
+    language_colors: bool,
+) -> Result<String, JsValue> {
     let files: Vec<SourceFile> =
         serde_json::from_str(files_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
     let analysis = analyze(&files);
-    serde_json::to_string(&render_with_wingdings(
+    serde_json::to_string(&render_with_options(
         &analysis,
         title,
         min_lines.max(1),
         palette,
         wingdings,
+        language_colors,
     ))
     .map_err(|e| JsValue::from_str(&e.to_string()))
 }

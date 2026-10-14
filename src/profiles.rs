@@ -30,6 +30,7 @@ pub struct LanguageProfile {
     pub self_qualifiers: Vec<String>,
     pub merge_containers: Vec<String>,
     pub sigil: String,
+    pub color: String,
     pub repeats: usize,
     pub collar: Vec<CollarOperation>,
 }

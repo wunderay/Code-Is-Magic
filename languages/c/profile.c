@@ -19,7 +19,7 @@ int main(void) {
     const char *controls[]={"if","for","while","switch","catch","match","with","sizeof","return","new","assert","super"};
     const char *prefixes[]={".","::","return","=","=>","new",",","if","while","switch","match","!","&&","||"};
     fputs("{\"id\":\"c\",\"name\":\"C\",\"extensions\":",stdout);strings(extensions,2);
-    fputs(",\"call_group\":\"c-family\",\"line_comment\":\"//\",\"block_comments\":true,\"raw_strings\":false,\"lifetimes\":false,\"triple_quotes\":false,\"indented_declarations\":{},",stdout);
+    fputs(",\"call_group\":\"c-family\",\"color\":\"#555555\",\"line_comment\":\"//\",\"block_comments\":true,\"raw_strings\":false,\"lifetimes\":false,\"triple_quotes\":false,\"indented_declarations\":{},",stdout);
     /* Retain the existing broad structural heuristic; these are not compiler grammars. */
     fputs("\"braced_declarations\":{\"struct\":\"struct\",\"union\":\"struct\",\"enum\":\"enum\",\"class\":\"class\",\"record\":\"class\",\"interface\":\"interface\",\"trait\":\"interface\",\"impl\":\"impl\"},",stdout);
     fputs("\"type_keyword\":\"type\",\"type_kinds\":{\"struct\":\"struct\",\"interface\":\"interface\"},\"type_default_kind\":\"struct\",\"object_keywords\":[\"const\",\"let\",\"var\"],\"receiver_keyword\":\"func\",\"required_function_keyword\":\"\",\"arrow_token\":\"=>\",\"controls\":",stdout);

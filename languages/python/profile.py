@@ -2,7 +2,7 @@
 import json
 profile = {
     "id": "python", "base": "c", "name": "Python", "extensions": ["py"],
-    "call_group": "python", "line_comment": "#", "block_comments": False,
+    "call_group": "python", "color": "#3572A5", "line_comment": "#", "block_comments": False,
     "triple_quotes": True,
     "indented_declarations": {"def": "function", "class": "class"},
     "sigil": "☽", "repeats": 6,

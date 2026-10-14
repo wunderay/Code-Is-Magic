@@ -1,8 +1,8 @@
 use base64::Engine;
 use clap::Parser;
 use code_is_magic::{
-    analyze, decode_png, decode_svg, decode_svg_names, embed_svg, encode_png,
-    render_with_wingdings, snapshot_zip, ArchiveEntry, Capsule, Snapshot,
+    analyze, decode_png, decode_svg, decode_svg_names, embed_svg, encode_png, render_with_options,
+    snapshot_zip, ArchiveEntry, Capsule, Snapshot,
 };
 use reqwest::blocking::Client;
 use serde_json::Value;
@@ -38,6 +38,9 @@ struct Args {
     /// Use portable vector dingbat ornament (legacy --wingdings flag)
     #[arg(long)]
     wingdings: bool,
+    /// Color seals using their language's color; tones adapt to the selected background
+    #[arg(long)]
+    language_colors: bool,
     /// Branch, tag, or commit; defaults to the repository's default branch
     #[arg(long)]
     reference: Option<String>,
@@ -335,12 +338,13 @@ fn run() -> Result<(), Box<dyn Error>> {
     };
     snapshot.canonicalize()?;
     let analysis = analyze(&snapshot.source_files());
-    let diagram = render_with_wingdings(
+    let diagram = render_with_options(
         &analysis,
         &snapshot.title,
         args.min_lines.max(1),
         &args.palette,
         args.wingdings,
+        args.language_colors,
     );
     let capsule = Capsule {
         version: 1,

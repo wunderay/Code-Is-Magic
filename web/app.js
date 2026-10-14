@@ -1,5 +1,6 @@
 import { readRepository, SOURCE_PATTERN, sourceFiles, encodeBytes, snapshotFromSources } from './repository.js';
 import { demoFiles } from './demo.js';
+import { languageColors } from './languages.js';
 const $ = id => document.getElementById(id);
 const canvas = $('canvas'), ctx = canvas.getContext('2d'), viewport = $('viewport');
 let worker, requestId = 0, pending = new Map(), image, diagram, files = demoFiles, title = 'Example grimoire · nine language signatures';
@@ -24,7 +25,7 @@ async function engine(data) {
   return new Promise((resolve,reject)=>{pending.set(id,{resolve,reject});w.postMessage({id,...data});});
 }
 async function transmute(inputFiles,inputTitle) {
-  const result=await engine({files:inputFiles,title:inputTitle,minLines:Number($('min-lines').value),palette:$('palette').value,wingdings:$('wingdings').checked});
+  const result=await engine({files:inputFiles,title:inputTitle,minLines:Number($('min-lines').value),palette:$('palette').value,wingdings:$('wingdings').checked,languageColors:$('language-colors').checked});
   result.snapshot=snapshot;return result;
 }
 function capsule() {
@@ -121,6 +122,7 @@ async function recoverSource(file) {
     });
     const background=original.querySelector('rect')?.getAttribute('fill');
     $('palette').value=background==='#f0e8d7'?'parchment':background==='#090d20'?'astral':'gold';
+    $('language-colors').checked=original.getAttribute('data-language-colors')==='true';colorLegend();
     await install(next);
     download(new Blob([zip],{type:'application/zip'}),'zip');
     status(`Recovered ${snapshot.entries.length} tracked entries with exact bytes. Source ZIP downloaded.`);
@@ -174,6 +176,9 @@ $('demo').onclick=loadDemo;
 let debounce;
 function rerender(){if(imported){status('Imported diagrams preserve their original styling. Open source files to change the inscription settings.');return;}clearTimeout(debounce);status('Updating inscription…','busy');debounce=setTimeout(async()=>{if(busy)return;setBusy(true);try{reframe=false;await install(await transmute(files,title));status('Inscription updated.');}catch(e){status(e.message,'error');}finally{setBusy(false);}},150);}
 $('min-lines').oninput=()=>{$('threshold-value').textContent=`${$('min-lines').value} lines`;rerender();};$('palette').onchange=rerender;$('wingdings').onchange=rerender;
+function colorLegend() {$('language-colors').title='Language hues adapt to the selected background';document.querySelector('.legend').classList.toggle('language-colors',$('language-colors').checked);}
+for(const label of document.querySelectorAll('.legend dt[data-language]')){const dot=document.createElement('span');dot.className='language-dot';dot.setAttribute('aria-hidden','true');dot.style.backgroundColor=languageColors[label.dataset.language];label.prepend(dot);}
+$('language-colors').onchange=()=>{colorLegend();rerender();};
 $('folder').onchange=async event=>{
   if(busy)return;setBusy(true);status('Reading every selected file as exact bytes…','busy');
   try {
@@ -185,5 +190,5 @@ $('folder').onchange=async event=>{
     await install(await transmute(files,title));status(`Preserved ${entries.length} selected files exactly. Browser folder mode cannot read executable bits or symlinks; use GitHub or the CLI for those.`);
   }catch(e){status(e.message,'error');}finally{setBusy(false);event.target.value='';}
 };
-$('json').onchange=async event=>{if(busy)return;const file=event.target.files[0];if(!file)return;try{if(file.size>50_000_000)throw new Error('Diagram is too large.');const next=JSON.parse(await file.text());if(!next.analysis?.entities||!Array.isArray(next.placements)||typeof next.svg!=='string'||!Number.isFinite(next.width)||!Number.isFinite(next.height)||next.width<1||next.height<1||next.width>100000||next.height>100000)throw new Error('Choose a JSON diagram exported by Code Is Magic.');const document=new DOMParser().parseFromString(next.svg,'image/svg+xml');if(document.querySelector('parsererror,script,foreignObject,image,use')||document.documentElement.localName!=='svg')throw new Error('Imported SVG contains unsupported elements.');for(const style of document.querySelectorAll('style')){const allowed=/@font-face\s*\{\s*font-family:\s*'CIM(?:Runic|Symbols|Greek)';\s*src:\s*url\('data:font\/ttf;base64,[A-Za-z0-9+/=]+'\)\s*format\('truetype'\);\s*\}/g;if(style.textContent.replace(allowed,'').trim())throw new Error('Imported SVG contains unsupported styling.');}for(const node of document.querySelectorAll('*'))for(const attr of node.attributes)if(/^on/i.test(attr.name)||/href/i.test(attr.name)||/url\(\s*['"]?(?!#)/i.test(attr.value))throw new Error('Imported SVG contains an external resource or executable attribute.');title=`Imported grimoire · ${file.name}`;snapshot=next.snapshot||null;reframe=true;await install(next);imported=true;status('Offline diagram opened. Original styling preserved.');}catch(e){status(e.message,'error');}finally{event.target.value='';}};
+$('json').onchange=async event=>{if(busy)return;const file=event.target.files[0];if(!file)return;try{if(file.size>50_000_000)throw new Error('Diagram is too large.');const next=JSON.parse(await file.text());if(!next.analysis?.entities||!Array.isArray(next.placements)||typeof next.svg!=='string'||!Number.isFinite(next.width)||!Number.isFinite(next.height)||next.width<1||next.height<1||next.width>100000||next.height>100000)throw new Error('Choose a JSON diagram exported by Code Is Magic.');const document=new DOMParser().parseFromString(next.svg,'image/svg+xml');if(document.querySelector('parsererror,script,foreignObject,image,use')||document.documentElement.localName!=='svg')throw new Error('Imported SVG contains unsupported elements.');for(const style of document.querySelectorAll('style')){const allowed=/@font-face\s*\{\s*font-family:\s*'CIM(?:Runic|Symbols|Greek)';\s*src:\s*url\('data:font\/ttf;base64,[A-Za-z0-9+/=]+'\)\s*format\('truetype'\);\s*\}/g;if(style.textContent.replace(allowed,'').trim())throw new Error('Imported SVG contains unsupported styling.');}for(const node of document.querySelectorAll('*'))for(const attr of node.attributes)if(/^on/i.test(attr.name)||/href/i.test(attr.name)||/url\(\s*['"]?(?!#)/i.test(attr.value))throw new Error('Imported SVG contains an external resource or executable attribute.');$('language-colors').checked=document.documentElement.getAttribute('data-language-colors')==='true';colorLegend();title=`Imported grimoire · ${file.name}`;snapshot=next.snapshot||null;reframe=true;await install(next);imported=true;status('Offline diagram opened. Original styling preserved.');}catch(e){status(e.message,'error');}finally{event.target.value='';}};
 loadDemo();

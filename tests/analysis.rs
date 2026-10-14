@@ -207,6 +207,9 @@ fn recursive_invocations_have_visible_gates_and_lossless_names() {
         .split_whitespace()
         .map(|value| value.parse().unwrap())
         .collect();
+    let ornament = gate.split("</g>").next().unwrap();
+    assert!(ornament.contains("<circle"));
+    assert!(!ornament.contains("<path") && !ornament.contains("<polyline"));
     let seal = &d.placements[0];
     assert!((coords[0] - seal.x).hypot(coords[1] - seal.y) > seal.radius + 8.);
     assert_eq!(
@@ -214,6 +217,37 @@ fn recursive_invocations_have_visible_gates_and_lossless_names() {
         "recurse"
     );
     assert!(!d.svg.contains("NaN") && !d.svg.contains("inf"));
+}
+
+#[test]
+fn language_colors_are_optional_and_preserve_geometry_and_names() {
+    let a = analyze(&[
+        file("forge.rs", "fn cast() { return; }"),
+        file("lunar.py", "def shine():\n    return 1\n"),
+        file("solar.js", "function glow() { return 1; }"),
+    ]);
+    let plain = render(&a, "ignored", 12, "gold");
+    let colored = code_is_magic::render_with_options(&a, "ignored", 12, "gold", false, true);
+    assert_eq!(
+        serde_json::to_value(&plain.placements).unwrap(),
+        serde_json::to_value(&colored.placements).unwrap()
+    );
+    assert_eq!(
+        serde_json::to_value(&plain.analysis).unwrap(),
+        serde_json::to_value(&colored.analysis).unwrap()
+    );
+    assert!(plain.svg.contains("data-language-colors='false'"));
+    assert!(colored.svg.contains("data-language-colors='true'"));
+    assert!(colored.svg.contains("stroke='#dea584'") && colored.svg.contains("stroke='#f1e05a'"));
+    assert!(colored.svg.contains("data-language-color='#3572A5'"));
+    assert_eq!(
+        code_is_magic::decode_svg_names(&plain.svg).unwrap(),
+        code_is_magic::decode_svg_names(&colored.svg).unwrap()
+    );
+    assert_eq!(
+        colored.svg,
+        code_is_magic::render_with_options(&a, "ignored", 12, "gold", false, true).svg
+    );
 }
 
 #[test]

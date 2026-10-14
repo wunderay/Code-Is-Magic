@@ -14,6 +14,6 @@ int main() {
     const std::string name="C++";
     std::cout << "{\"id\":\"cpp\",\"base\":\"c\",\"name\":" << quote(name)
       << ",\"extensions\":[\"cpp\",\"hpp\",\"cc\"],\"call_group\":\"c-family\","
-      << "\"sigil\":\"⚙\",\"repeats\":16,\"collar\":[";
+      << "\"color\":\"#f34b7d\",\"sigil\":\"⚙\",\"repeats\":16,\"collar\":[";
     square(-0.017);std::cout << ',';square(0.017);std::cout << "]}\n";
 }

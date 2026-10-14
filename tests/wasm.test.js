@@ -4,16 +4,18 @@ import {mkdtempSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {execFileSync} from 'node:child_process';
-import init,{transmute,recover_image,pack_png} from '../web/pkg/code_is_magic.js';
+import init,{transmute,transmute_with_options,recover_image,pack_png} from '../web/pkg/code_is_magic.js';
 import {demoFiles} from '../web/demo.js';
 await init({module_or_path:readFileSync(new URL('../web/pkg/code_is_magic_bg.wasm',import.meta.url))});
-for(const wingdings of [false,true])test(`native and WASM produce the same complete diagram (Wingdings=${wingdings})`,()=>{
+for(const [wingdings,languageColors,palette] of [[false,false,'gold'],[true,false,'gold'],[false,true,'gold'],[true,true,'parchment']])test(`native/WASM identical: ornaments=${wingdings}, languageColors=${languageColors}, palette=${palette}`,()=>{
  const folder=mkdtempSync(join(tmpdir(),'code-magic-parity-'));
  try{
   for(const file of demoFiles)writeFileSync(join(folder,file.path),file.content);
   const output=join(folder,'output.svg');
-  execFileSync('cargo',['run','--locked','--',folder,'--output',output,...(wingdings?['--wingdings']:[])],{stdio:'pipe'});
-  const browser=JSON.parse(transmute(JSON.stringify([...demoFiles].reverse()),folder,12,'gold',wingdings));
+  const options=['--palette',palette,...(wingdings?['--wingdings']:[]),...(languageColors?['--language-colors']:[])];
+  execFileSync('cargo',['run','--locked','--',folder,'--output',output,...options],{stdio:'pipe'});
+  const input=JSON.stringify([...demoFiles].reverse());
+  const browser=JSON.parse(languageColors?transmute_with_options(input,folder,12,palette,wingdings,true):transmute(input,folder,12,palette,wingdings));
   const recovered=JSON.parse(recover_image(readFileSync(output)));assert.equal(browser.svg,recovered.svg);assert.equal(recovered.snapshot.entries.length,9);
   assert.equal(browser.analysis.files,9);
   assert.equal(browser.placements.length,28);
@@ -24,7 +26,7 @@ for(const wingdings of [false,true])test(`native and WASM produce the same compl
   const nativePng=join(folder,'source.png');
   // Keep generated outputs outside the captured input folder for this comparison.
   rmSync(output);
-  execFileSync('cargo',['run','--locked','--',folder,'--output',nativePng,...(wingdings?['--wingdings']:[])],{stdio:'pipe'});
+  execFileSync('cargo',['run','--locked','--',folder,'--output',nativePng,...options],{stdio:'pipe'});
   assert.deepEqual(Buffer.from(wasmPng),readFileSync(nativePng));
   const roundTrip=JSON.parse(recover_image(wasmPng));
   assert.deepEqual(roundTrip.snapshot,recovered.snapshot);

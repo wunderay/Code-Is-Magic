@@ -10,7 +10,7 @@ fn main() {
         concat!(
             "{{\"id\":\"rust\",\"base\":\"c\",\"name\":{},\"extensions\":[\"rs\"],",
             "\"call_group\":\"rust\",\"raw_strings\":true,\"lifetimes\":true,",
-            "\"required_function_keyword\":{},\"sigil\":\"ᛟ\",\"repeats\":8,",
+            "\"required_function_keyword\":{},\"color\":\"#dea584\",\"sigil\":\"ᛟ\",\"repeats\":8,",
             "\"collar\":[{{\"op\":\"path\",\"data\":{}}}]}}"
         ),
         quoted(name),

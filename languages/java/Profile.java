@@ -11,6 +11,6 @@ public class Profile {
         String suffixes = String.join(",", extensions.stream().map(Profile::quoted).toList());
         System.out.println("{\"id\":\"java\",\"base\":\"c\",\"name\":" + quoted(name)
           + ",\"extensions\":[" + suffixes + "],\"call_group\":\"java\","
-          + "\"sigil\":\"♜\",\"repeats\":4,\"collar\":[{\"op\":\"path\",\"data\":" + quoted(arch) + "}]}");
+          + "\"color\":\"#b07219\",\"sigil\":\"♜\",\"repeats\":4,\"collar\":[{\"op\":\"path\",\"data\":" + quoted(arch) + "}]}");
     }
 }

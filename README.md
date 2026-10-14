@@ -43,6 +43,7 @@ More examples:
 ```sh
 code-is-magic ./my-project --output magic.png --json diagram.json
 code-is-magic https://github.com/owner/repo.git --reference COMMIT_SHA --palette parchment --output magic.svg
+code-is-magic https://github.com/owner/repo --language-colors --output magic.png
 code-is-magic --decode magic.svg --output recovered.zip --json snapshot.json
 code-is-magic --decode-names magic.svg
 ```
@@ -50,6 +51,8 @@ code-is-magic --decode-names magic.svg
 The same positional `INPUT` accepts a GitHub link, a local source directory, or an original exported PNG/SVG. Image input automatically recovers the complete source snapshot into `recovered.zip` unless `--output` specifies another path. The explicit `--decode` option remains available.
 
 `--palette` accepts `gold`, `astral`, or `parchment`. `--reference` accepts a branch, tag, or commit; all GitHub reads use the resolved commit's immutable blob IDs. Set `GITHUB_TOKEN` in your shell environment for private repositories or more API quota. Tokens are never put into the snapshot.
+
+`--language-colors` optionally gives each seal its language's hue. The website has the same **Language colors** checkbox, off by default, with matching legend swatches. Base colors come from [GitHub Linguist](https://github.com/github-linguist/linguist/blob/main/lib/linguist/languages.yml) and are authored in the native-language profiles. Tones adapt to the selected background for readability. Connections retain the chosen palette's ink. Colors affect neither geometry nor source recovery, and exported PNG/SVG/JSON diagrams preserve the setting.
 
 Local CLI mode preserves file bytes, executable flags, and symlink targets without following symlinks. It excludes directories named `.git`, `target`, `node_modules`, and `pkg`; GitHub mode preserves every entry in the selected tracked tree. Windows files do not expose Unix executable flags through ordinary local metadata; use GitHub input to preserve the Git modes precisely.
 
@@ -80,7 +83,7 @@ The expected project URL after successful publication is `https://wunderay.githu
 
 ## Visual grammar
 
-Function seal **area is directly proportional to non-comment body source lines**: radius = 24 × √lines. Four times as much code produces twice the radius. Equal-length functions have equal-sized seals regardless of their names, with no size cap or name-based jitter. The adjustable default of 12 lines controls ornament detail, not circle size. Braided invocation channels connect unambiguous caller → callee targets, with engraved knots and asymmetric destination gates; dotted tethers with diamond joints express type membership. Recursive calls use woven return loops. Structs use hexagons, enums diamonds, classes frames, interfaces opposing triangles, and named JavaScript object literals cubes. The reversible name contour distinguishes different names independently of those motifs.
+Function seal **area is directly proportional to non-comment body source lines**: radius = 24 × √lines. Four times as much code produces twice the radius. Equal-length functions have equal-sized seals regardless of their names, with no size cap or name-based jitter. The adjustable default of 12 lines controls ornament detail, not circle size. Braided invocation channels connect unambiguous caller → callee targets, with engraved knots and round endpoint seals. No arrowheads are drawn; direction remains in the inspector and graph metadata. Dotted tethers with diamond joints express type membership. Recursive calls use woven return loops. Structs use hexagons, enums diamonds, classes frames, interfaces opposing triangles, and named JavaScript object literals cubes. The reversible name contour distinguishes different names independently of those motifs.
 
 Outer collars stay circular. A name-derived center chooses and varies twelve original emblem families: ritual triangles, crescents, floral knots, heraldic crests, eyes, interlocking facets, branching runes, hourglasses, square labyrinths, orbital seals, flames, and curved triquetras. The exact reversible name contour sits inside the emblem rather than deforming the rim. Its normalized geometry and v1 decoder remain compatible with earlier images. Source recovery preserves the original artwork and its separate full seal radius.
 

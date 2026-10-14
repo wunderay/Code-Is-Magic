@@ -38,5 +38,12 @@ class ProfileCompilerTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 build.compile_profiles(raw)
 
+    def test_invalid_language_colors_fail(self):
+        for color in ("red", "#123", "#12xx34", "#123456' onload='bad"):
+            raw = copy.deepcopy(self.raw)
+            raw["c"]["color"] = color
+            with self.assertRaises(ValueError):
+                build.compile_profiles(raw)
+
 if __name__ == "__main__":
     unittest.main()

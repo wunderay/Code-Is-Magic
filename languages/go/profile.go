@@ -17,13 +17,14 @@ type Profile struct {
 	Extensions []string `json:"extensions"`
 	CallGroup  string   `json:"call_group"`
 	Receiver   string   `json:"receiver_keyword"`
+	Color      string   `json:"color"`
 	Sigil      string   `json:"sigil"`
 	Repeats    int      `json:"repeats"`
 	Collar     []Path   `json:"collar"`
 }
 
 func main() {
-	profile := Profile{"go", "c", "Go", []string{"go"}, "go", "func", "≋", 3,
+	profile := Profile{"go", "c", "Go", []string{"go"}, "go", "func", "#00ADD8", "≋", 3,
 		[]Path{{"path", "M -.12 -.965 Q -.04 -.99 0 -.955 T .12 -.965 M -.1 -.938 Q -.03 -.965 .02 -.936 T .1 -.938"}}}
 	if err := json.NewEncoder(os.Stdout).Encode(profile); err != nil {
 		panic(err)

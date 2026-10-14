@@ -560,10 +560,31 @@ fn invocation_channel(
     let (destination, tangent) = curve_point(&points, 1.);
     let angle = tangent[1].atan2(tangent[0]) * 180. / PI;
     let _ = write!(s, "<g data-call-gate='1' transform='translate({:.3} {:.3}) rotate({angle:.3})' stroke-width='1' opacity='.92'>", destination[0], destination[1]);
-    s.push_str("<path d='M -5 -8 C 5 -8 5 8 -5 8 M -8 -5 C -2 -5 -2 5 -8 5'/>");
-    let _ = write!(s, "<path d='M 0 -5 L 8 0 L 0 5 L -3 0 Z' fill='{bg}'/>");
+    let _ = write!(s, "<g fill='{bg}'>");
+    circle(s, 0., 0., 6.5, 0.9);
+    circle(s, 0., 0., 3.7, 0.75);
     circle(s, 0., 0., 1.6, 0.9);
-    s.push_str("</g></g>");
+    s.push_str("</g></g></g>");
+}
+fn circle_ink(color: &str, palette: &str) -> String {
+    let rgb = [1, 3, 5].map(|start| {
+        u32::from_str_radix(&color[start..start + 2], 16).expect("validated profile color")
+    });
+    let light_background = palette == "parchment";
+    let target = if light_background { 0 } else { 255 };
+    // Integer tone adjustments preserve the language hue and native/WASM determinism.
+    for step in 0..=20 {
+        let adapted = rgb.map(|channel| (channel * (20 - step) + target * step + 10) / 20);
+        let brightness = (adapted[0] * 2126 + adapted[1] * 7152 + adapted[2] * 722) / 10000;
+        if (light_background && brightness <= 130) || (!light_background && brightness >= 140) {
+            return if step == 0 {
+                color.into()
+            } else {
+                format!("#{:02x}{:02x}{:02x}", adapted[0], adapted[1], adapted[2])
+            };
+        }
+    }
+    unreachable!("black or white meets the tone threshold")
 }
 pub fn render(a: &Analysis, title: &str, min_lines: usize, palette: &str) -> Diagram {
     render_with_wingdings(a, title, min_lines, palette, false)
@@ -574,6 +595,16 @@ pub fn render_with_wingdings(
     min_lines: usize,
     palette: &str,
     wingdings: bool,
+) -> Diagram {
+    render_with_options(a, title, min_lines, palette, wingdings, false)
+}
+pub fn render_with_options(
+    a: &Analysis,
+    title: &str,
+    min_lines: usize,
+    palette: &str,
+    wingdings: bool,
+    language_colors: bool,
 ) -> Diagram {
     let visible: Vec<_> = a
         .entities
@@ -589,7 +620,7 @@ pub fn render_with_wingdings(
     let outlines: BTreeMap<String, Outline> =
         serde_json::from_str(include_str!("glyphs.json")).expect("bundled glyph paths are valid");
     let _ = title; // Provenance lives in the recoverable archive, never in the artwork.
-    let mut s=format!("<svg xmlns='http://www.w3.org/2000/svg' width='{width}' height='{height}' viewBox='0 0 {width} {height}'><rect width='100%' height='100%' fill='{bg}'/>");
+    let mut s=format!("<svg xmlns='http://www.w3.org/2000/svg' width='{width}' height='{height}' viewBox='0 0 {width} {height}' data-language-colors='{language_colors}'><rect width='100%' height='100%' fill='{bg}'/>");
     let mut atmosphere = Entropy(hash("wild grimoire") ^ visible.len() as u64);
     let _ = write!(s, "<g fill='{ink}' opacity='.17'>");
     for _ in 0..visible.len().saturating_mul(3).min(360) {
@@ -618,7 +649,7 @@ pub fn render_with_wingdings(
         );
     }
     s.push_str("</g>");
-    // Braided invocation channels sit behind seals; an asymmetric gate identifies the callee.
+    // Braided invocation channels use round endpoints, with direction retained in graph metadata.
     for edge in &a.edges {
         let Some(from) = placements.iter().find(|p| p.id == edge.from) else {
             continue;
@@ -634,9 +665,15 @@ pub fn render_with_wingdings(
     }
     for place in &placements {
         let e = &a.entities[place.id];
+        let profile = profile_for_language(&e.language);
+        let ink = if language_colors {
+            circle_ink(&profile.color, palette)
+        } else {
+            ink.into()
+        };
         let (x, y, r) = (place.x, place.y, place.radius);
         let large = e.kind != "function" || e.lines >= min_lines;
-        let _=write!(s,"<g id='entity-{}'><circle cx='{x}' cy='{y}' r='{}' fill='{bg}'/><g fill='none' stroke='{ink}' stroke-width='.85'>",e.id,r+2.);
+        let _=write!(s,"<g id='entity-{}' data-language-color='{}'><circle cx='{x}' cy='{y}' r='{}' fill='{bg}'/><g fill='none' stroke='{ink}' stroke-width='.85'>",e.id,profile.color,r+2.);
         design(&mut s, e, x, y, r, large);
         let contour = encode_name(&e.qualified_name);
         let core = r * 0.52;
