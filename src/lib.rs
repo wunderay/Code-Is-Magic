@@ -2,9 +2,8 @@ mod analyze;
 mod archive;
 mod compression;
 mod crypto;
-pub use compression::{compact_svg, optimize_png};
-pub use crypto::MagicKey;
 mod inscription;
+mod perceptual;
 mod profiles;
 mod render;
 mod sigil;
@@ -14,6 +13,9 @@ pub use archive::{
     embed_svg, embed_svg_with_key, encode_png, encode_png_with_key, encode_svgz_with_key,
     snapshot_zip, ArchiveEntry, Capsule, Snapshot,
 };
+pub use compression::{compact_svg, optimize_png};
+pub use crypto::MagicKey;
+pub use perceptual::{encode_magic, encode_magic_with_key, perceptual_svg};
 pub use profiles::{language_profiles, profile_for_language, profile_for_path, LanguageProfile};
 pub use render::{
     render, render_with_key, render_with_options, render_with_wingdings, Diagram, Placement,
@@ -155,11 +157,17 @@ pub fn recover_names_keyed(svg: &str, key_hex: &str) -> Result<String, JsValue> 
     serde_json::to_string(&names).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
+/// Canonical browser export. The historical JS name is retained so older cached
+/// front-ends automatically receive the new single transmutation format.
 #[wasm_bindgen]
 pub fn pack_svgz_keyed(capsule_json: &str, key_hex: &str) -> Result<Vec<u8>, JsValue> {
     let key = optional_key(key_hex)?;
-    let mut capsule: Capsule =
+    let capsule: Capsule =
         serde_json::from_str(capsule_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
-    capsule.svg = compact_svg(&capsule.svg).map_err(|e| JsValue::from_str(&e))?;
-    encode_svgz_with_key(&capsule, key.as_ref()).map_err(|e| JsValue::from_str(&e))
+    encode_magic_with_key(&capsule, key.as_ref()).map_err(|e| JsValue::from_str(&e))
+}
+
+#[wasm_bindgen]
+pub fn pack_magic_keyed(capsule_json: &str, key_hex: &str) -> Result<Vec<u8>, JsValue> {
+    pack_svgz_keyed(capsule_json, key_hex)
 }
