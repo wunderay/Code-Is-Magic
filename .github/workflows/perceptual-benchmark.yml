@@ -14,13 +14,64 @@ jobs:
         run: |
           cargo build --locked --release
           target/release/code-is-magic . --output /tmp/exact.png
+          target/release/code-is-magic . --output /tmp/exact.svg
           for q in 95 96 97 98 99 100; do
             target/release/code-is-magic . --perceptual-quality "$q" --output "/tmp/q${q}.jpg"
           done
           target/release/code-is-magic . --perceptual-quality 96 --output /tmp/q96-repeat.jpg
           cmp /tmp/q96.jpg /tmp/q96-repeat.jpg
           target/release/code-is-magic /tmp/q96.jpg --output /tmp/recovered.zip
-      - name: Prepare matched reference and raw metrics
+      - name: Render the exact pre-JPEG reference raster
+        run: |
+          cat > examples/perceptual_reference.rs <<'RS'
+          use code_is_magic::decode_image_with_key;
+          use std::{fs, fs::File, io::BufWriter};
+
+          const MAX_PIXELS: usize = 16_000_000;
+
+          fn main() {
+              let capsule = decode_image_with_key(&fs::read("/tmp/exact.svg").unwrap(), None).unwrap();
+              let tree = resvg::usvg::Tree::from_str(&capsule.svg, &resvg::usvg::Options::default()).unwrap();
+              let size = tree.size();
+              let natural_width = size.width().ceil().max(1.0) as u32;
+              let natural_height = size.height().ceil().max(1.0) as u32;
+              let natural = (natural_width as usize).checked_mul(natural_height as usize).unwrap();
+              let (width, height) = if natural <= MAX_PIXELS
+                  && natural_width <= u16::MAX as u32
+                  && natural_height <= u16::MAX as u32
+              {
+                  (natural_width, natural_height)
+              } else {
+                  let scale = (MAX_PIXELS as f64 / natural as f64).sqrt();
+                  let width = ((natural_width as f64 * scale).floor() as u32).max(1);
+                  let height = ((natural_height as f64 * scale).floor() as u32).max(1);
+                  (width.min(u16::MAX as u32), height.min(u16::MAX as u32))
+              };
+              assert!(width as usize * height as usize <= MAX_PIXELS);
+              let mut pixmap = resvg::tiny_skia::Pixmap::new(width, height).unwrap();
+              resvg::render(
+                  &tree,
+                  resvg::tiny_skia::Transform::from_scale(
+                      width as f32 / size.width(),
+                      height as f32 / size.height(),
+                  ),
+                  &mut pixmap.as_mut(),
+              );
+              let mut rgb = Vec::with_capacity(width as usize * height as usize * 3);
+              for pixel in pixmap.data().as_chunks::<4>().0 {
+                  assert_eq!(pixel[3], 255);
+                  rgb.extend_from_slice(&pixel[..3]);
+              }
+              let mut encoder = png::Encoder::new(BufWriter::new(File::create("/tmp/reference.png").unwrap()), width, height);
+              encoder.set_color(png::ColorType::Rgb);
+              encoder.set_depth(png::BitDepth::Eight);
+              encoder.write_header().unwrap().write_image_data(&rgb).unwrap();
+              println!("CIM_REFERENCE dimensions={}x{}", width, height);
+          }
+          RS
+          cargo run --locked --release --example perceptual_reference
+          rm examples/perceptual_reference.rs
+      - name: Measure size and raw pixel error
         run: |
           python3 -m pip install --disable-pip-version-check --quiet pillow==12.0.0
           python3 - <<'PY'
@@ -28,15 +79,12 @@ jobs:
           from PIL import Image, ImageChops
           import math
           png=Path('/tmp/exact.png')
-          a=Image.open(png).convert('RGB')
-          original_dimensions=a.size
-          b=Image.open('/tmp/q96.jpg').convert('RGB')
-          if a.size != b.size:
-              a=a.resize(b.size,Image.Resampling.LANCZOS)
-          a.save('/tmp/reference.png',compress_level=9)
+          a=Image.open('/tmp/reference.png').convert('RGB')
           for q in range(95,101):
               jpg=Path(f'/tmp/q{q}.jpg')
               candidate=Image.open(jpg).convert('RGB')
+              if candidate.size != a.size:
+                  raise SystemExit(f'q{q}: reference {a.size} != candidate {candidate.size}')
               histogram=ImageChops.difference(a,candidate).histogram()
               counts=[histogram[i]+histogram[256+i]+histogram[512+i] for i in range(256)]
               count=sum(counts)
@@ -54,7 +102,7 @@ jobs:
               mse=squared/count
               psnr=float('inf') if mse == 0 else 10*math.log10((255*255)/mse)
               reduction=(1-jpg.stat().st_size/png.stat().st_size)*100
-              print(f'CIM_RAW q={q} exact_png={png.stat().st_size} jpeg={jpg.stat().st_size} reduction_pct={reduction:.2f} mae={mae:.4f} p99={p99} psnr_db={psnr:.2f} exact_dimensions={original_dimensions[0]}x{original_dimensions[1]} jpeg_dimensions={candidate.width}x{candidate.height}')
+              print(f'CIM_RAW q={q} exact_png={png.stat().st_size} jpeg={jpg.stat().st_size} reduction_pct={reduction:.2f} mae={mae:.4f} p99={p99} psnr_db={psnr:.2f} dimensions={candidate.width}x{candidate.height}')
           PY
       - name: Score SSIMULACRA2 visual quality
         run: |
@@ -66,15 +114,13 @@ jobs:
             score=$(ssimulacra2_rs /tmp/reference.png "/tmp/q${q}.jpg" | tail -n 1 | tr -d '[:space:]')
             bytes=$(stat -c%s "/tmp/q${q}.jpg")
             echo "CIM_SSIMULACRA2 q=$q score=$score bytes=$bytes"
-            python3 - "$q" "$score" <<'PY'
+            if python3 - "$q" "$score" <<'PY'
           import sys
           q=int(sys.argv[1]); score=float(sys.argv[2])
           if score >= 90:
               print(f'CIM_VISUALLY_LOSSLESS q={q} score={score:.6f}')
-          PY
-            if python3 - "$score" <<'PY'
-          import sys
-          raise SystemExit(0 if float(sys.argv[1]) >= 90 else 1)
+              raise SystemExit(0)
+          raise SystemExit(1)
           PY
             then
               passed=1
