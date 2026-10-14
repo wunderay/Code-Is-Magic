@@ -217,7 +217,9 @@ mod tests {
         assert!(svg.contains("width='100.123'"));
         assert!(svg.contains("height='100.988'"));
         assert!(svg.contains("d='M0.12 1.99L99.88 98.01'"));
-        assert!(svg.contains("transform='translate(50.123457 49.987654) scale(0.012346 -0.012346)'"));
+        assert!(
+            svg.contains("transform='translate(50.123457 49.987654) scale(0.012346 -0.012346)'")
+        );
         assert!(svg.contains("transform='translate(50.123456 49.987654) scale(8.123456)'"));
         assert!(svg.contains("points='0.123456,0.987654 1.111111,2.222222'"));
         assert!(svg.contains("data-seal-radius='8.123456'"));
