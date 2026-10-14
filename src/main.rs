@@ -298,7 +298,9 @@ fn run() -> Result<(), Box<dyn Error>> {
         let bytes = fs::read(path)?;
         if bytes.starts_with(b"\x89PNG") {
             if !args.output.extension().is_some_and(|e| e == "png") {
-                return Err("Use a .png output path for pixel-preserving legacy PNG optimization".into());
+                return Err(
+                    "Use a .png output path for pixel-preserving legacy PNG optimization".into(),
+                );
             }
             let optimized = optimize_png(&bytes)?;
             fs::write(&args.output, &optimized)?;
@@ -454,7 +456,10 @@ fn run() -> Result<(), Box<dyn Error>> {
         svg: diagram.svg.clone(),
     };
     if !args.output.extension().is_some_and(|e| e == "svgz") {
-        return Err("Code-to-magic transmutation has one canonical format: choose a .svgz output path".into());
+        return Err(
+            "Code-to-magic transmutation has one canonical format: choose a .svgz output path"
+                .into(),
+        );
     }
     fs::write(&args.output, encode_magic_with_key(&capsule, key.as_ref())?)?;
     println!(
@@ -471,7 +476,10 @@ fn run() -> Result<(), Box<dyn Error>> {
         "{} unresolved/external calls · structural analysis",
         analysis.unresolved_calls
     );
-    println!("Canonical perceptual SVGZ written to {}", args.output.display());
+    println!(
+        "Canonical perceptual SVGZ written to {}",
+        args.output.display()
+    );
     Ok(())
 }
 fn main() {
