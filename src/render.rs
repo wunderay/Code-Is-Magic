@@ -1,5 +1,6 @@
+use crate::encode_name;
 use crate::{Analysis, Entity};
-use base64::Engine;
+use serde::Deserialize;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::f64::consts::PI;
@@ -19,13 +20,6 @@ pub struct Diagram {
     pub height: u32,
     pub placements: Vec<Placement>,
     pub analysis: Analysis,
-}
-pub fn escape(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&apos;")
 }
 fn hash(s: &str) -> u64 {
     s.bytes().fold(14695981039346656037, |h, b| {
@@ -47,12 +41,7 @@ impl Entropy {
     }
 }
 fn entity_seed(e: &Entity) -> u64 {
-    hash(&format!(
-        "{}:{}:{}",
-        e.path,
-        e.qualified_name,
-        e.tokens.join(" ")
-    ))
+    hash(&e.qualified_name)
 }
 fn scatter_layout(
     a: &Analysis,
@@ -242,7 +231,7 @@ fn poly(s: &mut String, x: f64, y: f64, r: f64, n: usize, step: usize, rot: f64)
     let _ = write!(s, "<polyline points='{}'/>", polygon(x, y, r, n, step, rot));
 }
 fn design(s: &mut String, e: &Entity, x: f64, y: f64, r: f64, large: bool) {
-    let seed = hash(&format!("{}{}", e.path, e.name));
+    let seed = entity_seed(e);
     let rotation = (seed % 360) as f64 * PI / 180.;
     let mut fracture = Entropy(seed.wrapping_add(71));
     let mut angle = rotation;
@@ -450,8 +439,10 @@ pub fn render_with_wingdings(
         "astral" => ("#090d20", "#8cd4ee", "#354968"),
         _ => ("#0c1112", "#d8be87", "#44514a"),
     };
-    let fonts = embedded_fonts();
-    let mut s=format!("<svg xmlns='http://www.w3.org/2000/svg' width='{width}' height='{height}' viewBox='0 0 {width} {height}'><defs>{fonts}<marker id='arrow' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M 0 0 L 10 5 L 0 10' fill='none' stroke='{ink}'/></marker></defs><rect width='100%' height='100%' fill='{bg}'/><g fill='none' stroke='{muted}'><rect x='22' y='22' width='{}' height='{}'/><rect x='28' y='28' width='{}' height='{}'/></g><g fill='{ink}' font-family='Georgia,serif'><text x='54' y='66' font-size='22' letter-spacing='4'>CODE IS MAGIC</text><text x='54' y='91' font-size='12' opacity='.6'>{}</text></g>",width-44,height-44,width-56,height-56,escape(title));
+    let outlines: BTreeMap<String, Outline> =
+        serde_json::from_str(include_str!("glyphs.json")).expect("bundled glyph paths are valid");
+    let _ = title; // Provenance lives in the recoverable archive, never in the artwork.
+    let mut s=format!("<svg xmlns='http://www.w3.org/2000/svg' width='{width}' height='{height}' viewBox='0 0 {width} {height}'><defs><marker id='arrow' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M 0 0 L 10 5 L 0 10' fill='none' stroke='{ink}'/></marker></defs><rect width='100%' height='100%' fill='{bg}'/>");
     let mut atmosphere = Entropy(hash("wild grimoire") ^ visible.len() as u64);
     let _ = write!(s, "<g fill='{ink}' opacity='.17'>");
     for _ in 0..visible.len().saturating_mul(3).min(360) {
@@ -515,16 +506,17 @@ pub fn render_with_wingdings(
         let e = &a.entities[place.id];
         let (x, y, r) = (place.x, place.y, place.radius);
         let large = e.kind != "function" || e.lines >= min_lines;
-        let _=write!(s,"<g id='entity-{}'><title>{} · {}:{} · {} · {} source lines</title><circle cx='{x}' cy='{y}' r='{}' fill='{bg}'/><g fill='none' stroke='{ink}' stroke-width='.85'>",e.id,escape(&e.qualified_name),escape(&e.path),e.line,e.language,e.lines,r+2.);
+        let _=write!(s,"<g id='entity-{}'><circle cx='{x}' cy='{y}' r='{}' fill='{bg}'/><g fill='none' stroke='{ink}' stroke-width='.85'>",e.id,r+2.);
         design(&mut s, e, x, y, r, large);
-        s.push_str("</g>");
+        let contour = encode_name(&e.qualified_name);
+        let _=write!(s,"<polygon data-name-sigil='1' data-entity='{}' points='{}' transform='translate({x} {y}) scale({r})' stroke-width='.008' stroke-linejoin='round'/> </g>",e.id,contour.svg_points());
         let mut script = Entropy(entity_seed(e).wrapping_add(17));
         let count = if large {
             34 + (entity_seed(e) % 35) as usize
         } else {
             15 + (entity_seed(e) % 13) as usize
         };
-        let _=write!(s,"<g fill='{ink}' font-family='CIMRunic,CIMSymbols,CIMGreek,DejaVu Sans,Segoe UI Symbol,serif' font-size='{}' text-anchor='middle'>",if large{13}else{10});
+        let _ = write!(s, "<g fill='{ink}'>");
         for i in 0..count {
             let angle = i as f64 * 360. / count as f64 + script.between(-2.7, 2.7);
             let band = r - script.between(12., 30.);
@@ -534,26 +526,23 @@ pub fn render_with_wingdings(
                 .tokens
                 .get(i * e.tokens.len().max(1) / count)
                 .map_or(e.name.as_str(), |x| x.as_str());
-            let use_wingdings = wingdings && i % 3 == 0;
-            let font = if use_wingdings {
-                "Wingdings"
+            let symbol = glyph(token);
+            let _ = write!(s,"<g transform='translate({x} {y}) rotate({angle:.3}) translate(0 -{band:.1}) rotate({lean:.1})' opacity='.8'>");
+            if wingdings && i % 3 == 0 {
+                // Portable dingbat ornaments are vector geometry, not installed-font text.
+                let points = polygon(0., 0., size * 0.43, 5, 2, PI / 2.);
+                let _ = write!(
+                    s,
+                    "<polyline points='{points}' fill='none' stroke='{ink}' stroke-width='.7'/>"
+                );
             } else {
-                "CIMRunic,CIMSymbols,CIMGreek,DejaVu Sans,Segoe UI Symbol,serif"
-            };
-            let symbol = if use_wingdings {
-                const WING: [&str; 12] =
-                    ["J", "K", "N", "Y", "a", "b", "l", "n", "p", "v", "z", "u"];
-                WING[(hash(token) % WING.len() as u64) as usize]
-            } else {
-                glyph(token)
-            };
-            let _=write!(s,"<text transform='translate({x} {y}) rotate({angle}) translate(0 -{band:.1}) rotate({lean:.1})' opacity='.8' font-size='{size:.1}' font-family='{font}'>{symbol}</text>");
+                draw_outline(&mut s, &outlines, symbol, 0., 0., size);
+            }
+            s.push_str("</g>");
         }
-        let _ = write!(
-            s,
-            "<text x='{x}' y='{}' font-family='CIMRunic,CIMSymbols,CIMGreek,Georgia,serif' font-size='{}'>{}</text></g>",
-            y + 7.,
-            if large { 26 } else { 20 },
+        draw_outline(
+            &mut s,
+            &outlines,
             match e.kind.as_str() {
                 "class" | "impl" => "♜",
                 "enum" => "◈",
@@ -570,26 +559,14 @@ pub fn render_with_wingdings(
                     "C#" => "✧",
                     _ => "⚙",
                 },
-            }
+            },
+            x,
+            y,
+            if large { 26. } else { 20. },
         );
-        let label_limit = ((r * 2. / 7.).floor() as usize).clamp(14, 32);
-        let label = if e.qualified_name.chars().count() > label_limit {
-            format!(
-                "{}…",
-                e.qualified_name
-                    .chars()
-                    .take(label_limit - 1)
-                    .collect::<String>()
-            )
-        } else {
-            e.qualified_name.clone()
-        };
-        let _=write!(s,"<g fill='{ink}' text-anchor='middle' font-family='ui-monospace,monospace'><text x='{x}' y='{}' font-size='12'>{}</text><text x='{x}' y='{}' font-size='9' opacity='.5'>{} · {} · L{}</text></g></g>",y+r+24.,escape(&label),y+r+41.,e.language,e.kind,e.line);
+        s.push_str("</g></g>");
     }
-    if visible.is_empty() {
-        let _=write!(s,"<text x='{}' y='{}' fill='{ink}' text-anchor='middle' font-family='Georgia,serif' font-size='24'>No supported declarations found</text>",width/2,height/2);
-    }
-    let _=write!(s,"<text x='54' y='{}' fill='{ink}' opacity='.5' font-family='monospace' font-size='10'>{} source files · {} seals · {} call channels · structural analysis</text></svg>",height-48,a.files,visible.len(),a.edges.iter().filter(|e|e.kind=="calls").count());
+    s.push_str("</svg>");
     Diagram {
         svg: s,
         width,
@@ -599,25 +576,32 @@ pub fn render_with_wingdings(
     }
 }
 
-fn embedded_fonts() -> String {
-    let mut css = String::from("<style>");
-    for (name, bytes) in [
-        (
-            "CIMRunic",
-            include_bytes!("../web/fonts/NotoSansRunic-Regular.ttf").as_slice(),
-        ),
-        (
-            "CIMSymbols",
-            include_bytes!("../web/fonts/NotoSansSymbols2-Regular.ttf").as_slice(),
-        ),
-        (
-            "CIMGreek",
-            include_bytes!("../web/fonts/NotoSans-Regular.ttf").as_slice(),
-        ),
-    ] {
-        let data = base64::engine::general_purpose::STANDARD.encode(bytes);
-        let _ = write!(css, "@font-face{{font-family:'{name}';src:url('data:font/ttf;base64,{data}') format('truetype');}}");
+#[derive(Deserialize)]
+struct Outline {
+    path: String,
+    cx: f64,
+    cy: f64,
+    units: f64,
+}
+fn draw_outline(
+    s: &mut String,
+    outlines: &BTreeMap<String, Outline>,
+    symbol: &str,
+    x: f64,
+    y: f64,
+    size: f64,
+) {
+    if let Some(o) = outlines.get(symbol) {
+        let scale = size / o.units;
+        let _=write!(s,"<path d='{}' transform='translate({x:.3} {y:.3}) scale({scale:.8} -{scale:.8}) translate({:.3} {:.3})'/>",o.path,-o.cx,-o.cy);
+    } else {
+        let _ = write!(
+            s,
+            "<path d='M {x} {} L {} {y} L {x} {} L {} {y} Z'/>",
+            y - size * 0.3,
+            x + size * 0.3,
+            y + size * 0.3,
+            x - size * 0.3
+        );
     }
-    css.push_str("</style>");
-    css
 }

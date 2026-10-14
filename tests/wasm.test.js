@@ -4,7 +4,7 @@ import {mkdtempSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {execFileSync} from 'node:child_process';
-import init,{transmute} from '../web/pkg/code_is_magic.js';
+import init,{transmute,recover_image,pack_png} from '../web/pkg/code_is_magic.js';
 import {demoFiles} from '../web/demo.js';
 await init({module_or_path:readFileSync(new URL('../web/pkg/code_is_magic_bg.wasm',import.meta.url))});
 for(const wingdings of [false,true])test(`native and WASM produce the same complete diagram (Wingdings=${wingdings})`,()=>{
@@ -14,10 +14,19 @@ for(const wingdings of [false,true])test(`native and WASM produce the same compl
   const output=join(folder,'output.svg');
   execFileSync('cargo',['run','--locked','--',folder,'--output',output,...(wingdings?['--wingdings']:[])],{stdio:'pipe'});
   const browser=JSON.parse(transmute(JSON.stringify([...demoFiles].reverse()),folder,12,'gold',wingdings));
-  assert.equal(browser.svg,readFileSync(output,'utf8'));
+  const recovered=JSON.parse(recover_image(readFileSync(output)));assert.equal(browser.svg,recovered.svg);assert.equal(recovered.snapshot.entries.length,9);
   assert.equal(browser.analysis.files,9);
   assert.equal(browser.placements.length,28);
   assert.equal(browser.analysis.edges.filter(e=>e.kind==='calls').length,11);
-  assert.ok(browser.svg.includes("data:font/ttf;base64,"));
+  assert.ok(!browser.svg.includes('<text'));
+  const capsule={version:1,snapshot:recovered.snapshot,svg:browser.svg};
+  const wasmPng=pack_png(JSON.stringify(capsule));
+  const nativePng=join(folder,'source.png');
+  // Keep generated outputs outside the captured input folder for this comparison.
+  rmSync(output);
+  execFileSync('cargo',['run','--locked','--',folder,'--output',nativePng,...(wingdings?['--wingdings']:[])],{stdio:'pipe'});
+  assert.deepEqual(Buffer.from(wasmPng),readFileSync(nativePng));
+  const roundTrip=JSON.parse(recover_image(wasmPng));
+  assert.deepEqual(roundTrip.snapshot,recovered.snapshot);
  }finally{rmSync(folder,{recursive:true,force:true});}
 });

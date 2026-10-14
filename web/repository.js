@@ -34,11 +34,11 @@ export async function readRepository(input, { reference = '', token = '', signal
     }
     await walk(root); tree = { tree: collected };
   }
-  const blobs = tree.tree.filter(e => e.type === 'blob' && SOURCE_PATTERN.test(e.path)).sort((a,b) => a.path.localeCompare(b.path));
-  if (blobs.length > 5000) throw new Error('More than 5,000 supported source files. Use the CLI with --max-files or select a smaller repository.');
+  const blobs = tree.tree.filter(e => e.type === 'blob').sort((a,b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+  if (blobs.length > 5000) throw new Error('More than 5,000 tracked files. Select a smaller repository.');
   if (blobs.some(e => e.size > 2_000_000) || blobs.reduce((sum,e) => sum + (e.size || 0), 0) > 50_000_000) throw new Error('Source budget exceeded: 2 MB per file / 50 MB total. No partial diagram was created.');
   let cursor = 0, completed = 0, bytes = 0;
-  const files = new Array(blobs.length);
+  const entries = new Array(blobs.length);
   // Every file is fetched by immutable blob SHA. Do not emit a partial result on any failure.
   await Promise.all(Array.from({ length: Math.min(4, blobs.length) }, async () => {
     while (cursor < blobs.length) {
@@ -49,9 +49,26 @@ export async function readRepository(input, { reference = '', token = '', signal
       const buffer = Uint8Array.from(raw, c => c.charCodeAt(0));
       bytes += buffer.length;
       if (buffer.length > 2_000_000 || bytes > 50_000_000) throw new Error('Downloaded source exceeds the size budget.');
-      files[index] = { path: entry.path, content: new TextDecoder('utf-8', { fatal: true }).decode(buffer) };
+      entries[index] = { path: entry.path, mode: entry.mode || '100644', data: blob.content.replace(/\s/g,''), sha: entry.sha };
       progress(`Reading ${++completed}/${blobs.length}: ${entry.path}`, completed, blobs.length);
     }
   }));
-  return { files, title: `${slug} @ ${commit.sha.slice(0,12)}`, commit: commit.sha, skipped: tree.tree.filter(e => e.type === 'blob' && !SOURCE_PATTERN.test(e.path)).length, submodules: tree.tree.filter(e=>e.type==='commit').length };
+  const submodules = tree.tree.filter(e=>e.type==='commit');
+  for(const entry of submodules) entries.push({path:entry.path,mode:'160000',data:'',sha:entry.sha});
+  if(entries.length>5000)throw new Error('Snapshot exceeds 5,000 tracked entries.');
+  entries.sort((a,b)=>a.path<b.path?-1:a.path>b.path?1:0);
+  const title=`${slug} @ ${commit.sha.slice(0,12)}`;
+  const snapshot={version:1,title,commit:commit.sha,entries};
+  return { files: sourceFiles(snapshot), snapshot, title, commit:commit.sha, skipped:0, submodules:submodules.length };
+}
+export function sourceFiles(snapshot) {
+  return snapshot.entries.filter(e=>e.mode.startsWith('100')&&SOURCE_PATTERN.test(e.path)).flatMap(e=>{
+    try {const bytes=Uint8Array.from(atob(e.data),c=>c.charCodeAt(0));return [{path:e.path,content:new TextDecoder('utf-8',{fatal:true}).decode(bytes)}];} catch{return [];}
+  });
+}
+export function encodeBytes(bytes) {
+  let binary='';for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));return btoa(binary);
+}
+export function snapshotFromSources(files,title) {
+  return {version:1,title,commit:null,entries:files.map(f=>({path:f.path,mode:'100644',data:encodeBytes(new TextEncoder().encode(f.content)),sha:null}))};
 }

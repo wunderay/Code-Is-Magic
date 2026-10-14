@@ -1,8 +1,9 @@
-import { readRepository, SOURCE_PATTERN } from './repository.js';
+import { readRepository, SOURCE_PATTERN, sourceFiles, encodeBytes, snapshotFromSources } from './repository.js';
 import { demoFiles } from './demo.js';
 const $ = id => document.getElementById(id);
 const canvas = $('canvas'), ctx = canvas.getContext('2d'), viewport = $('viewport');
 let worker, requestId = 0, pending = new Map(), image, diagram, files = demoFiles, title = 'Example grimoire · nine language signatures';
+let snapshot = snapshotFromSources(demoFiles,title);
 let zoom = 1, panX = 0, panY = 0, selected = null, controller = null, busy = false, imported = false, reframe = true;
 function status(message, type = '') { $('status').textContent = message; $('status').className = `status ${type}`; }
 function setBusy(value) { busy = value; $('generate').disabled = value; $('demo').disabled = value; $('cancel').hidden = !value; $('progress').hidden = !value; }
@@ -17,9 +18,17 @@ function getWorker() {
   }
   return worker;
 }
-async function transmute(inputFiles, inputTitle) {
-  const w = getWorker(), id = ++requestId;
-  return new Promise((resolve,reject) => { pending.set(id,{resolve,reject}); w.postMessage({id,files:inputFiles,title:inputTitle,minLines:Number($('min-lines').value),palette:$('palette').value,wingdings:$('wingdings').checked}); });
+async function engine(data) {
+  const w=getWorker(),id=++requestId;
+  return new Promise((resolve,reject)=>{pending.set(id,{resolve,reject});w.postMessage({id,...data});});
+}
+async function transmute(inputFiles,inputTitle) {
+  const result=await engine({files:inputFiles,title:inputTitle,minLines:Number($('min-lines').value),palette:$('palette').value,wingdings:$('wingdings').checked});
+  result.snapshot=snapshot;return result;
+}
+function capsule() {
+  if(!snapshot)throw new Error('This old diagram has no full repository snapshot. Load a repository or source folder first.');
+  return {version:1,snapshot,svg:diagram.svg};
 }
 async function install(next) {
   // Generated SVG has no external images or executable source text.
@@ -33,7 +42,7 @@ async function install(next) {
   const visible = next.analysis.entities.filter(e=>e.kind!=='merged_impl');
   const calls = next.analysis.edges.filter(e=>e.kind==='calls').length;
   $('canvas-stats').textContent = `${visible.length} SEALS · ${calls} CALL CHANNELS`;
-  $('coverage').textContent = `${next.analysis.files} source files · ${next.analysis.unresolved_calls} unresolved / external calls`;
+  $('coverage').textContent = `${next.analysis.files} visualized source files · ${snapshot?.entries.length||0} entries preserved`;
   canvas.setAttribute('aria-label', `${visible.length} magic seals with ${calls} call channels for ${title}`);
   for (const id of ['download-png','download-svg','download-json']) $(id).disabled = false;
   listEntities(); inspect(null);
@@ -83,10 +92,39 @@ function inspect(id) {
   for(const button of $('entities').children)button.classList.toggle('selected',Number(button.dataset.id)===id);
 }
 function download(blob,extension) {const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`${title.split(' @ ')[0].replace(/[^a-zA-Z0-9_-]/g,'-') || 'code-is-magic'}.${extension}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-$('download-svg').onclick=()=>download(new Blob([diagram.svg],{type:'image/svg+xml'}),'svg');
-$('download-json').onclick=()=>download(new Blob([JSON.stringify(diagram)],{type:'application/json'}),'json');
+$('download-svg').onclick=async()=>{try{setBusy(true);download(new Blob([await engine({op:'svg',capsule:capsule()})],{type:'image/svg+xml'}),'svg');status('Source-carrying SVG downloaded.');}catch(e){status(e.message,'error');}finally{setBusy(false);}};
+$('download-json').onclick=()=>download(new Blob([JSON.stringify({...diagram,snapshot})],{type:'application/json'}),'json');
 $('download-png').onclick=async()=>{
-  try {const exportCanvas=document.createElement('canvas');const scale=Math.min(2,8192/Math.max(diagram.width,diagram.height),Math.sqrt(32_000_000/(diagram.width*diagram.height)));exportCanvas.width=Math.round(diagram.width*scale);exportCanvas.height=Math.round(diagram.height*scale);exportCanvas.getContext('2d').drawImage(image,0,0,exportCanvas.width,exportCanvas.height);const blob=await new Promise(resolve=>exportCanvas.toBlob(resolve,'image/png'));if(!blob)throw new Error('PNG export failed; download the resolution-independent SVG.');download(blob,'png');status(`PNG downloaded · ${exportCanvas.width} × ${exportCanvas.height} pixels.`);}
+  try {setBusy(true);status('Encoding the complete repository into lossless PNG pixels…','busy');const bytes=await engine({op:'png',capsule:capsule()});download(new Blob([bytes],{type:'image/png'}),'png');status('Recoverable PNG downloaded. Keep the original PNG without resizing or JPEG conversion.');}
+  catch(e){status(e.message,'error');}finally{setBusy(false);}
+};
+$('restore').onchange=async event=>{
+  const file=event.target.files[0];if(!file||busy)return;
+  try {
+    setBusy(true);status('Recovering exact repository bytes from the image…','busy');
+    if(file.size>150_000_000)throw new Error('Image exceeds the upload budget.');
+    const recovered=await engine({op:'recover',bytes:new Uint8Array(await file.arrayBuffer())});
+    const zip=await engine({op:'zip',snapshot:recovered.snapshot});
+    snapshot=recovered.snapshot;files=sourceFiles(snapshot);title=snapshot.title;reframe=true;imported=false;
+    const next=await transmute(files,title);
+    const original=new DOMParser().parseFromString(recovered.svg,'image/svg+xml').documentElement;
+    const width=Number(original.getAttribute('width')),height=Number(original.getAttribute('height'));
+    if(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0)throw new Error('Invalid original artwork dimensions.');
+    next.svg=recovered.svg;next.width=width;next.height=height;
+    next.placements=[...original.querySelectorAll('polygon[data-name-sigil="1"]')].map(node=>{
+      const match=node.getAttribute('transform')?.match(/^translate\(([-\d.]+) ([-\d.]+)\) scale\(([-\d.]+)\)$/);
+      if(!match)throw new Error('Invalid original name contour transform.');
+      return {id:Number(node.getAttribute('data-entity')),x:Number(match[1]),y:Number(match[2]),radius:Number(match[3])};
+    });
+    const background=original.querySelector('rect')?.getAttribute('fill');
+    $('palette').value=background==='#f0e8d7'?'parchment':background==='#090d20'?'astral':'gold';
+    await install(next);
+    download(new Blob([zip],{type:'application/zip'}),'zip');
+    status(`Recovered ${snapshot.entries.length} tracked entries with exact bytes. Source ZIP downloaded.`);
+  }catch(e){status(e.message,'error');}finally{setBusy(false);event.target.value='';}
+};
+$('decode-names').onclick=async()=>{
+  try{const recovered=await engine({op:'names',svg:diagram.svg});status(`Decoded ${recovered.length} exact names from contour geometry.`);if(selected!==null){const value=recovered.find(e=>e.entity_id===selected);if(value)$('inspector').querySelector('h3').textContent=value.name;}}
   catch(e){status(e.message,'error');}
 };
 $('access-button').onclick=()=>{$('access').open=!$('access').open;};
@@ -97,27 +135,29 @@ $('repo-form').onsubmit=async e=>{
   try {
     const result=await readRepository($('repo').value,{reference:$('reference').value,token,signal:activeController.signal,progress:(message,current,total)=>{if(activeController!==controller)return;status(message,'busy');$('progress').max=total||1;$('progress').value=current;}});
     if(activeController.signal.aborted)return;
-    status('Inking syntax and connecting seals…','busy');const next=await transmute(result.files,result.title);
+    status('Inking syntax and connecting seals…','busy');const next=await transmute(result.files,result.title);next.snapshot=result.snapshot;
     if(activeController.signal.aborted)return;
-    files=result.files;title=result.title;imported=false;reframe=true;await install(next);
-    status(`Inscribed ${result.files.length} source files at ${result.commit.slice(0,12)}. ${result.skipped} non-source files and ${result.submodules} submodules excluded.`);
+    snapshot=result.snapshot;files=result.files;title=result.title;imported=false;reframe=true;await install(next);
+    status(`Inscribed ${result.files.length} source files; preserved all ${result.snapshot.entries.length} tracked entries at ${result.commit.slice(0,12)}.`);
   } catch(error) {if(!activeController.signal.aborted){activeController.abort();status(error.message,'error');}}
   finally {if(activeController===controller){setBusy(false);controller=null;}}
 };
 $('cancel').onclick=()=>{controller?.abort();if(worker){worker.terminate();worker=null;for(const p of pending.values())p.reject(new Error('Cancelled'));pending.clear();}status('Transmutation cancelled. The previous inscription remains.');};
-async function loadDemo() {if(busy)return;setBusy(true);status('Opening the example grimoire…','busy');try{files=demoFiles;title='Example grimoire · nine language signatures';imported=false;reframe=true;await install(await transmute(files,title));status('Example inscription · try a repository, open a source folder, or inspect a seal.');}catch(e){status(e.message,'error');}finally{setBusy(false);}}
+async function loadDemo() {if(busy)return;setBusy(true);status('Opening the example grimoire…','busy');try{files=demoFiles;title='Example grimoire · nine language signatures';snapshot=snapshotFromSources(files,title);imported=false;reframe=true;await install(await transmute(files,title));status('Example inscription · try a repository, open a source folder, or inspect a seal.');}catch(e){status(e.message,'error');}finally{setBusy(false);}}
 $('demo').onclick=loadDemo;
 let debounce;
 function rerender(){if(imported){status('Imported diagrams preserve their original styling. Open source files to change the inscription settings.');return;}clearTimeout(debounce);status('Updating inscription…','busy');debounce=setTimeout(async()=>{if(busy)return;setBusy(true);try{reframe=false;await install(await transmute(files,title));status('Inscription updated.');}catch(e){status(e.message,'error');}finally{setBusy(false);}},150);}
-$('min-lines').oninput=()=>{$('threshold-value').textContent=`${$('min-lines').value} lines`;rerender();};$('palette').onchange=rerender;$('wingdings').onchange=()=>{
-  if($('wingdings').checked){
-    const test=document.createElement('canvas').getContext('2d');
-    test.font='24px monospace';const baseline=test.measureText('JKNYablnpvzu').width;
-    test.font='24px Wingdings, monospace';
-    if(Math.abs(test.measureText('JKNYablnpvzu').width-baseline)<.01){$('wingdings').checked=false;status('Wingdings is not installed in this browser environment. Portable runes and dingbats remain available.');return;}
-  }
-  rerender();
+$('min-lines').oninput=()=>{$('threshold-value').textContent=`${$('min-lines').value} lines`;rerender();};$('palette').onchange=rerender;$('wingdings').onchange=rerender;
+$('folder').onchange=async event=>{
+  if(busy)return;setBusy(true);status('Reading every selected file as exact bytes…','busy');
+  try {
+    const inputs=[...event.target.files].filter(f=>!/(^|\/)(\.git|target|node_modules|pkg)\//.test(f.webkitRelativePath));
+    if(inputs.length>5000||inputs.some(f=>f.size>2_000_000)||inputs.reduce((sum,f)=>sum+f.size,0)>50_000_000)throw new Error('Snapshot budget exceeded: 5,000 files, 2 MB per file, 50 MB total.');
+    const entries=[];for(const f of inputs)entries.push({path:f.webkitRelativePath.split('/').slice(1).join('/')||f.name,mode:'100644',data:encodeBytes(new Uint8Array(await f.arrayBuffer())),sha:null});
+    title=`Local grimoire · ${inputs[0]?.webkitRelativePath.split('/')[0]||'empty folder'}`;
+    snapshot={version:1,title,commit:null,entries};files=sourceFiles(snapshot);imported=false;reframe=true;
+    await install(await transmute(files,title));status(`Preserved ${entries.length} selected files exactly. Browser folder mode cannot read executable bits or symlinks; use GitHub or the CLI for those.`);
+  }catch(e){status(e.message,'error');}finally{setBusy(false);event.target.value='';}
 };
-$('folder').onchange=async event=>{if(busy)return;setBusy(true);status('Reading local source files…','busy');try{const inputs=[...event.target.files].filter(f=>SOURCE_PATTERN.test(f.name)&&!/(^|\/)(\.git|target|node_modules)\//.test(f.webkitRelativePath));if(inputs.length>5000||inputs.some(f=>f.size>2_000_000)||inputs.reduce((sum,f)=>sum+f.size,0)>50_000_000)throw new Error('Source budget exceeded: 5,000 files, 2 MB per file, 50 MB total.');const local=[];for(const f of inputs)local.push({path:f.webkitRelativePath||f.name,content:new TextDecoder('utf-8',{fatal:true}).decode(await f.arrayBuffer())});const localTitle=`Local grimoire · ${inputs[0]?.webkitRelativePath.split('/')[0]||'empty folder'}`;const next=await transmute(local,localTitle);files=local;title=localTitle;imported=false;reframe=true;await install(next);status(`Inscribed ${local.length} local source files. No source code was uploaded.`);}catch(e){status(e.message,'error');}finally{setBusy(false);event.target.value='';}};
-$('json').onchange=async event=>{if(busy)return;const file=event.target.files[0];if(!file)return;try{if(file.size>50_000_000)throw new Error('Diagram is too large.');const next=JSON.parse(await file.text());if(!next.analysis?.entities||!Array.isArray(next.placements)||typeof next.svg!=='string'||!Number.isFinite(next.width)||!Number.isFinite(next.height)||next.width<1||next.height<1||next.width>100000||next.height>100000)throw new Error('Choose a JSON diagram exported by Code Is Magic.');const document=new DOMParser().parseFromString(next.svg,'image/svg+xml');if(document.querySelector('parsererror,script,foreignObject,image,use')||document.documentElement.localName!=='svg')throw new Error('Imported SVG contains unsupported elements.');for(const style of document.querySelectorAll('style')){const allowed=/@font-face\s*\{\s*font-family:\s*'CIM(?:Runic|Symbols|Greek)';\s*src:\s*url\('data:font\/ttf;base64,[A-Za-z0-9+/=]+'\)\s*format\('truetype'\);\s*\}/g;if(style.textContent.replace(allowed,'').trim())throw new Error('Imported SVG contains unsupported styling.');}for(const node of document.querySelectorAll('*'))for(const attr of node.attributes)if(/^on/i.test(attr.name)||/href/i.test(attr.name)||/url\(\s*['"]?(?!#)/i.test(attr.value))throw new Error('Imported SVG contains an external resource or executable attribute.');title=`Imported grimoire · ${file.name}`;reframe=true;await install(next);imported=true;status('Offline diagram opened. Original styling preserved.');}catch(e){status(e.message,'error');}finally{event.target.value='';}};
+$('json').onchange=async event=>{if(busy)return;const file=event.target.files[0];if(!file)return;try{if(file.size>50_000_000)throw new Error('Diagram is too large.');const next=JSON.parse(await file.text());if(!next.analysis?.entities||!Array.isArray(next.placements)||typeof next.svg!=='string'||!Number.isFinite(next.width)||!Number.isFinite(next.height)||next.width<1||next.height<1||next.width>100000||next.height>100000)throw new Error('Choose a JSON diagram exported by Code Is Magic.');const document=new DOMParser().parseFromString(next.svg,'image/svg+xml');if(document.querySelector('parsererror,script,foreignObject,image,use')||document.documentElement.localName!=='svg')throw new Error('Imported SVG contains unsupported elements.');for(const style of document.querySelectorAll('style')){const allowed=/@font-face\s*\{\s*font-family:\s*'CIM(?:Runic|Symbols|Greek)';\s*src:\s*url\('data:font\/ttf;base64,[A-Za-z0-9+/=]+'\)\s*format\('truetype'\);\s*\}/g;if(style.textContent.replace(allowed,'').trim())throw new Error('Imported SVG contains unsupported styling.');}for(const node of document.querySelectorAll('*'))for(const attr of node.attributes)if(/^on/i.test(attr.name)||/href/i.test(attr.name)||/url\(\s*['"]?(?!#)/i.test(attr.value))throw new Error('Imported SVG contains an external resource or executable attribute.');title=`Imported grimoire · ${file.name}`;snapshot=next.snapshot||null;reframe=true;await install(next);imported=true;status('Offline diagram opened. Original styling preserved.');}catch(e){status(e.message,'error');}finally{event.target.value='';}};
 loadDemo();

@@ -85,8 +85,10 @@ fn threshold_does_not_remove_functions_and_svg_escapes_input() {
     assert_eq!(d.placements.len(), 1);
     assert!(d.placements[0].radius < 90.);
     assert!(!d.svg.contains("<script>"));
-    assert!(d.svg.contains("&lt;script&gt;"));
-    assert!(d.svg.contains("a&lt;&amp;.rs"));
+    assert!(!d.svg.contains("<text"));
+    assert!(!d.svg.contains("<title"));
+    assert!(!d.svg.contains("a&lt;&amp;.rs"));
+    assert!(!d.svg.contains("short"));
     assert_eq!(
         d.svg,
         render(&a, "<script>alert('x')</script>", 12, "gold").svg
@@ -97,9 +99,7 @@ fn no_declarations_and_unsupported_extensions_are_explicit() {
     let a = analyze(&[file("a.txt", "fn hidden() {}"), file("a.py", "x = 1")]);
     assert_eq!(a.files, 1);
     assert_eq!(a.warnings.len(), 1);
-    assert!(render(&a, "empty", 12, "gold")
-        .svg
-        .contains("No supported declarations found"));
+    assert!(render(&a, "empty", 12, "gold").placements.is_empty());
 }
 #[test]
 fn calls_in_conditions_are_not_declarations() {
