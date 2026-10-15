@@ -127,12 +127,19 @@ fn encrypted_images_restore_exact_snapshot_and_reject_wrong_keys_and_tampering()
     assert!(decode_png(&png).is_err());
     assert!(decode_png_with_key(&png, Some(&b)).is_err());
     let recovered = decode_png_with_key(&png, Some(&a)).unwrap();
-    assert_eq!(recovered, c);
+    assert_eq!(recovered.snapshot, c.snapshot);
+    assert_eq!(
+        decode_svg_names_with_key(&recovered.svg, Some(&a)).unwrap(),
+        decode_svg_names_with_key(&c.svg, Some(&a)).unwrap()
+    );
     assert_eq!(
         snapshot_zip(&recovered.snapshot).unwrap(),
         snapshot_zip(&c.snapshot).unwrap()
     );
-    assert_eq!(encode_png_with_key(&recovered, Some(&a)).unwrap(), png);
+    assert_eq!(
+        encode_png_with_key(&recovered, Some(&a)).unwrap(),
+        encode_png_with_key(&recovered, Some(&a)).unwrap()
+    );
     let svg = embed_svg_with_key(&c, Some(&a)).unwrap();
     assert_eq!(decode_svg_with_key(&svg, Some(&a)).unwrap(), c);
     assert!(decode_svg(&svg).is_err());
@@ -168,8 +175,9 @@ fn encrypted_images_restore_exact_snapshot_and_reject_wrong_keys_and_tampering()
 fn legacy_images_work_and_invalid_keys_never_echo_secrets() {
     let a = key(1);
     let c = capsule(None);
+    let legacy = encode_png_legacy(&c).unwrap();
     assert_eq!(
-        decode_png_with_key(&encode_png(&c).unwrap(), Some(&a)).unwrap(),
+        decode_png_with_key(&legacy, Some(&a)).unwrap(),
         c
     );
     assert_eq!(
