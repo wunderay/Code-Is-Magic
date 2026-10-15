@@ -89,9 +89,15 @@ The static website is built entirely for GitHub Pages. It can:
 - transmute a public or authorized GitHub repository into the same canonical perceptual SVGZ used by the native CLI;
 - transmute a selected local folder in the browser;
 - apply an optional magic key without storing it;
-- display the manuscript-style interactive source atlas with light/dark themes, glow, and motion;
+- open Code is Magic itself by default, with language colors and a bundled, immutable source snapshot that needs no GitHub API requests;
+- accept pasted or dropped repository links, direct magic-image links (where the host permits browser access), source files/folders, and recoverable magic images through the same input;
+- display the manuscript-style atlas with light/dark themes and traveling, language-colored invocation light: callers awaken, nested calls follow their source order, and returns retrace their channels;
 - recover exact source ZIPs from canonical SVGZ and supported legacy artifacts;
 - decode reversible geometric declaration names.
+
+The live call-flow rehearsal follows the resolved static graph, including argument calls before their enclosing call. It does not run source code or predict branch choices, loop counts, asynchronous scheduling, or runtime values. Recursive channels rehearse once per tour, and independent entry points may play together. Glow and motion can be disabled; reduced-motion preferences are respected. The animation is display-only and never changes canonical exports.
+
+`scripts/build-web.sh` also generates `web/default-project.json` from the build commit’s Git tree, preserving all tracked entries and file modes. `npm run serve` refreshes that snapshot for local development after building the WebAssembly package.
 
 Native Rust and WebAssembly use the same encoder, and the test suite requires their canonical output bytes to match.
 
@@ -148,7 +154,7 @@ python3 -m pip install fonttools==4.61.1
 python3 scripts/build-glyphs.py --check
 python3 tests/inscriptions.py
 python3 tests/recovery_cli.py
-node --test tests/repository.test.js
+npm test
 bash scripts/build-web.sh
 node --test tests/wasm.test.js
 ```

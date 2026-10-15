@@ -1,1 +1,1 @@
-{"name":"code-is-magic-web","private":true,"type":"module","scripts":{"test":"node --test tests/repository.test.js","serve":"python3 -m http.server 8000 --directory web"}}
+{"name":"code-is-magic-web","private":true,"type":"module","scripts":{"test":"node --test tests/repository.test.js tests/flow.test.js tests/input.test.js","serve":"node scripts/build-default.mjs && python3 -m http.server 8000 --directory web"}}

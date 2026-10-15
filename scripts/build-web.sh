@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+node scripts/build-default.mjs
 rustup target add wasm32-unknown-unknown
 # CLI must match the version resolved by Cargo.lock.
 version=$(awk '/name = "wasm-bindgen"/{getline; gsub(/"/, "", $3); print $3; exit}' Cargo.lock)
