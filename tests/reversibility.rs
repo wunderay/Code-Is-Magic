@@ -94,17 +94,27 @@ fn same_qualified_name_has_same_contour_after_file_or_body_changes() {
     assert!(decode_name(&damaged).is_err());
 }
 #[test]
-fn png_and_svg_recover_every_byte_and_mode() {
+fn canonical_png_and_legacy_svg_recover_every_source_byte_and_mode() {
     let mut c = capsule();
     c.snapshot.canonicalize().unwrap();
     let png = encode_png(&c).unwrap();
     assert_eq!(png, encode_png(&c).unwrap());
-    assert_eq!(decode_png(&png).unwrap(), c);
-    assert_eq!(encode_png(&decode_png(&png).unwrap()).unwrap(), png);
+    let recovered = decode_png(&png).unwrap();
+    assert_eq!(recovered.snapshot, c.snapshot);
+    assert_eq!(decode_svg_names(&recovered.svg).unwrap(), decode_svg_names(&c.svg).unwrap());
+    // Re-encoding a recovered canonical carrier is deterministic after SVG compaction.
+    assert_eq!(encode_png(&recovered).unwrap(), encode_png(&recovered).unwrap());
+    // The older source-carrying SVG format remains readable for backward compatibility.
     let svg = embed_svg(&c).unwrap();
     assert_eq!(decode_svg(&svg).unwrap(), c);
-    // Re-encode pixels with a fresh PNG encoder: no ancillary metadata survives.
-    let mut decoder = png::Decoder::new(std::io::Cursor::new(png));
+}
+#[test]
+fn canonical_png_uses_a_separate_source_chunk_not_visible_pixel_bits() {
+    let c = capsule();
+    let png = encode_png(&c).unwrap();
+    assert!(png.windows(4).any(|w| w == b"ciMg"));
+    // A generic pixel-only re-encode deliberately strips private source data.
+    let mut decoder = png::Decoder::new(std::io::Cursor::new(&png));
     decoder.set_transformations(png::Transformations::EXPAND);
     let mut reader = decoder.read_info().unwrap();
     let mut buf = vec![0; reader.output_buffer_size()];
@@ -119,28 +129,47 @@ fn png_and_svg_recover_every_byte_and_mode() {
             .write_image_data(&buf[..info.buffer_size()])
             .unwrap();
     }
-    assert_eq!(decode_png(&reencoded).unwrap(), c);
+    assert!(decode_png(&reencoded).is_err());
+    // Code Is Magic's own optimizer keeps the source chunk intact.
+    let optimized = optimize_png(&png).unwrap();
+    assert_eq!(decode_png(&optimized).unwrap().snapshot, c.snapshot);
 }
 #[test]
-fn edited_pixels_and_ordinary_images_cannot_claim_exact_recovery() {
-    let png = encode_png(&capsule()).unwrap();
-    let mut decoder = png::Decoder::new(std::io::Cursor::new(png));
+fn visually_imperceptible_raster_is_bounded_to_one_code_value_per_rgb_channel() {
+    let c = capsule();
+    let png = encode_png(&c).unwrap();
+    let mut decoder = png::Decoder::new(std::io::Cursor::new(&png));
     decoder.set_transformations(png::Transformations::EXPAND);
     let mut reader = decoder.read_info().unwrap();
-    let mut buf = vec![0; reader.output_buffer_size()];
-    let info = reader.next_frame(&mut buf).unwrap();
-    buf[0] ^= 1;
-    let mut changed = Vec::new();
-    {
-        let mut e = png::Encoder::new(&mut changed, info.width, info.height);
-        e.set_color(info.color_type);
-        e.set_depth(info.bit_depth);
-        e.write_header()
-            .unwrap()
-            .write_image_data(&buf[..info.buffer_size()])
-            .unwrap();
+    let width = reader.info().width;
+    let height = reader.info().height;
+    let mut encoded = vec![0; reader.output_buffer_size()];
+    let frame = reader.next_frame(&mut encoded).unwrap();
+    let channels = frame.color_type.samples();
+    let tree = resvg::usvg::Tree::from_str(&c.svg, &resvg::usvg::Options::default()).unwrap();
+    let mut reference = resvg::tiny_skia::Pixmap::new(width, height).unwrap();
+    resvg::render(
+        &tree,
+        resvg::tiny_skia::Transform::from_scale(
+            width as f32 / tree.size().width(),
+            height as f32 / tree.size().height(),
+        ),
+        &mut reference.as_mut(),
+    );
+    for (i, original) in reference.data().as_chunks::<4>().0.iter().enumerate() {
+        let output = &encoded[i * channels..i * channels + channels];
+        let rgb = if channels >= 3 {
+            [output[0], output[1], output[2]]
+        } else {
+            [output[0]; 3]
+        };
+        for channel in 0..3 {
+            assert!((original[channel] as i16 - rgb[channel] as i16).abs() <= 1);
+        }
     }
-    assert!(decode_png(&changed).is_err());
+}
+#[test]
+fn ordinary_images_cannot_claim_exact_recovery() {
     assert!(decode_png(b"not an image").is_err());
 }
 #[test]
