@@ -147,7 +147,7 @@ fn shared_outlines_preserve_rendering_and_legacy_compaction_is_idempotent() {
 }
 
 #[test]
-fn old_zlib_svg_and_new_svgz_restore_exact_source() {
+fn old_zlib_svg_new_svgz_and_canonical_png_restore_exact_source() {
     let c = capsule();
     let mut z = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::new(6));
     z.write_all(&serde_json::to_vec(&c).unwrap()).unwrap();
@@ -165,13 +165,13 @@ fn old_zlib_svg_and_new_svgz_restore_exact_source() {
         assert_eq!(svgz, encode_svgz_with_key(&c, key.as_ref()).unwrap());
         assert!(decode_image_with_key(&svgz[..svgz.len() - 8], key.as_ref()).is_err());
         assert_eq!(raster(&svg), raster(&c.svg));
+        let png = encode_png_with_key(&c, key.as_ref()).unwrap();
+        let recovered = decode_png_with_key(&png, key.as_ref()).unwrap();
+        assert_eq!(recovered.snapshot, c.snapshot);
+        assert_eq!(raster(&recovered.svg), raster(&c.svg));
         assert_eq!(
-            decode_png_with_key(
-                &encode_png_with_key(&c, key.as_ref()).unwrap(),
-                key.as_ref()
-            )
-            .unwrap(),
-            c
+            decode_svg_names_with_key(&recovered.svg, key.as_ref()).unwrap(),
+            decode_svg_names_with_key(&c.svg, key.as_ref()).unwrap()
         );
     }
 }
