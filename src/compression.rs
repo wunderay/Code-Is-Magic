@@ -120,7 +120,7 @@ pub(crate) fn encode_pixels(rgba: &[u8], mut info: Info<'_>) -> Result<Vec<u8>, 
 }
 
 /// Recompress an existing 8-bit RGB/RGBA PNG without changing a single pixel.
-/// No key is needed: embedded source bits are preserved verbatim.
+/// Legacy source bits and the canonical perceptual source chunk are both preserved.
 pub fn optimize_png(bytes: &[u8]) -> Result<Vec<u8>, String> {
     let mut decoder = png::Decoder::new(Cursor::new(bytes));
     decoder.set_limits(png::Limits {
@@ -156,6 +156,7 @@ pub fn optimize_png(bytes: &[u8]) -> Result<Vec<u8>, String> {
         data
     };
     let optimized = encode_pixels(&rgba, info)?;
+    let optimized = crate::perceptual::preserve_magic_chunk(bytes, optimized)?;
     Ok(if optimized.len() < bytes.len() {
         optimized
     } else {
