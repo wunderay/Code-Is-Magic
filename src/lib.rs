@@ -2,18 +2,25 @@ mod analyze;
 mod archive;
 mod compression;
 mod crypto;
-pub use compression::{compact_svg, optimize_png};
-pub use crypto::MagicKey;
 mod inscription;
+mod perceptual;
 mod profiles;
 mod render;
 mod sigil;
+
+pub use compression::{compact_svg, optimize_png};
+pub use crypto::MagicKey;
 pub use analyze::{analyze, supported, Analysis, Edge, Entity, SourceFile};
 pub use archive::{
-    decode_image_with_key, decode_png, decode_png_with_key, decode_svg, decode_svg_with_key,
-    embed_svg, embed_svg_with_key, encode_png, encode_png_with_key, encode_svgz_with_key,
-    snapshot_zip, ArchiveEntry, Capsule, Snapshot,
+    decode_image_with_key as decode_image_with_key_legacy,
+    decode_png as decode_png_legacy,
+    decode_png_with_key as decode_png_with_key_legacy,
+    decode_svg, decode_svg_with_key, embed_svg, embed_svg_with_key,
+    encode_png as encode_png_legacy,
+    encode_png_with_key as encode_png_with_key_legacy,
+    encode_svgz_with_key, snapshot_zip, ArchiveEntry, Capsule, Snapshot,
 };
+pub use perceptual::{decode_image_with_key, decode_png, decode_png_with_key, encode_png, encode_png_with_key};
 pub use profiles::{language_profiles, profile_for_language, profile_for_path, LanguageProfile};
 pub use render::{
     render, render_with_key, render_with_options, render_with_wingdings, Diagram, Placement,
