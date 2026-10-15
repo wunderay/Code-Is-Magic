@@ -30,7 +30,7 @@ jobs:
       - run: python3 scripts/build-glyphs.py --check
       - run: python3 tests/inscriptions.py
       - run: python3 tests/recovery_cli.py
-      - run: node --test tests/repository.test.js
+      - run: npm test
       - run: bash scripts/build-web.sh
       - run: node --test tests/wasm.test.js
       - uses: actions/upload-pages-artifact@v3

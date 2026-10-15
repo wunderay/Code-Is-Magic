@@ -1,5 +1,6 @@
 /target/
 /web/pkg/
+/web/default-project.json
 /node_modules/
 /artifacts/
 *.tmp
