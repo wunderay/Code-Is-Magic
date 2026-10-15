@@ -76,8 +76,8 @@ export class LivingInk {
     ctx.restore();
   }
   describe(time) {
-    for(const lane of this.flow) {
-      const event=activeEvent(lane,time);if(!event)continue;
+    for(let lane=0;lane<this.flow.length;lane++) {
+      const event=activeEvent(this.flow[lane],time+lane*1370);if(!event)continue;
       if(event.kind==='seal')return `${this.names.get(event.id)||'A spell'} awakens`;
       const path=this.paths[event.index],from=this.names.get(path.from)||'Caller',to=this.names.get(path.to)||'callee';
       return event.reverse?`${to} returns to ${from}`:`${from} calls ${to}`;
