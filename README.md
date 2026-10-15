@@ -91,7 +91,8 @@ The static website is built entirely for GitHub Pages. It can:
 - apply an optional magic key without storing it;
 - open Code is Magic itself by default, with language colors and a bundled, immutable source snapshot that needs no GitHub API requests;
 - accept pasted or dropped repository links, direct magic-image links (where the host permits browser access), source files/folders, and recoverable magic images through the same input;
-- display the manuscript-style atlas with light/dark themes and traveling, language-colored invocation light: callers awaken, nested calls follow their source order, and returns retrace their channels;
+- display a celestial grimoire with light/dark themes, a prominent **Download magic circles** button for the bundled default and all generated diagrams, and a canvas fitted to the actual seals and call paths;
+- illuminate whole caller seals and their braided invocation paths as each function calls the next, then awaken the destination and trace returns back; a live caption identifies the active call;
 - recover exact source ZIPs from canonical SVGZ and supported legacy artifacts;
 - decode reversible geometric declaration names.
 
