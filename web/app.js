@@ -15,7 +15,7 @@ const resultPngs = new WeakMap();
 const cachedPngs = new WeakMap();
 let zoom = 1, panX = 0, panY = 0, selected = null, controller = null, busy = false, imported = false, reframe = true;
 function status(message, type = '') { $('status').textContent = message; $('status').className = `status ${type}`; }
-function setBusy(value) { if(value)clearTimeout(debounce);busy = value;for(const id of ['download-png','download-svg','download-svgz','download-json','decode-names'])$(id).disabled=value||!diagram; for(const id of ['magic-key','generate-key','save-key','clear-key','palette','min-lines','wingdings','language-colors','theme-toggle'])$(id).disabled=value; $('generate').disabled = value; $('choose-image').disabled = value; $('repo').readOnly = value; $('demo').disabled = value; $('cancel').hidden = !value; $('progress').hidden = !value; }
+function setBusy(value) { if(value)clearTimeout(debounce);busy = value;for(const id of ['download-magic','download-png','download-svg','download-svgz','download-json','decode-names'])$(id).disabled=value||!diagram; for(const id of ['magic-key','generate-key','save-key','clear-key','palette','min-lines','wingdings','language-colors','theme-toggle'])$(id).disabled=value; $('generate').disabled = value; $('choose-image').disabled = value; $('repo').readOnly = value; $('demo').disabled = value; $('cancel').hidden = !value; $('progress').hidden = !value; }
 function getWorker() {
   if (!worker) {
     worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
@@ -50,6 +50,7 @@ async function install(next,signal,source) {
   signal?.throwIfAborted();
   if(source){snapshot=source.snapshot;files=source.files;title=source.title;imported=false;reframe=true;}
   livingInk=nextInk;animationEpoch=performance.now();diagram = next; diagramKey=resultKeys.get(next)||''; image = nextImage; selected = null;
+  viewport.dataset.ink=livingInk.background==='#f0e8d7'?'light':'dark';
   scheduleAnimation();
   if (reframe) fit(); else draw();
   $('diagram-title').textContent = title;
@@ -58,7 +59,7 @@ async function install(next,signal,source) {
   $('canvas-stats').textContent = `${visible.length} SEALS · ${calls} CALL CHANNELS`;
   $('coverage').textContent = `${next.analysis.files} visualized source files · ${snapshot?.entries.length||0} entries preserved`;
   canvas.setAttribute('aria-label', `${visible.length} magic seals with ${calls} call channels for ${title}`);
-  for (const id of ['download-png','download-svg','download-svgz','download-json']) $(id).disabled = false;
+  for (const id of ['download-magic','download-png','download-svg','download-svgz','download-json']) $(id).disabled = false;
   listEntities(); inspect(null);
 }
 function draw(time=performance.now()-animationEpoch) {
@@ -70,9 +71,18 @@ function draw(time=performance.now()-animationEpoch) {
   if (!image) return;
   livingInk.paint(ctx,image,diagram,{width:bounds.width,height:bounds.height,dpr,panX,panY,zoom},typeof time==='number'?time:performance.now()-animationEpoch,{glow:glowing,motion:moving});
   if (selected!==null) { const p=diagram.placements.find(p=>p.id===selected);if(p){ctx.beginPath();ctx.arc(panX+p.x*zoom,panY+p.y*zoom,(p.radius+9)*zoom,0,Math.PI*2);ctx.strokeStyle=livingInk.background==='#f0e8d7'?'#73502d':'#f5dfaa';ctx.lineWidth=1.5;ctx.stroke();} }
+  const flowText=moving?livingInk.describe(typeof time==='number'?time:performance.now()-animationEpoch):'Call flow paused';
+  if($('flow-label').textContent!==flowText)$('flow-label').textContent=flowText;
   const zoomText=`${Math.round(zoom*100)}%`;if($('zoom-label').textContent!==zoomText)$('zoom-label').textContent=zoomText;
 }
-function fit() { if(!diagram)return;const b=viewport.getBoundingClientRect();zoom=Math.min((b.width-40)/diagram.width,(b.height-45)/diagram.height);panX=(b.width-diagram.width*zoom)/2;panY=(b.height-diagram.height*zoom)/2;draw(); }
+function fit() {
+  if(!diagram)return;
+  const view=viewport.getBoundingClientRect(),bounds=livingInk.bounds;
+  const width=Math.max(1,bounds.right-bounds.left),height=Math.max(1,bounds.bottom-bounds.top);
+  zoom=Math.min((view.width-64)/width,(view.height-105)/height,8);
+  panX=view.width/2-(bounds.left+width/2)*zoom;
+  panY=(view.height-42)/2-(bounds.top+height/2)*zoom;draw();
+}
 function zoomAt(factor,x,y) {const z=Math.min(8,Math.max(.025,zoom*factor));panX=x-(x-panX)*z/zoom;panY=y-(y-panY)*z/zoom;zoom=z;draw();}
 viewport.addEventListener('wheel',e=>{e.preventDefault();const b=viewport.getBoundingClientRect();zoomAt(Math.exp(-e.deltaY*.001),e.clientX-b.left,e.clientY-b.top);},{passive:false});
 let drag;
@@ -107,7 +117,9 @@ function inspect(id) {
 }
 function download(blob,extension) {const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`${title.split(' @ ')[0].replace(/[^a-zA-Z0-9_-]/g,'-') || 'code-is-magic'}.${extension}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 $('download-svg').onclick=async()=>{try{setBusy(true);download(new Blob([await engine({op:'svg',capsule:capsule(),key:diagramKey})],{type:'image/svg+xml'}),'svg');status('Source-carrying SVG downloaded.');}catch(e){status(e.message,'error');}finally{setBusy(false);}};
-$('download-svgz').onclick=async()=>{try{setBusy(true);download(new Blob([await engine({op:'svgz',capsule:capsule(),key:diagramKey})],{type:'application/gzip'}),'svgz');status('Compressed vector downloaded. SVGZ preserves the complete drawing and source.');}catch(e){status(e.message,'error');}finally{setBusy(false);}};
+const downloadMagic=async()=>{try{setBusy(true);download(new Blob([await engine({op:'svgz',capsule:capsule(),key:diagramKey})],{type:'application/gzip'}),'svgz');status('Magic circles downloaded as SVGZ. The complete artwork and original source are preserved.');}catch(e){status(e.message,'error');}finally{setBusy(false);}};
+$('download-magic').onclick=downloadMagic;
+$('download-svgz').onclick=downloadMagic;
 $('download-json').onclick=async()=>{
   try{setBusy(true);const data=diagramKey?{version:2,svg:await engine({op:'svg',capsule:capsule(),key:diagramKey})}:{...diagram,snapshot};download(new Blob([JSON.stringify(data)],{type:'application/json'}),'json');status('Offline diagram downloaded. Keyed diagrams require the same key on import.');}
   catch(e){status(e.message,'error');}finally{setBusy(false);}
@@ -287,7 +299,7 @@ function theme(mode,changeInk=false){
   document.documentElement.dataset.theme=mode;
   $('theme-label').textContent=mode==='light'?'Dark mode':'Light mode';
   $('theme-toggle').setAttribute('aria-pressed',String(mode==='light'));
-  document.querySelector('meta[name="theme-color"]').content=mode==='light'?'#f4f0e5':'#101513';
+  document.querySelector('meta[name="theme-color"]').content=mode==='light'?'#efe9db':'#121317';
   try{localStorage.setItem('code-is-magic-theme',mode);}catch{}
   if(changeInk&&!imported){$('palette').value=mode==='light'?'parchment':'gold';rerender();}
 }

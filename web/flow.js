@@ -83,3 +83,12 @@ export function activeEvent(lane,time) {
   const event=lane.events[lo-1];
   return event&&phase<event.start+event.duration?{...event,progress:(phase-event.start)/event.duration}:null;
 }
+// Whole seals remain lit during a transfer. The destination awakens on arrival.
+export function illumination(event,channels) {
+  if(event.kind==='seal')return [{id:event.id,intensity:.55+.45*Math.sin(Math.PI*event.progress)}];
+  const channel=channels[event.index];
+  if(!channel)return [];
+  const from=event.reverse?channel.to:channel.from,to=event.reverse?channel.from:channel.to;
+  const arrival=Math.max(0,(event.progress-.72)/.28);
+  return [{id:from,intensity:.9-.35*event.progress},{id:to,intensity:arrival}];
+}

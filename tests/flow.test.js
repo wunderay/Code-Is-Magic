@@ -43,3 +43,14 @@ test('argument calls run before their enclosing invocation',()=>{
   const paths=[channel(0,1),channel(0,2)];
   assert.deepEqual(createFlow({entities},paths,entities)[0].events.filter(e=>e.kind==='channel'&&!e.reverse).map(e=>e.index),[1,0]);
 });
+test('call illumination stays on its caller and reaches only its destination',async()=>{
+  const {illumination}=await import('../web/flow.js');
+  const channels=[{from:10,to:20}];
+  const start=illumination({kind:'channel',index:0,progress:0,reverse:false},channels);
+  assert.deepEqual(start,[{id:10,intensity:.9},{id:20,intensity:0}]);
+  const arriving=illumination({kind:'channel',index:0,progress:1,reverse:false},channels);
+  assert.equal(arriving[1].id,20);assert.ok(Math.abs(arriving[1].intensity-1)<1e-9);
+  const returning=illumination({kind:'channel',index:0,progress:0,reverse:true},channels);
+  assert.deepEqual(returning,[{id:20,intensity:.9},{id:10,intensity:0}]);
+  assert.equal(illumination({kind:'seal',id:20,progress:.5},channels)[0].intensity,1);
+});
