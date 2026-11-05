@@ -2,11 +2,13 @@ name: Verify
 on: [pull_request]
 permissions:
   contents: read
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   profiles:
     uses: ./.github/workflows/profiles.yml
   verify:
-    needs: profiles
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,6 +16,10 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
           components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust
+          cache-on-failure: true
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
