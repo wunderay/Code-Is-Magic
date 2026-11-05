@@ -22,6 +22,8 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
         with:
+          shared-key: rust
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
       - uses: actions/setup-node@v4
         with:
