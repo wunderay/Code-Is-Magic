@@ -3,6 +3,7 @@ mod archive;
 mod compression;
 mod crypto;
 mod inscription;
+mod magic;
 mod perceptual;
 mod profiles;
 mod render;
@@ -15,7 +16,10 @@ pub use archive::{
 };
 pub use compression::{compact_svg, optimize_png};
 pub use crypto::MagicKey;
-pub use perceptual::{encode_magic, encode_magic_with_key, perceptual_svg};
+pub use magic::expand_svg;
+pub use perceptual::{
+    encode_magic, encode_magic_svg_with_key, encode_magic_with_key, magic_svg, perceptual_svg,
+};
 pub use profiles::{language_profiles, profile_for_language, profile_for_path, LanguageProfile};
 pub use render::{
     render, render_with_key, render_with_options, render_with_wingdings, Diagram, Placement,
@@ -170,4 +174,13 @@ pub fn pack_svgz_keyed(capsule_json: &str, key_hex: &str) -> Result<Vec<u8>, JsV
 #[wasm_bindgen]
 pub fn pack_magic_keyed(capsule_json: &str, key_hex: &str) -> Result<Vec<u8>, JsValue> {
     pack_svgz_keyed(capsule_json, key_hex)
+}
+
+/// The same canonical drawing as uncompressed scripted SVG, which browsers open from disk.
+#[wasm_bindgen]
+pub fn pack_magic_svg_keyed(capsule_json: &str, key_hex: &str) -> Result<String, JsValue> {
+    let key = optional_key(key_hex)?;
+    let capsule: Capsule =
+        serde_json::from_str(capsule_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
+    encode_magic_svg_with_key(&capsule, key.as_ref()).map_err(|e| JsValue::from_str(&e))
 }

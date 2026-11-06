@@ -168,15 +168,8 @@ fn cells<'a>(
                 glyphs.push(atlas.choose(FAMILIES[secondary], mixed.wrapping_add(71)));
             }
             let height = ink.between(0.90, 1.04);
-            let width = glyphs
-                .iter()
-                .map(|g| g.width / g.height)
-                .reduce(f64::max)
-                .unwrap();
-            let weight =
-                width.clamp(0.24, 1.9) * height * if glyphs.len() == 2 { 0.46 } else { 1. }
-                    + 0.19
-                    + if style == 2 && i % 4 == 0 { 0.40 } else { 0. };
+            let ids: Vec<usize> = glyphs.iter().map(|g| g.id).collect();
+            let weight = crate::magic::cell_weight(&ids, height, style, i);
             Cell {
                 glyphs,
                 height,
@@ -185,18 +178,6 @@ fn cells<'a>(
             }
         })
         .collect()
-}
-
-/// Fit the actual outline, preserving aspect ratio and bounding its rotated box.
-fn fit_glyph(s: &mut String, glyph: &Outline, width: f64, height: f64, offset: f64, lean: f64) {
-    let angle = lean * PI / 180.;
-    let (cos, sin) = (angle.cos().abs(), angle.sin().abs());
-    let rotated_width = glyph.width * cos + glyph.height * sin;
-    let rotated_height = glyph.height * cos + glyph.width * sin;
-    let scale = (width / rotated_width).min(height / rotated_height);
-    let actual_width = rotated_width * scale;
-    let actual_height = rotated_height * scale;
-    let _ = write!(s, "<use data-glyph='1' data-family='{}' data-width='{actual_width:.6}' data-height='{actual_height:.6}' data-offset='{offset:.6}' href='#glyph-{}' transform='translate(0 {offset:.6}) rotate({lean:.6}) scale({scale:.10} -{scale:.10}) translate({:.6} {:.6})'/>", glyph.family, glyph.id, -glyph.cx, -glyph.cy);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -219,7 +200,6 @@ pub(crate) fn inscribe(
         &[(0.744, 0.925)]
     };
     for (row, &(inner, outer)) in bands.iter().enumerate() {
-        let middle = radius * (inner + outer) / 2.;
         let band_height = radius * (outer - inner);
         let target_height = band_height * 0.81;
         // Estimate density from actual glyph proportions, then pack the final cells.
@@ -229,34 +209,27 @@ pub(crate) fn inscribe(
             .round()
             .clamp(12., 88.) as usize;
         let cells = cells(atlas, entity, seed, row, count, style, wingdings);
-        let total = cells.iter().map(|c| c.weight).sum::<f64>();
-        let rotation = ((seed >> (row * 7)) % 360) as f64;
-        let _ = write!(s, "<g data-inscription-band='2' data-inner='{:.6}' data-outer='{:.6}' data-middle='{middle:.6}' data-style='{style}' transform='translate({x} {y}) rotate({rotation})' opacity='.94'>", radius * inner, radius * outer);
-        let mut angle = 0.;
-        for cell in cells {
-            let sector = cell.weight * 2. * PI / total;
-            // A chord at the inner boundary reserves angular space for the full glyph.
-            let width = 2. * radius * inner * (sector / 2.).sin() * 0.84;
-            let height = (target_height * cell.height).min(band_height * 0.86);
-            // Constrain the corners to the annulus, not just the baseline.
-            let safe_width = 2.
-                * ((radius * outer).powi(2) - (middle + height / 2.).powi(2))
-                    .max(0.)
-                    .sqrt();
-            let width = width.min(safe_width * 0.97);
-            let degrees = (angle + sector / 2.) * 180. / PI;
-            let _ = write!(s, "<g data-cell='1' data-angle='{degrees:.6}' data-sector='{sector:.10}' transform='rotate({degrees:.6}) translate(0 -{middle:.6})'>");
-            for (i, glyph) in cell.glyphs.iter().enumerate() {
-                let (h, offset) = if cell.glyphs.len() == 2 {
-                    (height * 0.44, height * if i == 0 { -0.27 } else { 0.27 })
-                } else {
-                    (height, 0.)
-                };
-                fit_glyph(s, glyph, width, h, offset, cell.lean);
-            }
-            s.push_str("</g>");
-            angle += sector;
-        }
-        s.push_str("</g>");
+        let rotation = (seed >> (row * 7)) % 360;
+        crate::magic::write_band(
+            s,
+            &crate::magic::Band {
+                x,
+                y,
+                radius,
+                inner,
+                outer,
+                style,
+                rotation,
+                cells: cells
+                    .into_iter()
+                    .map(|cell| crate::magic::Cell {
+                        glyphs: cell.glyphs.iter().map(|g| g.id).collect(),
+                        height: cell.height,
+                        lean: cell.lean,
+                        weight: cell.weight,
+                    })
+                    .collect(),
+            },
+        );
     }
 }

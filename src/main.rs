@@ -2,8 +2,8 @@ use base64::Engine;
 use clap::Parser;
 use code_is_magic::{
     analyze, compact_svg, decode_image_with_key, decode_svg_names_with_key, embed_svg_with_key,
-    encode_magic_with_key, encode_svgz_with_key, optimize_png, render_with_key, snapshot_zip,
-    ArchiveEntry, Capsule, MagicKey, Snapshot,
+    encode_magic_svg_with_key, encode_magic_with_key, encode_svgz_with_key, expand_svg,
+    optimize_png, render_with_key, snapshot_zip, ArchiveEntry, Capsule, MagicKey, Snapshot,
 };
 use reqwest::blocking::Client;
 use serde_json::Value;
@@ -34,7 +34,11 @@ struct Args {
     /// Recover names from geometric contours in canonical SVGZ or legacy SVG/PNG
     #[arg(long)]
     decode_names: Option<PathBuf>,
-    /// Canonical transmutation output. Code-to-magic emits SVGZ only.
+    /// Write a static, script-free SVG of a canonical magic image (artwork only, no source)
+    #[arg(long, conflicts_with_all = ["repository", "decode", "decode_names", "generate_key", "optimize"])]
+    expand: Option<PathBuf>,
+    /// Canonical transmutation output: scripted magic SVGZ, or .svg for the same drawing
+    /// uncompressed (it opens from disk in any browser).
     #[arg(short, long, default_value = "magic.svgz")]
     output: PathBuf,
     /// Minimum non-comment source lines for full ornament detail; size always follows code lines
@@ -374,6 +378,34 @@ fn run() -> Result<(), Box<dyn Error>> {
         );
         return Ok(());
     }
+    if let Some(path) = &args.expand {
+        let mut bytes = fs::read(path)?;
+        if bytes.starts_with(b"\x1f\x8b") {
+            let mut svg = Vec::new();
+            flate2::read::GzDecoder::new(bytes.as_slice())
+                .take(128_000_000)
+                .read_to_end(&mut svg)?;
+            bytes = svg;
+        }
+        let mut svg = String::from_utf8(bytes)?;
+        if let Some(start) = svg.find("<metadata id='source-capsule-v1'>") {
+            let end = svg[start..]
+                .find("</metadata>")
+                .ok_or("Truncated SVG capsule")?;
+            svg.replace_range(start..start + end + "</metadata>".len(), "");
+        }
+        let output = if args.output == Path::new("magic.svgz") {
+            PathBuf::from("magic-static.svg")
+        } else {
+            args.output.clone()
+        };
+        fs::write(&output, expand_svg(&svg)?)?;
+        println!(
+            "Static artwork (no source capsule) written to {}",
+            output.display()
+        );
+        return Ok(());
+    }
     let image_input = args.decode.clone().or_else(|| {
         if args.decode_names.is_some() {
             None
@@ -455,13 +487,15 @@ fn run() -> Result<(), Box<dyn Error>> {
         snapshot: snapshot.clone(),
         svg: diagram.svg.clone(),
     };
-    if !args.output.extension().is_some_and(|e| e == "svgz") {
-        return Err(
-            "Code-to-magic transmutation has one canonical format: choose a .svgz output path"
+    let bytes = match args.output.extension().and_then(|e| e.to_str()) {
+        Some("svgz") => encode_magic_with_key(&capsule, key.as_ref())?,
+        Some("svg") => encode_magic_svg_with_key(&capsule, key.as_ref())?.into_bytes(),
+        _ => return Err(
+            "Code-to-magic transmutation has one canonical format: choose a .svgz (or uncompressed .svg) output path"
                 .into(),
-        );
-    }
-    fs::write(&args.output, encode_magic_with_key(&capsule, key.as_ref())?)?;
+        ),
+    };
+    fs::write(&args.output, bytes)?;
     println!(
         "✦ CODE IS MAGIC ✦\n{} source files · {} declarations · {} call channels",
         analysis.files,

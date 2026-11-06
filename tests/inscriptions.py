@@ -34,7 +34,12 @@ with tempfile.TemporaryDirectory(prefix='magic-inscriptions-') as temp:
         encoded = output.read_bytes()
         subprocess.run(command, env=env, check=True, capture_output=True)
         assert output.read_bytes() == encoded
-        svg = gzip.decompress(encoded).decode()
+        compact = gzip.decompress(encoded).decode()
+        assert "data-magic-format='3'" in compact and '<script>' in compact
+        static = temp / 'static.svg'
+        subprocess.run([str(binary), '--expand', str(output), '--output', str(static)], check=True, capture_output=True)
+        svg = static.read_text()
+        assert '<script' not in svg and 'source-capsule' not in svg
         document = ET.fromstring(svg)
         assert document.get('data-inscription-version') == '2'
         assert not document.findall('.//s:text', namespace)

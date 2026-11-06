@@ -1,5 +1,5 @@
 use crate::inscription::{inscribe, Atlas, Outline};
-use crate::profiles::{profile_for_language, CollarOperation};
+use crate::profiles::profile_for_language;
 use crate::{encode_name_with_key, MagicKey};
 use crate::{Analysis, Entity};
 use serde::Serialize;
@@ -196,14 +196,18 @@ fn polygon(cx: f64, cy: f64, r: f64, n: usize, step: usize, rotation: f64) -> St
         .collect::<Vec<_>>()
         .join(" ")
 }
-fn circle(s: &mut String, x: f64, y: f64, r: f64, opacity: f64) {
+pub(crate) fn circle(s: &mut String, x: f64, y: f64, r: f64, opacity: f64) {
     let _ = write!(
         s,
         "<circle cx='{x:.4}' cy='{y:.4}' r='{r:.4}' opacity='{opacity}'/>"
     );
 }
-fn poly(s: &mut String, x: f64, y: f64, r: f64, n: usize, step: usize, rot: f64) {
-    let _ = write!(s, "<polyline points='{}'/>", polygon(x, y, r, n, step, rot));
+pub(crate) fn poly(s: &mut String, x: f64, y: f64, r: f64, n: usize, step: usize, rot: f64) {
+    let _ = write!(
+        s,
+        "<polyline data-m='{x} {y} {r} {n} {step} {rot}' points='{}'/>",
+        polygon(x, y, r, n, step, rot)
+    );
 }
 // Original emblems inspired by ritual diagrams, drawn in normalized local coordinates.
 // The exact name contour remains a separate lossless geometry layer.
@@ -335,37 +339,7 @@ fn design(s: &mut String, e: &Entity, x: f64, y: f64, r: f64, large: bool, key: 
     let rotation = (seed % 360) as f64 * PI / 180.;
     let mut ink = Entropy(seed.wrapping_add(71));
     // A calm circular collar contrasts with the wilder name-derived center.
-    let _ = write!(
-        s,
-        "<g data-ring='1' stroke-width='{:.3}'>",
-        (r * 0.004).max(0.85)
-    );
-    circle(s, x, y, r, 0.92);
-    circle(s, x, y, r * 0.93, 0.65);
-    circle(s, x, y, r * 0.73, 0.72);
-    let profile = profile_for_language(&e.language);
-    for i in 0..profile.repeats {
-        let angle = rotation + i as f64 * 2. * PI / profile.repeats as f64;
-        let degrees = angle * 180. / PI;
-        let _ = write!(s, "<g transform='translate({x} {y}) rotate({degrees:.3}) scale({r})' stroke-width='.007'>");
-        for operation in &profile.collar {
-            match operation {
-                CollarOperation::Path { data } => {
-                    let _ = write!(s, "<path d='{data}'/>");
-                }
-                CollarOperation::Polygon {
-                    cx,
-                    cy,
-                    r,
-                    n,
-                    step,
-                    rotation_degrees,
-                } => poly(s, *cx, *cy, *r, *n, *step, rotation_degrees * PI / 180.),
-            }
-        }
-        s.push_str("</g>");
-    }
-    s.push_str("</g>");
+    crate::magic::write_ring(s, x, y, r, seed % 360, profile_for_language(&e.language));
     center_emblem(s, e, x, y, r, key);
     if large {
         // Offset satellites and partial orbits keep the overall inscription unruly.
@@ -390,7 +364,7 @@ fn design(s: &mut String, e: &Entity, x: f64, y: f64, r: f64, large: bool, key: 
         }
     }
 }
-fn curve_point(points: &[[f64; 2]; 4], t: f64) -> ([f64; 2], [f64; 2]) {
+pub(crate) fn curve_point(points: &[[f64; 2]; 4], t: f64) -> ([f64; 2], [f64; 2]) {
     let u = 1. - t;
     let mut point = [0.; 2];
     let mut tangent = [0.; 2];
@@ -460,8 +434,8 @@ fn invocation_channel(
         points[3][0],
         points[3][1]
     );
-    let _ = write!(s, "<g data-channel='{kind}' data-from='{}' data-to='{}' fill='none' stroke='{ink}' stroke-linecap='round' stroke-linejoin='round'>", from.id, to.id);
     if kind == "contains" {
+        let _ = write!(s, "<g data-channel='{kind}' data-from='{}' data-to='{}' fill='none' stroke='{ink}' stroke-linecap='round' stroke-linejoin='round'>", from.id, to.id);
         let _ = write!(
             s,
             "<path d='{center}' stroke-width='.8' stroke-dasharray='2 8' opacity='.32'/>"
@@ -477,64 +451,23 @@ fn invocation_channel(
         s.push_str("</g></g>");
         return;
     }
-    let _ = write!(s, "<path d='{center}' stroke-width='8' opacity='.055'/><path d='{center}' stroke-width='.65' stroke-dasharray='1 9' opacity='.42'/>");
     let turns = 3. + (seed % 5) as f64;
     let amplitude = flow.between(3.5, 7.5);
-    for strand in [-1., 1.] {
-        let mut path = String::new();
-        for i in 0..=96 {
-            let t = i as f64 / 96.;
-            let (point, tangent) = curve_point(&points, t);
-            let envelope = (PI * t).sin().max(0.).sqrt();
-            let offset = strand * amplitude * (t * turns * 2. * PI).sin() * envelope;
-            let _ = write!(
-                path,
-                "{} {:.3} {:.3} ",
-                if i == 0 { "M" } else { "L" },
-                point[0] - tangent[1] * offset,
-                point[1] + tangent[0] * offset
-            );
-        }
-        let _ = write!(
-            s,
-            "<path data-strand='1' d='{path}' stroke-width='1.05' opacity='.62'/>"
-        );
-    }
-    // Engraved knots mark the braid; their spacing and forms are name-derived.
-    let knots = 2 + seed % 4;
-    for i in 0..knots {
-        let t = (i as f64 + 1.) / (knots as f64 + 1.);
-        let (point, tangent) = curve_point(&points, t);
-        let angle = tangent[1].atan2(tangent[0]) * 180. / PI;
-        let size = flow.between(3.2, 5.8);
-        let _ = write!(s, "<g transform='translate({:.3} {:.3}) rotate({angle:.3})' fill='{bg}' stroke-width='.8' opacity='.85'>", point[0], point[1]);
-        poly(s, 0., 0., size, 4, 1, 0.);
-        if i % 2 == 0 {
-            circle(s, 0., 0., size * 1.35, 0.7);
-        }
-        let _ = write!(
-            s,
-            "<path d='M {:.3} 0 L {:.3} 0 M 0 {:.3} L 0 {:.3}'/>",
-            -size * 0.45,
-            size * 0.45,
-            -size * 0.45,
-            size * 0.45
-        );
-        s.push_str("</g>");
-    }
-    let (source, _) = curve_point(&points, 0.);
-    let _ = write!(s, "<g fill='{bg}' stroke-width='.9'>");
-    circle(s, source[0], source[1], 4., 0.75);
-    circle(s, source[0], source[1], 1.6, 0.7);
-    s.push_str("</g>");
-    let (destination, tangent) = curve_point(&points, 1.);
-    let angle = tangent[1].atan2(tangent[0]) * 180. / PI;
-    let _ = write!(s, "<g data-call-gate='1' transform='translate({:.3} {:.3}) rotate({angle:.3})' stroke-width='1' opacity='.92'>", destination[0], destination[1]);
-    let _ = write!(s, "<g fill='{bg}'>");
-    circle(s, 0., 0., 6.5, 0.9);
-    circle(s, 0., 0., 3.7, 0.75);
-    circle(s, 0., 0., 1.6, 0.9);
-    s.push_str("</g></g></g>");
+    let knots = (0..2 + seed % 4).map(|_| flow.between(3.2, 5.8)).collect();
+    crate::magic::write_braid(
+        s,
+        &crate::magic::Braid {
+            kind,
+            from: from.id,
+            to: to.id,
+            ink,
+            bg,
+            points,
+            turns,
+            amplitude,
+            knots,
+        },
+    );
 }
 fn circle_ink(color: &str, palette: &str) -> String {
     let rgb = [1, 3, 5].map(|start| {
@@ -674,8 +607,15 @@ pub fn render_with_key(
         let _=write!(s,"<g id='entity-{}' data-language-color='{}'><circle cx='{x}' cy='{y}' r='{}' fill='{bg}'/><g fill='none' stroke='{ink}' stroke-width='.85'>",e.id,profile.color,r+2.);
         design(&mut s, e, x, y, r, large, key);
         let contour = encode_name_with_key(&e.qualified_name, key)?;
-        let core = r * 0.52;
-        let _=write!(s,"<polygon data-name-sigil='1' data-entity='{}' data-seal-radius='{r}' points='{}' transform='translate({x} {y}) scale({core})' stroke-width='.007' opacity='.65' stroke-linejoin='round'/> </g>",e.id,contour.svg_points());
+        crate::magic::write_sigil(
+            &mut s,
+            e.id,
+            x,
+            y,
+            r,
+            &crate::magic::sigil_nibbles(&contour.points),
+        );
+        s.push_str(" </g>");
         let _ = write!(s, "<g fill='{ink}'>");
         inscribe(&mut s, &atlas, e, x, y, r, large, wingdings, key);
         draw_outline(

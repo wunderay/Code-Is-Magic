@@ -105,7 +105,7 @@ fn replacement(
 /// Lossily reduce numeric precision below a visible pixel while preserving semantic
 /// recovery geometry and all non-geometry data. The transform is deterministic and
 /// intentionally conservative: a path coordinate moves by at most 0.005 SVG units.
-pub fn perceptual_svg(svg: &str) -> Result<String, String> {
+fn quantize_svg(svg: &str) -> Result<String, String> {
     let compact = compact_svg(svg)?;
     let document = roxmltree::Document::parse(&compact).map_err(|_| "Invalid SVG artwork")?;
     if !document.root_element().has_tag_name("svg") {
@@ -169,12 +169,32 @@ pub fn perceptual_svg(svg: &str) -> Result<String, String> {
     Ok(result)
 }
 
-/// The only canonical transmutation format: visually-imperceptible SVGZ plus an
-/// exact, optionally authenticated/encrypted source capsule.
+/// Canonical compact scripted artwork: quantized literal geometry, with every
+/// parameterized subtree reduced to a macro that the embedded script expands.
+pub fn magic_svg(svg: &str) -> Result<String, String> {
+    crate::magic::compact(&quantize_svg(&crate::magic::expand_svg(svg)?)?)
+}
+
+/// The static drawing a canonical export shows: `magic_svg` expanded back to plain SVG.
+pub fn perceptual_svg(svg: &str) -> Result<String, String> {
+    crate::magic::expand_svg(&magic_svg(svg)?)
+}
+
+/// The canonical drawing as uncompressed scripted SVG plus the exact, optionally
+/// authenticated/encrypted source capsule.
+pub fn encode_magic_svg_with_key(
+    capsule: &Capsule,
+    key: Option<&MagicKey>,
+) -> Result<String, String> {
+    let mut magic = capsule.clone();
+    magic.svg = magic_svg(&magic.svg)?;
+    embed_svg_with_key(&magic, key)
+}
+
+/// The only canonical transmutation format: `encode_magic_svg_with_key` as
+/// deterministic gzip (SVGZ) with a zero timestamp.
 pub fn encode_magic_with_key(capsule: &Capsule, key: Option<&MagicKey>) -> Result<Vec<u8>, String> {
-    let mut perceptual = capsule.clone();
-    perceptual.svg = perceptual_svg(&perceptual.svg)?;
-    let svg = embed_svg_with_key(&perceptual, key)?;
+    let svg = encode_magic_svg_with_key(capsule, key)?;
     let mut encoder = flate2::GzBuilder::new()
         .mtime(0)
         .write(Vec::new(), flate2::Compression::best());

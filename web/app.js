@@ -116,8 +116,8 @@ function inspect(id) {
   for(const button of $('entities').children)button.classList.toggle('selected',Number(button.dataset.id)===id);
 }
 function download(blob,extension) {const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`${title.split(' @ ')[0].replace(/[^a-zA-Z0-9_-]/g,'-') || 'code-is-magic'}.${extension}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-$('download-svg').onclick=async()=>{try{setBusy(true);download(new Blob([await engine({op:'svg',capsule:capsule(),key:diagramKey})],{type:'image/svg+xml'}),'svg');status('Source-carrying SVG downloaded.');}catch(e){status(e.message,'error');}finally{setBusy(false);}};
-const downloadMagic=async()=>{try{setBusy(true);download(new Blob([await engine({op:'svgz',capsule:capsule(),key:diagramKey})],{type:'application/gzip'}),'svgz');status('Magic circles downloaded as SVGZ. The complete artwork and original source are preserved.');}catch(e){status(e.message,'error');}finally{setBusy(false);}};
+$('download-svg').onclick=async()=>{try{setBusy(true);download(new Blob([await engine({op:'magic-svg',capsule:capsule(),key:diagramKey})],{type:'image/svg+xml'}),'svg');status('Magic circles downloaded as plain SVG. It opens from disk in any browser; the original source is sealed inside.');}catch(e){status(e.message,'error');}finally{setBusy(false);}};
+const downloadMagic=async()=>{try{setBusy(true);download(new Blob([await engine({op:'svgz',capsule:capsule(),key:diagramKey})],{type:'application/gzip'}),'svgz');status('Magic circles downloaded as SVGZ: a compact scripted drawing that unfolds in the browser, with the original source sealed inside.');}catch(e){status(e.message,'error');}finally{setBusy(false);}};
 $('download-magic').onclick=downloadMagic;
 $('download-svgz').onclick=downloadMagic;
 $('download-json').onclick=async()=>{

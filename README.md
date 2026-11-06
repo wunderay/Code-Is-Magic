@@ -2,7 +2,7 @@
 
 Code Is Magic turns a source repository into a deterministic field of connected magic circles and can reconstruct the captured repository from the resulting artifact.
 
-New transmutations have **one canonical output format: perceptually compressed SVGZ**. The artwork is allowed only sub-pixel geometry changes selected to be visually imperceptible, while the embedded repository snapshot remains byte-exact. There is no PNG/SVG/JSON choice when transmuting code to magic.
+New transmutations have **one canonical output format: a scripted, perceptually compressed SVGZ**. Most of the drawing is stored as the parameters that generate it, and a small embedded script unfolds it when the image opens in a browser. The artwork changes only by sub-pixel amounts chosen to be invisible, and the embedded repository snapshot stays byte-exact.
 
 The project itself is not offered under a project-wide license. Bundled font subsets retain their own upstream license notices in `web/fonts/`.
 
@@ -20,17 +20,32 @@ cargo run --release -- ./my-project --output my-project.svgz
 
 `magic.svgz` is the default output name, so `--output` is optional.
 
-The canonical pipeline is deliberately vector-first. Code Is Magic drawings are synthetic geometry with sharp glyphs, thin rings, braided invocation channels, and large flat regions; a JPEG-like raster was substantially larger than the already-compressed vector representation at visually conservative settings. The canonical encoder therefore:
+Add `--output name.svg` to write the same drawing uncompressed. Chromium does not decompress a `.svgz` opened from disk (Firefox does, and every browser does when a web server sends it), so the `.svg` form is the one to double-click.
 
-1. analyzes and renders the repository deterministically;
-2. shares repeated glyph outlines without changing their shapes;
-3. rounds ordinary path coordinates to 0.01 SVG units and ordinary scalar placement geometry to 0.001 SVG units;
-4. keeps transform parameters at 0.000001 precision so tiny glyph scale factors do not suffer proportionally large changes;
-5. leaves the independent reversible name-sigil geometry byte-for-byte unchanged;
-6. embeds the complete repository snapshot in the existing authenticated source capsule;
-7. compresses the complete result as deterministic gzip/SVGZ with a zero timestamp.
+### How the image stays small
 
-For the project reference drawing at 4258×3758, the selected geometry strategy measured about **51 dB PSNR** with roughly **0.08 mean absolute channel error** against the unquantized vector render. The final transform precision is stricter than that benchmarked candidate. More aggressive precision reduction was rejected. The quality rule is intentionally conservative because the smallest runes and braided strokes are more sensitive than ordinary photographic detail.
+A Code Is Magic drawing is almost entirely *generated* geometry. Each braided call channel is 192 points sampled from one cubic curve. Every glyph placement in an inscription band follows from the cell proportions. Collars repeat a language template, and each vertex of a name contour encodes one nibble of the name. The canonical encoder:
+
+1. analyzes and renders the repository deterministically. The renderer tags each generated subtree with its parameters;
+2. rounds ordinary literal geometry below pixel scale (paths 0.01, placement 0.001, transforms 0.000001 SVG units), as before;
+3. replaces each braid, inscription band, collar, regular polygon and name contour with a one-line macro holding its parameters. It drops values the expander can recompute, such as cell weights, and stores glyph outlines as relative paths on a 2-font-unit grid;
+4. embeds a ~5 KB script that unfolds the macros in the browser, plus the glyph metrics and collar templates it needs;
+5. embeds the repository snapshot in a binary, brotli-compressed (quality 11) capsule, authenticated and optionally encrypted as before;
+6. compresses the complete result as deterministic gzip/SVGZ with a zero timestamp.
+
+Rust unfolds the same macros with the very functions the renderer drew them with. With unrounded parameters, the expansion reproduces the renderer's markup **byte for byte**, which the tests check. Recovery tools, `--decode-names` and the website all work on that expansion. A wasm test checks every number the embedded script produces against it.
+
+Measured on this repository's own tree (7394×6850 drawing, 72 entries):
+
+| | before | after |
+| --- | ---: | ---: |
+| whole SVGZ | 1,686,757 B | **385,845 B** (−77%) |
+| artwork (gzip share) | 1,342,901 B | 167,365 B (−88%) |
+| source capsule (gzip share) | 329,703 B | 213,785 B (−35%) |
+
+Against the earlier canonical render, the scripted image as unfolded by Chromium measures **52.5 dB PSNR** for the whole drawing (rendered at ¼ scale). A dense 1:1 crop measures 37.1 dB, where the only differences are glyph-edge anti-aliasing. The capsule is now about the size of `git archive | xz -9e`, and exact source recovery has to carry it. That is why the whole file cannot shrink by 99% while it still holds the repository.
+
+`--expand image.svgz --output static.svg` writes a static, script-free copy of the artwork, without the source, for viewers that do not run scripts (`<img>` tags, GitHub previews, Inkscape).
 
 The output remains deterministic: equal canonical source, options, and key produce equal bytes.
 
@@ -86,12 +101,12 @@ A keyed legacy SVG/SVGZ needs its original key when its authenticated source cap
 
 The static website is built entirely for GitHub Pages. It can:
 
-- transmute a public or authorized GitHub repository into the same canonical perceptual SVGZ used by the native CLI;
+- transmute a public or authorized GitHub repository into the same canonical scripted SVGZ used by the native CLI, or the same drawing as plain SVG;
 - transmute a selected local folder in the browser;
 - apply an optional magic key without storing it;
 - open Code is Magic itself by default, with language colors and a bundled, immutable source snapshot that needs no GitHub API requests;
 - accept pasted or dropped repository links, direct magic-image links (where the host permits browser access), source files/folders, and recoverable magic images through the same input;
-- display a celestial grimoire with light/dark themes, a prominent **Download magic circles** button for the bundled default and all generated diagrams, and a canvas fitted to the actual seals and call paths;
+- display a celestial grimoire with light/dark themes, drifting motes, a turning rune ring and gilded spell-charging effects (all still under reduced motion), a prominent **Download magic circles** button for the bundled default and all generated diagrams, and a canvas fitted to the actual seals and call paths;
 - illuminate whole caller seals and their braided invocation paths as each function calls the next, then awaken the destination and trace returns back; a live caption identifies the active call;
 - recover exact source ZIPs from canonical SVGZ and supported legacy artifacts;
 - decode reversible geometric declaration names.

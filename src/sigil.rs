@@ -136,6 +136,7 @@ pub fn decode_svg_names_with_key(
     svg: &str,
     key: Option<&MagicKey>,
 ) -> Result<Vec<DecodedName>, String> {
+    let svg = crate::magic::expand_svg(svg)?;
     let mut decoded = Vec::new();
     for segment in svg.split("<polygon").skip(1) {
         let tag = segment.split('>').next().ok_or("Unclosed polygon")?;
