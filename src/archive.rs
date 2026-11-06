@@ -105,17 +105,211 @@ impl Snapshot {
             .collect()
     }
 }
-#[derive(Serialize, Deserialize)]
+/// Decoded payload of a source capsule; serialized by `encode_stored` as a compact binary container.
 struct StoredCapsule {
-    version: u32,
     snapshot: Snapshot,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     svg: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     svg_sha256: Option<String>,
 }
 fn artwork_hash(svg: &str) -> String {
     format!("{:x}", Sha256::digest(svg.as_bytes()))
+}
+/// Legacy JSON payload (base64 file bodies), still readable from `CIMBR001` and zlib capsules.
+#[derive(Deserialize)]
+struct LegacyCapsule {
+    version: u32,
+    snapshot: Snapshot,
+    #[serde(default)]
+    svg: Option<String>,
+    #[serde(default)]
+    svg_sha256: Option<String>,
+}
+const BIN_MAGIC: &[u8] = b"CIMBR002";
+const MODES: [&str; 4] = ["100644", "100755", "120000", "160000"];
+fn put_var(out: &mut Vec<u8>, mut n: usize) {
+    while n >= 0x80 {
+        out.push((n as u8 & 0x7f) | 0x80);
+        n >>= 7;
+    }
+    out.push(n as u8);
+}
+fn put_bytes(out: &mut Vec<u8>, bytes: &[u8]) {
+    put_var(out, bytes.len());
+    out.extend_from_slice(bytes);
+}
+struct Reader<'a>(&'a [u8]);
+impl<'a> Reader<'a> {
+    fn byte(&mut self) -> Result<u8, String> {
+        let (&b, rest) = self.0.split_first().ok_or("Invalid archive")?;
+        self.0 = rest;
+        Ok(b)
+    }
+    fn var(&mut self) -> Result<usize, String> {
+        let mut n = 0usize;
+        for shift in (0..35).step_by(7) {
+            let b = self.byte()?;
+            n |= ((b & 0x7f) as usize) << shift;
+            if b < 0x80 {
+                return Ok(n);
+            }
+        }
+        Err("Invalid archive".into())
+    }
+    fn take(&mut self, n: usize) -> Result<&'a [u8], String> {
+        if n > self.0.len() {
+            return Err("Invalid archive".into());
+        }
+        let (a, b) = self.0.split_at(n);
+        self.0 = b;
+        Ok(a)
+    }
+    fn string(&mut self) -> Result<String, String> {
+        let n = self.var()?;
+        String::from_utf8(self.take(n)?.to_vec()).map_err(|_| "Invalid archive".into())
+    }
+}
+fn blob_id(bytes: &[u8]) -> String {
+    let mut h = sha1::Sha1::new();
+    sha1::Digest::update(&mut h, format!("blob {}\0", bytes.len()).as_bytes());
+    sha1::Digest::update(&mut h, bytes);
+    format!("{:x}", sha1::Digest::finalize(h))
+}
+fn extension(path: &str) -> &str {
+    path.rsplit('/')
+        .next()
+        .and_then(|f| f.rsplit_once('.'))
+        .map_or("", |x| x.1)
+}
+fn encode_stored(stored: &StoredCapsule) -> Result<Vec<u8>, String> {
+    let mut out = Vec::new();
+    let flags = u8::from(stored.snapshot.commit.is_some())
+        | u8::from(stored.svg.is_some()) << 1
+        | u8::from(stored.svg_sha256.is_some()) << 2;
+    out.push(flags);
+    put_var(&mut out, stored.snapshot.version as usize);
+    put_bytes(&mut out, stored.snapshot.title.as_bytes());
+    if let Some(c) = &stored.snapshot.commit {
+        put_bytes(&mut out, c.as_bytes());
+    }
+    if let Some(hash) = &stored.svg_sha256 {
+        let mut raw = [0u8; 32];
+        for (i, b) in raw.iter_mut().enumerate() {
+            *b = hash
+                .get(i * 2..i * 2 + 2)
+                .and_then(|h| u8::from_str_radix(h, 16).ok())
+                .ok_or("Invalid artwork hash")?;
+        }
+        out.extend_from_slice(&raw);
+    }
+    let entries = &stored.snapshot.entries;
+    put_var(&mut out, entries.len());
+    let mut bodies = Vec::with_capacity(entries.len());
+    for e in entries {
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(&e.data)
+            .map_err(|_| "Invalid file encoding")?;
+        let mode = MODES
+            .iter()
+            .position(|m| *m == e.mode)
+            .ok_or("Invalid repository file mode")? as u8;
+        // sha: 0 none, 1 equals the git blob id, 2 explicit string follows.
+        let sha = match &e.sha {
+            None => 0,
+            Some(s) if mode != 3 && *s == blob_id(&bytes) => 1,
+            Some(_) => 2,
+        };
+        put_bytes(&mut out, e.path.as_bytes());
+        out.push(mode | sha << 2);
+        put_var(&mut out, bytes.len());
+        if let Some(s) = e.sha.as_ref().filter(|_| sha == 2) {
+            put_bytes(&mut out, s.as_bytes());
+        }
+        bodies.push(bytes);
+    }
+    // Similar files compress best next to each other: group bodies by extension, then path.
+    let mut order: Vec<usize> = (0..entries.len()).collect();
+    order.sort_by_key(|&i| (extension(&entries[i].path), i));
+    for i in order {
+        out.extend_from_slice(&bodies[i]);
+    }
+    if let Some(svg) = &stored.svg {
+        put_bytes(&mut out, svg.as_bytes());
+    }
+    Ok(out)
+}
+fn decode_stored(raw: &[u8]) -> Result<StoredCapsule, String> {
+    let mut c = Reader(raw);
+    let flags = c.byte()?;
+    if flags & !7 != 0 || (flags >> 1 & 1) == (flags >> 2 & 1) {
+        return Err("Invalid artwork capsule".into());
+    }
+    let version = c.var()? as u32;
+    let title = c.string()?;
+    let commit = if flags & 1 != 0 {
+        Some(c.string()?)
+    } else {
+        None
+    };
+    let svg_sha256 = if flags & 4 != 0 {
+        Some(c.take(32)?.iter().map(|b| format!("{b:02x}")).collect())
+    } else {
+        None
+    };
+    let count = c.var()?;
+    if count > 5000 {
+        return Err("Snapshot exceeds 5,000 entries".into());
+    }
+    let mut meta = Vec::with_capacity(count);
+    for _ in 0..count {
+        let path = c.string()?;
+        let tag = c.byte()?;
+        let len = c.var()?;
+        let sha = if tag >> 2 == 2 {
+            Some(c.string()?)
+        } else {
+            None
+        };
+        meta.push((path, tag, len, sha));
+    }
+    let mut order: Vec<usize> = (0..count).collect();
+    order.sort_by_key(|&i| (extension(&meta[i].0), i));
+    let mut bodies: Vec<&[u8]> = vec![&[]; count];
+    for i in order {
+        bodies[i] = c.take(meta[i].2)?;
+    }
+    let svg = if flags & 2 != 0 {
+        Some(c.string()?)
+    } else {
+        None
+    };
+    if !c.0.is_empty() {
+        return Err("Invalid archive".into());
+    }
+    let mut entries = Vec::with_capacity(count);
+    for ((path, tag, _, sha), bytes) in meta.into_iter().zip(bodies) {
+        let sha = match tag >> 2 {
+            0 => None,
+            1 => Some(blob_id(bytes)),
+            2 => sha,
+            _ => return Err("Invalid archive".into()),
+        };
+        entries.push(ArchiveEntry {
+            path,
+            mode: MODES[(tag & 3) as usize].to_string(),
+            data: base64::engine::general_purpose::STANDARD.encode(bytes),
+            sha,
+        });
+    }
+    Ok(StoredCapsule {
+        snapshot: Snapshot {
+            version,
+            title,
+            commit,
+            entries,
+        },
+        svg,
+        svg_sha256,
+    })
 }
 fn packed(capsule: &Capsule, external_artwork: bool) -> Result<Vec<u8>, String> {
     let mut capsule = capsule.clone();
@@ -125,36 +319,37 @@ fn packed(capsule: &Capsule, external_artwork: bool) -> Result<Vec<u8>, String> 
     }
     // SVG already carries the drawing; authenticate its exact bytes instead of copying it.
     let stored = StoredCapsule {
-        version: 2,
         snapshot: capsule.snapshot,
         svg: (!external_artwork).then(|| capsule.svg.clone()),
         svg_sha256: external_artwork.then(|| artwork_hash(&capsule.svg)),
     };
-    let raw = serde_json::to_vec(&stored).map_err(|e| e.to_string())?;
+    let raw = encode_stored(&stored)?;
     if raw.len() > MAX_ARCHIVE {
         return Err("Archive too large".into());
     }
-    let mut z = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::best());
-    z.write_all(&raw).map_err(|e| e.to_string())?;
-    let deflate = z.finish().map_err(|e| e.to_string())?;
-    let mut compressed = b"CIMBR001".to_vec();
-    // A 4 MiB window captures repeated geometry beyond DEFLATE's 32 KiB window.
-    // Quality 9 keeps the same native/WASM codec within the browser memory budget.
-    let mut br = brotli::CompressorReader::new(raw.as_slice(), 4096, 9, 22);
-    br.read_to_end(&mut compressed).map_err(|e| e.to_string())?;
-    Ok(if compressed.len() < deflate.len() {
-        compressed
-    } else {
-        deflate
-    })
+    // Quality 11 with a window just large enough for the payload (at most 16 MiB).
+    let lgwin = (usize::BITS - raw.len().saturating_sub(1).leading_zeros()).clamp(10, 24) as i32;
+    let params = brotli::enc::BrotliEncoderParams {
+        quality: 11,
+        lgwin,
+        size_hint: raw.len(),
+        ..Default::default()
+    };
+    let mut compressed = BIN_MAGIC.to_vec();
+    brotli::BrotliCompress(&mut raw.as_slice(), &mut compressed, &params)
+        .map_err(|e| e.to_string())?;
+    Ok(compressed)
 }
 fn unpack(bytes: &[u8], artwork: Option<&str>) -> Result<Capsule, String> {
     let mut raw = Vec::new();
-    let reader: Box<dyn Read + '_> = if let Some(data) = bytes.strip_prefix(b"CIMBR001") {
-        Box::new(brotli::Decompressor::new(data, 4096))
-    } else {
-        Box::new(flate2::read::ZlibDecoder::new(bytes))
-    };
+    let (reader, binary): (Box<dyn Read + '_>, bool) =
+        if let Some(data) = bytes.strip_prefix(BIN_MAGIC) {
+            (Box::new(brotli::Decompressor::new(data, 4096)), true)
+        } else if let Some(data) = bytes.strip_prefix(b"CIMBR001") {
+            (Box::new(brotli::Decompressor::new(data, 4096)), false)
+        } else {
+            (Box::new(flate2::read::ZlibDecoder::new(bytes)), false)
+        };
     reader
         .take((MAX_ARCHIVE + 1) as u64)
         .read_to_end(&mut raw)
@@ -162,13 +357,22 @@ fn unpack(bytes: &[u8], artwork: Option<&str>) -> Result<Capsule, String> {
     if raw.len() > MAX_ARCHIVE {
         return Err("Decoded archive exceeds budget".into());
     }
-    let mut stored: StoredCapsule = serde_json::from_slice(&raw).map_err(|_| "Invalid archive")?;
-    if !matches!(stored.version, 1 | 2) {
-        return Err("Unsupported capsule version".into());
-    }
+    let mut stored = if binary {
+        decode_stored(&raw)?
+    } else {
+        let old: LegacyCapsule = serde_json::from_slice(&raw).map_err(|_| "Invalid archive")?;
+        if !matches!(old.version, 1 | 2) || (old.version == 1 && old.svg_sha256.is_some()) {
+            return Err("Unsupported capsule version".into());
+        }
+        StoredCapsule {
+            snapshot: old.snapshot,
+            svg: old.svg,
+            svg_sha256: old.svg_sha256,
+        }
+    };
     let svg = match (stored.svg, stored.svg_sha256) {
         (Some(svg), None) => svg,
-        (None, Some(hash)) if stored.version == 2 => {
+        (None, Some(hash)) => {
             let svg = artwork.ok_or("Source capsule is missing its vector artwork")?;
             if artwork_hash(svg) != hash {
                 return Err("SVG artwork has been altered".into());
@@ -391,7 +595,9 @@ pub fn decode_svg_with_key(svg: &str, key: Option<&MagicKey>) -> Result<Capsule,
     if bytes.starts_with(b"CIMKEY01") && capsule.svg != artwork {
         return Err("Encrypted SVG artwork has been altered".into());
     }
-    Ok(capsule)
+    // Compact scripted artwork is returned as the static drawing it displays.
+    let svg = crate::magic::expand_svg(&capsule.svg)?;
+    Ok(Capsule { svg, ..capsule })
 }
 /// Gzip the complete vector export with a fixed header for reproducible SVGZ.
 pub fn encode_svgz_with_key(capsule: &Capsule, key: Option<&MagicKey>) -> Result<Vec<u8>, String> {

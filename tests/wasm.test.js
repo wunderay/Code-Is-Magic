@@ -66,3 +66,47 @@ for(const palette of ['gold','parchment'])test(`keyed canonical parity and authe
   assert.deepEqual(JSON.parse(recover_image_keyed(smaller,key)).snapshot,recovered.snapshot);
  }finally{rmSync(folder,{recursive:true,force:true});}
 });
+
+test('embedded magic script unfolds every macro like the Rust expander',async()=>{
+ const {pack_magic_svg_keyed}=await import('../web/pkg/code_is_magic.js');
+ for(const [key,palette] of [['','gold'],['03'.repeat(32),'parchment']]){
+  const input=JSON.stringify(demoFiles);
+  const diagram=JSON.parse(transmute_keyed(input,'demo',1,palette,true,true,key));
+  const files=demoFiles.map(file=>({path:file.path,mode:'100644',data:Buffer.from(file.content).toString('base64')}));
+  const capsule=JSON.stringify({version:1,snapshot:{version:1,title:'demo',commit:null,entries:files},svg:diagram.svg});
+  const compact=pack_magic_svg_keyed(capsule,key);
+  assert.ok(compact.includes("data-magic-format='3'"));
+  const shown=JSON.parse(recover_image_keyed(Buffer.from(compact),key)).svg;
+  const script=compact.match(/<script><!\[CDATA\[([\s\S]*?)\]\]><\/script>/)[1];
+  const magic=new Function('document',`${script};return MAGIC`)(undefined);
+  const glyphs={},collars={};
+  for(const [,id,k] of compact.matchAll(/<path id='glyph-(\d+)'[^>]* k='([^']*)'/g))glyphs[id]=k.split(' ').map(Number);
+  for(const [,id,language,repeats] of compact.matchAll(/<g id='(L\d+)' l='([^']*)' n='(\d+)'/g))collars[language]=[id,+repeats];
+  const macros=[...compact.matchAll(/<([BOINY]) d='([^']*)'\/>/g)];
+  // Outermost parameterized subtrees of the Rust drawing, in document order.
+  const subtrees=[];let open=null,depth=0;
+  for(const tag of shown.matchAll(/<(\/?)([A-Za-z]+)([^>]*?)(\/?)>/g)){
+   const [text,closing,,attributes,selfClosing]=tag;
+   if(closing){depth--;if(open&&depth===open.depth){subtrees.push(shown.slice(open.start,tag.index+text.length));open=null;}continue;}
+   if(!open&&/ data-m='/.test(attributes)){if(selfClosing){subtrees.push(text);continue;}open={start:tag.index,depth};}
+   if(!selfClosing)depth++;
+  }
+  assert.equal(subtrees.length,macros.length);
+  const numbers=markup=>markup.replace(/ (data-[\w-]+|href)='[^']*'/g,'').replace(/#[0-9a-f]{6}/gi,'').match(/-?\d*\.?\d+(?:e-?\d+)?/g)?.map(Number)||[];
+  const kinds={};
+  macros.forEach(([,kind,payload],i)=>{
+   kinds[kind]=(kinds[kind]||0)+1;
+   const unfolded=magic[kind](payload,kind==='I'?glyphs:collars);
+   if(kind==='O'){
+    const [,,,,language]=payload.split(' ');
+    assert.equal(unfolded.match(/<circle /g).length,3);
+    assert.equal(unfolded.match(/<use /g).length,collars[language][1]);
+    return;
+   }
+   const js=numbers(unfolded),rust=numbers(subtrees[i]);
+   assert.equal(js.length,rust.length,`${kind} macro ${i} structure`);
+   js.forEach((value,j)=>assert.ok(Math.abs(value-rust[j])<=2e-3+1e-6*Math.abs(value),`${kind} macro ${i} number ${j}: ${value} vs ${rust[j]}`));
+  });
+  for(const kind of 'BOINY')assert.ok(kinds[kind]>0,`no ${kind} macros exercised`);
+ }
+});
