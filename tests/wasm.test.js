@@ -83,6 +83,8 @@ test('embedded magic script unfolds every macro like the Rust expander',async()=
   for(const [,id,k] of compact.matchAll(/<path id='glyph-(\d+)'[^>]* k='([^']*)'/g))glyphs[id]=k.split(' ').map(Number);
   for(const [,id,language,repeats] of compact.matchAll(/<g id='(L\d+)' l='([^']*)' n='(\d+)'/g))collars[language]=[id,+repeats];
   const macros=[...compact.matchAll(/<([BOINY]) d='([^']*)'\/>/g)];
+  const templates={};
+  for(const [,id,body] of compact.matchAll(/<g id='(L\d+)'[^>]*>([\s\S]*?)<\/g>/g))templates[id]=body;
   // Outermost parameterized subtrees of the Rust drawing, in document order.
   const subtrees=[];let open=null,depth=0;
   for(const tag of shown.matchAll(/<(\/?)([A-Za-z]+)([^>]*?)(\/?)>/g)){
@@ -93,14 +95,32 @@ test('embedded magic script unfolds every macro like the Rust expander',async()=
   }
   assert.equal(subtrees.length,macros.length);
   const numbers=markup=>markup.replace(/ (data-[\w-]+|href)='[^']*'/g,'').replace(/#[0-9a-f]{6}/gi,'').match(/-?\d*\.?\d+(?:e-?\d+)?/g)?.map(Number)||[];
+  const close=(a,b)=>a.length===b.length&&a.every((v,j)=>Math.abs(v-b[j])<=2e-3+1e-6*Math.abs(v));
+  // A collar is three rings plus repeats of its language template. Compare the ring
+  // circles, every repeat's translate/rotate/scale, and the template geometry itself.
+  const collarMatches=(js,rust,template)=>{
+   const circles=markup=>(markup.match(/<circle [^>]*>/g)||[]).slice(0,3).flatMap(numbers);
+   const repeats=(markup,pattern)=>[...markup.matchAll(pattern)].map(([,transform])=>numbers(transform));
+   const jsRepeats=repeats(js,/<use [^>]*transform='([^']*)'/g),rustRepeats=repeats(rust,/<g transform='([^']*)' stroke-width='.007'>/g);
+   const rustTemplate=rust.match(/<g transform='[^']*' stroke-width='.007'>([\s\S]*?)<\/g>/)[1];
+   assert.ok(circles(rust).length===12&&rustRepeats.length>0&&numbers(rustTemplate).length>0,'empty collar comparison');
+   return close(circles(js),circles(rust))&&numbers(js.match(/stroke-width='[^']*'/)[0]).join()===numbers(rust.match(/stroke-width='[^']*'/)[0]).join()
+    &&jsRepeats.length===rustRepeats.length&&jsRepeats.every((r,j)=>close(r,rustRepeats[j]))&&close(numbers(template),numbers(rustTemplate));
+  };
   const kinds={};
   macros.forEach(([,kind,payload],i)=>{
    kinds[kind]=(kinds[kind]||0)+1;
    const unfolded=magic[kind](payload,kind==='I'?glyphs:collars);
    if(kind==='O'){
     const [,,,,language]=payload.split(' ');
-    assert.equal(unfolded.match(/<circle /g).length,3);
     assert.equal(unfolded.match(/<use /g).length,collars[language][1]);
+    assert.ok(collarMatches(unfolded,subtrees[i],templates[collars[language][0]]),`O macro ${i} geometry`);
+    // Mutation controls: a changed radius, rotation or position must be caught.
+    const t=payload.split(' ');
+    for(const [index,delta] of [[2,0.05],[3,1],[0,0.05]]){
+     const mutated=[...t];mutated[index]=String(+mutated[index]+delta);
+     assert.ok(!collarMatches(magic.O(mutated.join(' '),collars),subtrees[i],templates[collars[language][0]]),`O mutation ${index} not detected`);
+    }
     return;
    }
    const js=numbers(unfolded),rust=numbers(subtrees[i]);
