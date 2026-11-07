@@ -5,7 +5,7 @@ export class LivingInk {
   constructor() {
     this.base=document.createElement('canvas');this.halo=document.createElement('canvas');
     this.baseContext=this.base.getContext('2d');this.haloContext=this.halo.getContext('2d');
-    this.cache='';this.chanCache='';this.paths=[];this.chan=document.createElement('canvas');this.chanContext=this.chan.getContext('2d');this.colors=new Map();this.ink=null;this.background='#0c1112';
+    this.cache='';this.braidCache='';this.paths=[];this.braidSheet=document.createElement('canvas');this.braidPen=this.braidSheet.getContext('2d');this.colors=new Map();this.ink=null;this.background='#0c1112';
   }
   async prepare(svg,diagram) {
     const doc=new DOMParser().parseFromString(svg,'image/svg+xml');this.paths=[];
@@ -14,8 +14,8 @@ export class LivingInk {
     const first=doc.documentElement.querySelector(':scope > rect');first?.remove();
     // The call braids alone, so the quill can draw them in after the seals they join.
     const braids=doc.documentElement.cloneNode(false);
-    for(const defs of doc.documentElement.querySelectorAll(':scope > defs'))braids.append(defs.cloneNode(true));
-    for(const group of doc.querySelectorAll('[data-channel]'))braids.append(group.cloneNode(true));
+    for(const grimoireDefs of doc.documentElement.querySelectorAll(':scope > defs'))braids.append(grimoireDefs.cloneNode(true));
+    for(const braid of doc.querySelectorAll('[data-channel]'))braids.append(braid.cloneNode(true));
     for(const group of doc.querySelectorAll('[data-channel]')) {
       if(group.getAttribute('data-channel')==='calls') {
         const values=group.querySelector('path')?.getAttribute('d')?.match(/-?\d+(?:\.\d+)?/g)?.map(Number);
@@ -29,11 +29,11 @@ export class LivingInk {
     try {await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(new Error('Could not render luminous ink'));image.src=url;});}
     finally {URL.revokeObjectURL(url);}
     this.ink=image;this.cache='';
-    const braidUrl=URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(braids)],{type:'image/svg+xml'}));
+    const braidScrollUrl=URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(braids)],{type:'image/svg+xml'}));
     const braidImage=new Image();
-    try {await new Promise((resolve,reject)=>{braidImage.onload=resolve;braidImage.onerror=()=>reject(new Error('Could not render the call braids'));braidImage.src=braidUrl;});this.braids=braidImage;}
+    try {await new Promise((resolve,reject)=>{braidImage.onload=resolve;braidImage.onerror=()=>reject(new Error('Could not render the call braids'));braidImage.src=braidScrollUrl;});this.braids=braidImage;}
     catch {this.braids=null;}
-    finally {URL.revokeObjectURL(braidUrl);}
+    finally {URL.revokeObjectURL(braidScrollUrl);}
     this.names=new Map(diagram.analysis.entities.map(e=>[e.id,e.qualified_name]));
     this.seals=new Map(diagram.placements.map(p=>[p.id,p]));
     this.flow=createFlow(diagram.analysis,this.paths,diagram.placements);
@@ -68,12 +68,12 @@ export class LivingInk {
     }
     const light=this.background==='#f0e8d7';
     if(writing&&!writing.done(now)) {
-      if(this.braids&&this.chanCache!==key) {
-        const layer=this.chan,braid=this.chanContext;layer.width=Math.round(width*dpr);layer.height=Math.round(height*dpr);
-        braid.setTransform(dpr,0,0,dpr,0,0);braid.drawImage(this.braids,panX,panY,diagram.width*zoom,diagram.height*zoom);this.chanCache=key;
+      if(this.braids&&this.braidCache!==key) {
+        const sheet=this.braidSheet,pen=this.braidPen;sheet.width=Math.round(width*dpr);sheet.height=Math.round(height*dpr);
+        pen.setTransform(dpr,0,0,dpr,0,0);pen.drawImage(this.braids,panX,panY,diagram.width*zoom,diagram.height*zoom);this.braidCache=key;
       }
       ctx.fillStyle=this.background;ctx.fillRect(0,0,width,height);
-      writing.paint(ctx,this.base,this.braids?this.chan:null,view,now,light);
+      writing.paint(ctx,this.base,this.braids?this.braidSheet:null,view,now,light);
       return;
     }
     ctx.drawImage(this.base,0,0,width,height);
