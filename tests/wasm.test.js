@@ -75,7 +75,7 @@ test('embedded magic script unfolds every macro like the Rust expander',async()=
   const files=demoFiles.map(file=>({path:file.path,mode:'100644',data:Buffer.from(file.content).toString('base64')}));
   const capsule=JSON.stringify({version:1,snapshot:{version:1,title:'demo',commit:null,entries:files},svg:diagram.svg});
   const compact=pack_magic_svg_keyed(capsule,key);
-  assert.ok(compact.includes("data-magic-format='3'"));
+  assert.ok(compact.includes("data-magic-format='4'"));
   const shown=JSON.parse(recover_image_keyed(Buffer.from(compact),key)).svg;
   const script=compact.match(/<script><!\[CDATA\[([\s\S]*?)\]\]><\/script>/)[1];
   const magic=new Function('document',`${script};return MAGIC`)(undefined);

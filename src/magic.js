@@ -1,23 +1,131 @@
-var MAGIC=(function(D){
-var P=Math.PI,T=2*P,f=function(n){return +n.toFixed(3)},q=function(s){return s.split(' ').map(Number)};
-function C(x,y,r,o){return"<circle cx='"+f(x)+"' cy='"+f(y)+"' r='"+f(r)+"' opacity='"+o+"'/>"}
-function Y(x,y,r,n,k,a){for(var p=[],i=0;i<=n;i++){var b=a+i*k%n*T/n;p.push(f(x+r*Math.cos(b))+','+f(y+r*Math.sin(b)))}return"<polyline points='"+p.join(' ')+"'/>"}
-function K(p,t){var u=1-t,o=[0,0],g=[0,0];for(var a=0;a<2;a++){o[a]=u*u*u*p[0][a]+3*u*u*t*p[1][a]+3*u*t*t*p[2][a]+t*t*t*p[3][a];g[a]=3*u*u*(p[1][a]-p[0][a])+6*u*t*(p[2][a]-p[1][a])+3*t*t*(p[3][a]-p[2][a])}var l=Math.max(Math.hypot(g[0],g[1]),1e-4);return[o,[g[0]/l,g[1]/l]]}
-function R(g){return Math.atan2(g[1],g[0])*180/P}
-function B(d){var t=d.split(' '),i=t[0],b=t[1],n=+t[5],m=+t[6],v=t.slice(7).map(Number),p=[[v[0],v[1]],[v[2],v[3]],[v[4],v[5]],[v[6],v[7]]],k=v.slice(8),c='M '+v.slice(0,2).join(' ')+' C '+v.slice(2,4).join(' ')+', '+v.slice(4,6).join(' ')+', '+v.slice(6,8).join(' '),s="<g data-channel='"+t[2]+"' data-from='"+t[3]+"' data-to='"+t[4]+"' fill='none' stroke='"+i+"' stroke-linecap='round' stroke-linejoin='round'><path d='"+c+"' stroke-width='8' opacity='.055'/><path d='"+c+"' stroke-width='.65' stroke-dasharray='1 9' opacity='.42'/>";
-[-1,1].forEach(function(z){var h='';for(var j=0;j<=96;j++){var u=j/96,e=K(p,u),o=z*m*Math.sin(u*n*T)*Math.sqrt(Math.max(Math.sin(P*u),0));h+=(j?'L':'M')+f(e[0][0]-e[1][1]*o)+' '+f(e[0][1]+e[1][0]*o)}s+="<path d='"+h+"' stroke-width='1.05' opacity='.62'/>"});
-k.forEach(function(z,j){var e=K(p,(j+1)/(k.length+1)),a=f(z*.45);s+="<g transform='translate("+f(e[0][0])+' '+f(e[0][1])+') rotate('+f(R(e[1]))+")' fill='"+b+"' stroke-width='.8' opacity='.85'>"+Y(0,0,z,4,1,0)+(j%2?'':C(0,0,z*1.35,.7))+"<path d='M "+-a+' 0 L '+a+' 0 M 0 '+-a+' L 0 '+a+"'/></g>"});
-var e=K(p,0),w=K(p,1);return s+"<g fill='"+b+"' stroke-width='.9'>"+C(e[0][0],e[0][1],4,.75)+C(e[0][0],e[0][1],1.6,.7)+"</g><g transform='translate("+f(w[0][0])+' '+f(w[0][1])+') rotate('+f(R(w[1]))+")' stroke-width='1' opacity='.92'><g fill='"+b+"'>"+C(0,0,6.5,.9)+C(0,0,3.7,.75)+C(0,0,1.6,.9)+'</g></g></g>'}
-function W(d,L){var t=d.split(' '),x=+t[0],y=+t[1],r=+t[2],l=L[t[4]],s="<g stroke-width='"+Math.max(r*.004,.85).toFixed(3)+"'>"+C(x,y,r,.92)+C(x,y,r*.93,.65)+C(x,y,r*.73,.72);for(var i=0;i<l[1];i++)s+="<use href='#"+l[0]+"' transform='translate("+x+' '+y+') rotate('+f(+t[3]+i*360/l[1])+') scale('+r+")'/>";return s+'</g>'}
-function I(d,G){var c=d.split(','),h=q(c[0]),x=h[0],y=h[1],r=h[2],a=h[3],o=h[4],m=r*(a+o)/2,b=r*(o-a),g=b*.81,z=0,u=0,s="<g transform='translate("+x+' '+y+') rotate('+h[6]+")' opacity='.94'>";
-c=c.slice(1).map(function(e,i){e=q(e);var H=.9+e[0]/500,ids=e.slice(2),w=Math.max.apply(0,ids.map(function(id){return G[id][2]/G[id][3]}));z+=Math.min(Math.max(w,.24),1.9)*H*(ids.length>1?.46:1)+.19+(h[5]==2&&i%4==0?.4:0);return[z,H,e[1]/5,ids]});
-var p=0;c.forEach(function(e){var k=(e[0]-p)*T/z,H=Math.min(g*e[1],b*.86),W=Math.min(2*r*a*Math.sin(k/2)*.84,2*Math.sqrt(Math.max((r*o)*(r*o)-(m+H/2)*(m+H/2),0))*.97),l=e[2],n=l*P/180,cs=Math.abs(Math.cos(n)),sn=Math.abs(Math.sin(n)),v=e[3].length>1;p=e[0];s+="<g transform='rotate("+f((u+k/2)*180/P)+') translate(0 '+-f(m)+")'>";
-e[3].forEach(function(id,i){var M=G[id],w=M[2]*cs+M[3]*sn,t=M[3]*cs+M[2]*sn,hh=v?H*.44:H,S=Math.min(W/w,hh/t);s+="<use href='#glyph-"+id+"' transform='translate(0 "+(v?f(H*(i?.27:-.27)):0)+') rotate('+l+') scale('+S+' '+-S+') translate('+-M[0]+' '+-M[1]+")'/>"});s+='</g>';u+=k});return s+'</g>'}
-function N(d){var t=d.split(' '),x=t[1],y=t[2],n=t[4],p=[];for(var i=0;i<n.length;i++){var a=-P/2+i*T/n.length,r=.72+parseInt(n[i],16)*.014;p.push(f(r*Math.cos(a)*1e3)/1e3+','+f(r*Math.sin(a)*1e3)/1e3)}return"<polygon data-name-sigil='1' data-entity='"+t[0]+"' points='"+p.join(' ')+"' transform='translate("+x+' '+y+') scale('+t[3]*.52+")' stroke-width='.007' opacity='.65' stroke-linejoin='round'/>"}
-function Z(d){var t=q(d),p=[];for(var i=0;i<=t[3];i++){var b=t[5]+i*t[4]%t[3]*T/t[3];p.push((t[0]+t[2]*Math.cos(b)).toFixed(5)+','+(t[1]+t[2]*Math.sin(b)).toFixed(5))}return"<polyline points='"+p.join(' ')+"'/>"}
-var X={B:B,W:W,I:I,N:N,Y:Z};
-if(D){var G={},L={},h='';D.querySelectorAll('defs>path[k]').forEach(function(p){G[p.id.slice(6)]=q(p.getAttribute('k'))});D.querySelectorAll('defs>g[l]').forEach(function(g){L[g.getAttribute('l')]=[g.id,+g.getAttribute('n')]});
-var M=[].slice.call(D.querySelectorAll('B,W,I,N,Y'));M.forEach(function(m){h+='<g>'+X[m.localName](m.getAttribute('d'),m.localName=='I'?G:L)+'</g>'});
-var g=new DOMParser().parseFromString("<svg xmlns='http://www.w3.org/2000/svg'>"+h+'</svg>','image/svg+xml').documentElement.children;
-M.forEach(function(m,i){var e=D.importNode(g[i],true);m.parentNode.replaceChild(e,m)})}
-return X})(typeof document=='object'&&document);
+var MAGIC = (function (tome) {
+  var halfTurn = Math.PI, fullTurn = 2 * Math.PI;
+  function etch(quantity) { return +quantity.toFixed(3); }
+  function divine(incantation) { return incantation.split(' ').map(Number); }
+
+  function orb(cx, cy, radius, glow) {
+    return "<circle cx='" + etch(cx) + "' cy='" + etch(cy) + "' r='" + etch(radius) + "' opacity='" + glow + "'/>";
+  }
+  function star(cx, cy, radius, points, stride, turning) {
+    for (var vertices = [], vertex = 0; vertex <= points; vertex++) {
+      var bearing = turning + vertex * stride % points * fullTurn / points;
+      vertices.push(etch(cx + radius * Math.cos(bearing)) + ',' + etch(cy + radius * Math.sin(bearing)));
+    }
+    return "<polyline points='" + vertices.join(' ') + "'/>";
+  }
+  // A point on the cubic ley line and its unit heading at moment `fate` (0..1).
+  function scry(anchors, fate) {
+    var ebb = 1 - fate, place = [0, 0], heading = [0, 0];
+    for (var axis = 0; axis < 2; axis++) {
+      place[axis] = ebb * ebb * ebb * anchors[0][axis] + 3 * ebb * ebb * fate * anchors[1][axis] + 3 * ebb * fate * fate * anchors[2][axis] + fate * fate * fate * anchors[3][axis];
+      heading[axis] = 3 * ebb * ebb * (anchors[1][axis] - anchors[0][axis]) + 6 * ebb * fate * (anchors[2][axis] - anchors[1][axis]) + 3 * fate * fate * (anchors[3][axis] - anchors[2][axis]);
+    }
+    var reach = Math.max(Math.hypot(heading[0], heading[1]), 1e-4);
+    return [place, [heading[0] / reach, heading[1] / reach]];
+  }
+  function compass(heading) { return Math.atan2(heading[1], heading[0]) * 180 / halfTurn; }
+
+  // B: a braided invocation channel.
+  function weaveBraid(spell) {
+    var words = spell.split(' '), ink = words[0], parchment = words[1], turns = +words[5], sway = +words[6];
+    var numbers = words.slice(7).map(Number);
+    var anchors = [[numbers[0], numbers[1]], [numbers[2], numbers[3]], [numbers[4], numbers[5]], [numbers[6], numbers[7]]];
+    var knotSizes = numbers.slice(8);
+    var leyLine = 'M ' + numbers.slice(0, 2).join(' ') + ' C ' + numbers.slice(2, 4).join(' ') + ', ' + numbers.slice(4, 6).join(' ') + ', ' + numbers.slice(6, 8).join(' ');
+    var scroll = "<g data-channel='" + words[2] + "' data-from='" + words[3] + "' data-to='" + words[4] + "' fill='none' stroke='" + ink + "' stroke-linecap='round' stroke-linejoin='round'><path d='" + leyLine + "' stroke-width='8' opacity='.055'/><path d='" + leyLine + "' stroke-width='.65' stroke-dasharray='1 9' opacity='.42'/>";
+    [-1, 1].forEach(function (strand) {
+      var trail = '';
+      for (var step = 0; step <= 96; step++) {
+        var fate = step / 96, omen = scry(anchors, fate);
+        var drift = strand * sway * Math.sin(fate * turns * fullTurn) * Math.sqrt(Math.max(Math.sin(halfTurn * fate), 0));
+        trail += (step ? 'L' : 'M') + etch(omen[0][0] - omen[1][1] * drift) + ' ' + etch(omen[0][1] + omen[1][0] * drift);
+      }
+      scroll += "<path d='" + trail + "' stroke-width='1.05' opacity='.62'/>";
+    });
+    knotSizes.forEach(function (knot, nthKnot) {
+      var omen = scry(anchors, (nthKnot + 1) / (knotSizes.length + 1)), cross = etch(knot * .45);
+      scroll += "<g transform='translate(" + etch(omen[0][0]) + ' ' + etch(omen[0][1]) + ') rotate(' + etch(compass(omen[1])) + ")' fill='" + parchment + "' stroke-width='.8' opacity='.85'>" + star(0, 0, knot, 4, 1, 0) + (nthKnot % 2 ? '' : orb(0, 0, knot * 1.35, .7)) + "<path d='M " + -cross + ' 0 L ' + cross + ' 0 M 0 ' + -cross + ' L 0 ' + cross + "'/></g>";
+    });
+    var wellspring = scry(anchors, 0), sanctum = scry(anchors, 1);
+    return scroll + "<g fill='" + parchment + "' stroke-width='.9'>" + orb(wellspring[0][0], wellspring[0][1], 4, .75) + orb(wellspring[0][0], wellspring[0][1], 1.6, .7) +
+      "</g><g transform='translate(" + etch(sanctum[0][0]) + ' ' + etch(sanctum[0][1]) + ') rotate(' + etch(compass(sanctum[1])) + ")' stroke-width='1' opacity='.92'><g fill='" + parchment + "'>" +
+      orb(0, 0, 6.5, .9) + orb(0, 0, 3.7, .75) + orb(0, 0, 1.6, .9) + '</g></g></g>';
+  }
+
+  // W: a ward ring, its three circles and its language's repeated runes.
+  function raiseWardRing(spell, wardRunes) {
+    var words = spell.split(' '), cx = +words[0], cy = +words[1], radius = +words[2], runes = wardRunes[words[4]];
+    var scroll = "<g stroke-width='" + Math.max(radius * .004, .85).toFixed(3) + "'>" + orb(cx, cy, radius, .92) + orb(cx, cy, radius * .93, .65) + orb(cx, cy, radius * .73, .72);
+    for (var repetition = 0; repetition < runes[1]; repetition++) {
+      scroll += "<use href='#" + runes[0] + "' transform='translate(" + cx + ' ' + cy + ') rotate(' + etch(+words[3] + repetition * 360 / runes[1]) + ') scale(' + radius + ")'/>";
+    }
+    return scroll + '</g>';
+  }
+
+  // I: an inscription band; each rune cell's weight follows from its glyph proportions.
+  function inscribeBand(spell, glyphAtlas) {
+    var verses = spell.split(','), circle = divine(verses[0]);
+    var cx = circle[0], cy = circle[1], radius = circle[2], inner = circle[3], outer = circle[4];
+    var middle = radius * (inner + outer) / 2, bandHeight = radius * (outer - inner), targetHeight = bandHeight * .81;
+    var totalWeight = 0, arcWalked = 0;
+    var scroll = "<g transform='translate(" + cx + ' ' + cy + ') rotate(' + circle[6] + ")' opacity='.94'>";
+    var runeCells = verses.slice(1).map(function (verse, nthCell) {
+      var rune = divine(verse), stature = .9 + rune[0] / 500, glyphIds = rune.slice(2);
+      var breadth = Math.max.apply(0, glyphIds.map(function (glyphId) { return glyphAtlas[glyphId][2] / glyphAtlas[glyphId][3]; }));
+      totalWeight += Math.min(Math.max(breadth, .24), 1.9) * stature * (glyphIds.length > 1 ? .46 : 1) + .19 + (circle[5] == 2 && nthCell % 4 == 0 ? .4 : 0);
+      return [totalWeight, stature, rune[1] / 5, glyphIds];
+    });
+    var weightBefore = 0;
+    runeCells.forEach(function (runeCell) {
+      var sector = (runeCell[0] - weightBefore) * fullTurn / totalWeight;
+      var height = Math.min(targetHeight * runeCell[1], bandHeight * .86);
+      var width = Math.min(2 * radius * inner * Math.sin(sector / 2) * .84, 2 * Math.sqrt(Math.max((radius * outer) * (radius * outer) - (middle + height / 2) * (middle + height / 2), 0)) * .97);
+      var lean = runeCell[2], leanTurn = lean * halfTurn / 180, cosine = Math.abs(Math.cos(leanTurn)), sine = Math.abs(Math.sin(leanTurn)), twinned = runeCell[3].length > 1;
+      weightBefore = runeCell[0];
+      scroll += "<g transform='rotate(" + etch((arcWalked + sector / 2) * 180 / halfTurn) + ') translate(0 ' + -etch(middle) + ")'>";
+      runeCell[3].forEach(function (glyphId, nthGlyph) {
+        var measure = glyphAtlas[glyphId], leaningWidth = measure[2] * cosine + measure[3] * sine, leaningHeight = measure[3] * cosine + measure[2] * sine;
+        var glyphHeight = twinned ? height * .44 : height, enchantment = Math.min(width / leaningWidth, glyphHeight / leaningHeight);
+        scroll += "<use href='#glyph-" + glyphId + "' transform='translate(0 " + (twinned ? etch(height * (nthGlyph ? .27 : -.27)) : 0) + ') rotate(' + lean + ') scale(' + enchantment + ' ' + -enchantment + ') translate(' + -measure[0] + ' ' + -measure[1] + ")'/>";
+      });
+      scroll += '</g>';
+      arcWalked += sector;
+    });
+    return scroll + '</g>';
+  }
+
+  // N: a reversible name contour, one radial vertex per nibble.
+  function traceNameSigil(spell) {
+    var words = spell.split(' '), nibbles = words[4], vertices = [];
+    for (var nthNibble = 0; nthNibble < nibbles.length; nthNibble++) {
+      var bearing = -halfTurn / 2 + nthNibble * fullTurn / nibbles.length, reach = .72 + parseInt(nibbles[nthNibble], 16) * .014;
+      vertices.push(etch(reach * Math.cos(bearing) * 1e3) / 1e3 + ',' + etch(reach * Math.sin(bearing) * 1e3) / 1e3);
+    }
+    return "<polygon data-name-sigil='1' data-entity='" + words[0] + "' points='" + vertices.join(' ') + "' transform='translate(" + words[1] + ' ' + words[2] + ') scale(' + words[3] * .52 + ")' stroke-width='.007' opacity='.65' stroke-linejoin='round'/>";
+  }
+
+  // Y: a regular star polygon.
+  function drawStar(spell) {
+    var words = divine(spell), vertices = [];
+    for (var vertex = 0; vertex <= words[3]; vertex++) {
+      var bearing = words[5] + vertex * words[4] % words[3] * fullTurn / words[3];
+      vertices.push((words[0] + words[2] * Math.cos(bearing)).toFixed(5) + ',' + (words[1] + words[2] * Math.sin(bearing)).toFixed(5));
+    }
+    return "<polyline points='" + vertices.join(' ') + "'/>";
+  }
+
+  // Keys are the macro element names written into compact magic SVG.
+  var spellbook = { B: weaveBraid, W: raiseWardRing, I: inscribeBand, N: traceNameSigil, Y: drawStar };
+  if (tome) {
+    var glyphAtlas = {}, wardRunes = {}, unfolding = '';
+    tome.querySelectorAll('defs>path[k]').forEach(function (glyphPath) { glyphAtlas[glyphPath.id.slice(6)] = divine(glyphPath.getAttribute('k')); });
+    tome.querySelectorAll('defs>g[l]').forEach(function (runeTemplate) { wardRunes[runeTemplate.getAttribute('l')] = [runeTemplate.id, +runeTemplate.getAttribute('n')]; });
+    var sealedSpells = [].slice.call(tome.querySelectorAll('B,W,I,N,Y'));
+    sealedSpells.forEach(function (sealed) {
+      unfolding += '<g>' + spellbook[sealed.localName](sealed.getAttribute('d'), sealed.localName == 'I' ? glyphAtlas : wardRunes) + '</g>';
+    });
+    var revealed = new DOMParser().parseFromString("<svg xmlns='http://www.w3.org/2000/svg'>" + unfolding + '</svg>', 'image/svg+xml').documentElement.children;
+    sealedSpells.forEach(function (sealed, nthSpell) { sealed.parentNode.replaceChild(tome.importNode(revealed[nthSpell], true), sealed); });
+  }
+  return spellbook;
+})(typeof document == 'object' && document);
