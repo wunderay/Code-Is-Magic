@@ -5,13 +5,17 @@ export class LivingInk {
   constructor() {
     this.base=document.createElement('canvas');this.halo=document.createElement('canvas');
     this.baseContext=this.base.getContext('2d');this.haloContext=this.halo.getContext('2d');
-    this.cache='';this.paths=[];this.colors=new Map();this.ink=null;this.background='#0c1112';
+    this.cache='';this.chanCache='';this.paths=[];this.chan=document.createElement('canvas');this.chanContext=this.chan.getContext('2d');this.colors=new Map();this.ink=null;this.background='#0c1112';
   }
   async prepare(svg,diagram) {
     const doc=new DOMParser().parseFromString(svg,'image/svg+xml');this.paths=[];
     for(const entity of doc.querySelectorAll('[id^=entity-]'))this.colors.set(Number(entity.id.slice(7)),entity.querySelector('[stroke]')?.getAttribute('stroke')||'#d8be87');
     this.background=doc.querySelector('rect')?.getAttribute('fill')||'#0c1112';
     const first=doc.documentElement.querySelector(':scope > rect');first?.remove();
+    // The call braids alone, so the quill can draw them in after the seals they join.
+    const braids=doc.documentElement.cloneNode(false);
+    for(const defs of doc.documentElement.querySelectorAll(':scope > defs'))braids.append(defs.cloneNode(true));
+    for(const group of doc.querySelectorAll('[data-channel]'))braids.append(group.cloneNode(true));
     for(const group of doc.querySelectorAll('[data-channel]')) {
       if(group.getAttribute('data-channel')==='calls') {
         const values=group.querySelector('path')?.getAttribute('d')?.match(/-?\d+(?:\.\d+)?/g)?.map(Number);
@@ -25,6 +29,11 @@ export class LivingInk {
     try {await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(new Error('Could not render luminous ink'));image.src=url;});}
     finally {URL.revokeObjectURL(url);}
     this.ink=image;this.cache='';
+    const braidUrl=URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(braids)],{type:'image/svg+xml'}));
+    const braidImage=new Image();
+    try {await new Promise((resolve,reject)=>{braidImage.onload=resolve;braidImage.onerror=()=>reject(new Error('Could not render the call braids'));braidImage.src=braidUrl;});this.braids=braidImage;}
+    catch {this.braids=null;}
+    finally {URL.revokeObjectURL(braidUrl);}
     this.names=new Map(diagram.analysis.entities.map(e=>[e.id,e.qualified_name]));
     this.seals=new Map(diagram.placements.map(p=>[p.id,p]));
     this.flow=createFlow(diagram.analysis,this.paths,diagram.placements);
@@ -34,7 +43,7 @@ export class LivingInk {
     for(const path of this.paths)for(const point of path.samples)include(point.x,point.y,8);
     this.bounds=Number.isFinite(bounds.left)?bounds:{left:0,top:0,right:diagram.width,bottom:diagram.height};
   }
-  paint(ctx,image,diagram,view,time,{glow,motion}) {
+  paint(ctx,image,diagram,view,time,{glow,motion,writing=null,now=performance.now(),awaken=1}) {
     const {width,height,dpr,panX,panY,zoom}=view;
     if(Math.round(width*dpr)<1||Math.round(height*dpr)<1)return;
     const key=[width,height,dpr,panX,panY,zoom].join(':');
@@ -57,11 +66,20 @@ export class LivingInk {
       }
       this.cache=key;
     }
-    ctx.drawImage(this.base,0,0,width,height);
     const light=this.background==='#f0e8d7';
+    if(writing&&!writing.done(now)) {
+      if(this.braids&&this.chanCache!==key) {
+        const layer=this.chan,braid=this.chanContext;layer.width=Math.round(width*dpr);layer.height=Math.round(height*dpr);
+        braid.setTransform(dpr,0,0,dpr,0,0);braid.drawImage(this.braids,panX,panY,diagram.width*zoom,diagram.height*zoom);this.chanCache=key;
+      }
+      ctx.fillStyle=this.background;ctx.fillRect(0,0,width,height);
+      writing.paint(ctx,this.base,this.braids?this.chan:null,view,now,light);
+      return;
+    }
+    ctx.drawImage(this.base,0,0,width,height);
     if(glow) {
       ctx.save();ctx.globalCompositeOperation=light?'multiply':'screen';
-      ctx.globalAlpha=light ? .18 : .20;
+      ctx.globalAlpha=(light ? .18 : .20)*awaken;
       ctx.drawImage(this.halo,0,0,width,height);ctx.restore();
     }
     if(!motion)return;
