@@ -96,7 +96,7 @@ function draw(time=performance.now()-animationEpoch) {
 function followPen(now,view){
   if(!penFollowing||!image)return;
   const hourglassSeconds=Math.min(.1,Math.max(0,(now-lastPenGlide)/1000));lastPenGlide=now;
-  const fitted=fittedView(view),seal=penFollowing==='following'&&quill&&Number.isFinite(quill.begin)&&quill.current(now);
+  const fitted=fittedView(view),seal=penFollowing==='following'&&quill&&Number.isFinite(quill.begin)&&quill.current(now,{panX,panY,zoom,width:view.width,height:view.height});
   const aim=penFollowing==='homing'?fitted:seal&&followingView(seal,fitted,view);
   if(!aim)return;
   const glidedZoom=glide(Math.log(zoom),penVelocity.zoom,Math.log(aim.zoom),hourglassSeconds,penGlideSeconds),glidedX=glide(panX,penVelocity.panX,aim.panX,hourglassSeconds,penGlideSeconds),glidedY=glide(panY,penVelocity.panY,aim.panY,hourglassSeconds,penGlideSeconds);

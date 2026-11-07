@@ -117,20 +117,27 @@ export class Quill {
   done(now) { return this.finished || this.elapsed(now) >= this.plan.total; }
   finish() { this.finished = true; }
   // How much of the scroll lies open, from 0 (rolled shut) to 1 (open to its rods).
-  // Given the current view ({ panX, panY, zoom, width, height }) it also bares the seals being written.
+  // Given the current view ({ panX, panY, zoom, width, height }) it also bares the seal the pen is writing.
   unrolled(now, view = null) {
     // A quick rewrite after a settings change writes on the scroll as it already lies open.
     if (this.finished || this.fast) return 1;
-    const hourglass = this.elapsed(now), pace = (hourglass + unrollingLead) / Math.max(1, this.plan.span), reaches = [];
-    if (view) for (const inscription of this.plan.seals.values()) if (hourglass >= inscription.start && hourglass < inscription.start + inscription.duration) reaches.push(screenReach(inscription.seal, { ...view, axis: this.axis }));
+    const pace = (this.elapsed(now) + unrollingLead) / Math.max(1, this.plan.span), penSeal = view && this.current(now, view);
+    const reaches = penSeal ? [screenReach(penSeal, { ...view, axis: this.axis })] : [];
     return this.opening = this.done(now) ? 1 : unrollingOpening(pace, reaches, this.opening);
   }
-  // The seal most lately begun, which the view follows; null before the first stroke.
-  current(now) {
-    const hourglass = this.elapsed(now);
-    let newest = null;
-    for (const inscription of this.plan.seals.values()) if (hourglass >= inscription.start && (!newest || inscription.start >= newest.start)) newest = inscription;
-    return newest && newest.seal;
+  // The seal the pen is writing, which the view follows: of those under the pen, the one nearest the
+  // view's centre (so the pen does not leap between far sides); else the one most lately begun; null before the first stroke.
+  current(now, view = null) {
+    const hourglass = this.elapsed(now), centreX = view ? (view.width / 2 - view.panX) / view.zoom : 0, centreY = view ? (view.height / 2 - view.panY) / view.zoom : 0;
+    let newest = null, nearest = null, nearness = Infinity;
+    for (const inscription of this.plan.seals.values()) {
+      if (hourglass < inscription.start) continue;
+      if (!newest || inscription.start >= newest.start) newest = inscription;
+      const distance = view ? Math.hypot(inscription.seal.x - centreX, inscription.seal.y - centreY) : -inscription.start;
+      if (hourglass < inscription.start + inscription.duration && distance < nearness) { nearest = inscription; nearness = distance; }
+    }
+    const penning = nearest || newest;
+    return penning && penning.seal;
   }
   // Number of seals fully inscribed, for the readout.
   written(now) {
