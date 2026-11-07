@@ -61,6 +61,15 @@ export function unrollingReach(seal, { axis, heart, halfReach }) {
   return bind((Math.abs(offset) + (seal.radius || 0) * 1.22) / Math.max(1, halfReach), 0, 1);
 }
 
+// What the animation loop should do for a quill at this moment:
+// 'idle' with no quill, 'rest' while an unstarted quill waits for enough of the scroll to be seen
+// (nothing on the page changes, so no frame is requested), 'begin' as it comes into view, else 'write'.
+export function quillCadence(quill, glimpse, { fullView, fast = false } = {}) {
+  if (!quill) return 'idle';
+  if (Number.isFinite(quill.begin)) return 'write';
+  return glimpse > fullView * (fast ? 0.05 : 0.4) ? 'begin' : 'rest';
+}
+
 // The parchment unrolls just ahead of the pen, at an even pace.
 const unrollingLead = 260;
 

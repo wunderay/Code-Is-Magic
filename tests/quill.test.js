@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {sampleCurve,createFlow} from '../web/flow.js';
-import {writingOrder,writingPlan,unrollingReach} from '../web/quill.js';
+import {writingOrder,writingPlan,unrollingReach,quillCadence} from '../web/quill.js';
 const entities=[{id:0,name:'main',tokens:['zeta','(',')','alpha','(',')']},{id:1,name:'alpha',tokens:[]},{id:2,name:'zeta',tokens:['alpha','(']},{id:3,name:'lonely',tokens:[]}];
 const placements=entities.map((spell,nthSpell)=>({id:spell.id,x:nthSpell*100,y:0,radius:20+nthSpell*5}));
 const channel=(from,to)=>({from,to,...sampleCurve([0,0,15,60,85,-40,100,10])});
@@ -36,4 +36,16 @@ test('on a scroll, seals wait for the parchment to unroll past them, from its he
   assert.equal(unrollingReach({x:150,y:0,radius:0},scroll),0);
   assert.equal(unrollingReach({x:9999,y:0,radius:10},scroll),1);
   assert.equal(unrollingReach({x:150,y:120,radius:0},{...scroll,axis:'down'}),.6);
+});
+test('an unstarted quill below its sight threshold requests no frames at all',()=>{
+  const waitingQuill={begin:Infinity,fast:false};
+  // The review's probe: a 650px scroll at top=700 in an 800px window shows 100px, under 40% of 650px.
+  const glimpse=Math.min(700+650,800)-Math.max(700,0),fullView=Math.min(650,800);
+  let framesRequested=0;
+  for(let nthFrame=0;nthFrame<600;nthFrame++)if(quillCadence(waitingQuill,glimpse,{fullView})!=='rest')framesRequested++;
+  assert.equal(framesRequested,0);
+  assert.equal(quillCadence(waitingQuill,300,{fullView}),'begin');
+  assert.equal(quillCadence({begin:Infinity,fast:true},40,{fullView,fast:true}),'begin');
+  assert.equal(quillCadence({begin:12,fast:false},0,{fullView}),'write');
+  assert.equal(quillCadence(null,0,{fullView}),'idle');
 });

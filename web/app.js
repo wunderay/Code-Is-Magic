@@ -2,7 +2,7 @@ import { readRepository, sourceFiles, encodeBytes } from './repository.js';
 import { classifyInput, droppedLink, droppedFiles, fetchMagic, INPUT_HELP } from './input.js';
 import { languageColors } from './languages.js';
 import { LivingInk } from './effects.js';
-import { Quill } from './quill.js';
+import { Quill, quillCadence } from './quill.js';
 import { validateSvg } from './svg.js';
 const $ = id => document.getElementById(id);
 let livingInk=new LivingInk();
@@ -327,8 +327,11 @@ function scheduleAnimation(){
   const bounds=viewport.getBoundingClientRect();
   previewVisible=bounds.width>0&&bounds.height>0&&bounds.bottom>0&&bounds.top<innerHeight&&bounds.right>0&&bounds.left<innerWidth;
   if(!previewVisible){canvas.dataset.motion='paused';return;}
-  // Begin writing once a fair part of the page can be seen.
-  if(quill&&!Number.isFinite(quill.begin)&&Math.min(bounds.bottom,innerHeight)-Math.max(bounds.top,0)>Math.min(bounds.height,innerHeight)*(quill.fast?.05:.4))quill.begin=performance.now();
+  // Begin writing once a fair part of the scroll can be seen. Until then the waiting page never
+  // changes, so no frame is queued; scrolling, resizing or the sight watcher below wakes the loop.
+  const cadence=quillCadence(quill,Math.min(bounds.bottom,innerHeight)-Math.max(bounds.top,0),{fullView:Math.min(bounds.height,innerHeight),fast:quill?.fast});
+  if(cadence==='rest'){canvas.dataset.motion='paused';return;}
+  if(cadence==='begin')quill.begin=performance.now();
   canvas.dataset.motion='running';
   animationFrame=requestAnimationFrame(timestamp=>{
     animationFrame=null;
@@ -346,6 +349,8 @@ $('glow-toggle').onclick=()=>{glowing=!glowing;displayOptions();};
 $('motion-toggle').onclick=()=>{moving=!moving;displayOptions();};
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&animationFrame!==null){cancelAnimationFrame(animationFrame);animationFrame=null;}else scheduleAnimation();});
 window.addEventListener('scroll',scheduleAnimation,{passive:true});
+// Wakes the loop when the scroll comes into view without a scroll event, e.g. after the layout shifts.
+if('IntersectionObserver' in window)new IntersectionObserver(scheduleAnimation,{threshold:[0,.05,.1,.2,.3,.4,.5,.6,.8,1]}).observe(viewport);
 window.addEventListener('resize',scheduleAnimation,{passive:true});
 reducedMotion.addEventListener('change',event=>{if(event.matches){finishWriting();moving=false;displayOptions();}});
 $('quill-skip').onclick=()=>{finishWriting();viewport.focus();};
