@@ -25,9 +25,9 @@
   --glow:#a0763a38;--sheen:#a2723a;--nebula:#c9a46a26;--nebula2:#9a5a3a12;
 }
 *{box-sizing:border-box}
-html{overflow-x:clip}
+html{overflow-x:hidden;overflow-x:clip}
 body {
-  margin:0;color:var(--text);background:var(--bg);overflow-x:clip;
+  margin:0;color:var(--text);background:var(--bg);overflow-x:hidden;overflow-x:clip;
   background-image:radial-gradient(ellipse 70% 50% at 50% -8%,#ffcf8a0d,transparent 70%),radial-gradient(ellipse 60% 45% at 8% 4%,var(--nebula),transparent 70%),radial-gradient(ellipse 50% 40% at 96% 58%,var(--nebula2),transparent 70%);
   font:15px/1.6 var(--serif);
 }
@@ -124,14 +124,18 @@ input::placeholder{color:var(--muted);opacity:.85}
 .grimoire-scroll{--rod-breadth:30px;--rod-overhang:9px;--unroll:.04;position:relative;width:fit-content;max-width:100%;margin:6px auto 4px;
   display:flex;justify-content:center;padding:34px calc(var(--rod-breadth) / 2);
   --roll-light:#fbf3df;--roll-mid:#dccba6;--roll-dark:#7f6644;--brass-light:#fff1c4;--brass:#c99a48;--brass-dark:#4a300d}
-.grimoire-scroll:has(#viewport[data-ink=dark]){--roll-light:#4a4236;--roll-mid:#1d1914;--roll-dark:#050403}
+/* The rods follow the viewport in the markup so a sibling selector, not :has(), can darken them. */
+#viewport[data-ink=dark]~.scroll-rod{--roll-light:#4a4236;--roll-mid:#1d1914;--roll-dark:#050403}
 /* The shadow the open parchment casts on the desk, following the rods. */
 .grimoire-scroll:before{content:'';position:absolute;z-index:0;pointer-events:none;top:34px;bottom:34px;
   left:calc(var(--rod-breadth) / 2 + (1 - var(--unroll)) * (50% - var(--rod-breadth) / 2));right:calc(var(--rod-breadth) / 2 + (1 - var(--unroll)) * (50% - var(--rod-breadth) / 2));
   box-shadow:0 26px 44px -20px var(--shadow),0 3px 10px -3px var(--shadow)}
 #viewport{position:relative;z-index:1;flex:none;width:min(100%,900px);height:620px;background:#0c1112;overflow:hidden;cursor:grab;touch-action:none;
   clip-path:inset(0 calc((1 - var(--unroll)) * 50%));
-  -webkit-mask:var(--deckle) center/100% 100% no-repeat;mask:var(--deckle) center/100% 100% no-repeat}
+}
+@supports ((-webkit-mask-image:none) or (mask-image:none)){
+  #viewport{-webkit-mask-image:var(--deckle);mask-image:var(--deckle);-webkit-mask-position:center;mask-position:center;-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
+}
 #viewport[data-ink=light]{background:#f0e8d7}
 #viewport:active{cursor:grabbing}canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
 /* The rolls: parchment wound on a turned rod, with brass finials at either end. */
@@ -276,7 +280,9 @@ footer{display:flex;justify-content:space-between;gap:20px;border-top:1px solid 
 }
 @keyframes enchant-shimmer{0%,55%{background-position:120% 0,0 0}100%{background-position:-20% 0,0 0}}
 button:not(:disabled):hover,.button:hover{box-shadow:0 0 0 1px var(--glow),0 0 16px -2px var(--glow)}
-button:focus-visible,.button:focus-within:has(:focus-visible){box-shadow:0 0 0 4px var(--bg),0 0 0 5px var(--gold),0 0 20px 2px var(--glow)}
+button:focus-visible{box-shadow:0 0 0 4px var(--bg),0 0 0 5px var(--gold),0 0 20px 2px var(--glow)}
+@supports selector(:has(*)){.button:focus-within:has(:focus-visible){box-shadow:0 0 0 4px var(--bg),0 0 0 5px var(--gold),0 0 20px 2px var(--glow)}}
+@supports not selector(:has(*)){.button:focus-within{box-shadow:0 0 0 4px var(--bg),0 0 0 5px var(--gold),0 0 20px 2px var(--glow)}}
 .masthead nav button:hover,.source-actions button:hover,.source-actions .button:hover,.text-button:hover,.entity-list button:hover{box-shadow:none;text-shadow:0 0 12px var(--glow)}
 .brand-seal{transition:filter .4s,transform .8s cubic-bezier(.3,.7,.2,1)}
 .brand:hover .brand-seal,.brand:focus-visible .brand-seal{filter:drop-shadow(0 0 6px var(--glow));transform:rotate(60deg)}

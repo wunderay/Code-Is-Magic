@@ -53,7 +53,7 @@ export class LivingInk {
       base.setTransform(dpr,0,0,dpr,0,0);base.fillStyle=this.background;base.fillRect(0,0,width,height);
       base.drawImage(image,panX,panY,diagram.width*zoom,diagram.height*zoom);
       halo.setTransform(dpr,0,0,dpr,0,0);halo.filter='blur(3px)';
-      if(this.ink)halo.drawImage(this.ink,panX,panY,diagram.width*zoom,diagram.height*zoom);
+      if(this.ink&&halo.filter==='blur(3px)')halo.drawImage(this.ink,panX,panY,diagram.width*zoom,diagram.height*zoom);
       halo.filter='none';
       for(const seal of diagram.placements){
         const x=panX+seal.x*zoom,y=panY+seal.y*zoom,r=seal.radius*zoom;
