@@ -9,4 +9,4 @@ if ! command -v wasm-bindgen >/dev/null || [[ $(wasm-bindgen --version) != "wasm
   cargo install wasm-bindgen-cli --version "$version" --locked
 fi
 cargo build --locked --release --target wasm32-unknown-unknown --lib --no-default-features
-wasm-bindgen --target web --out-dir web/pkg --no-typescript target/wasm32-unknown-unknown/release/code_is_magic.wasm
+wasm-bindgen --target web --out-dir web/pkg --no-typescript "${CARGO_TARGET_DIR:-target}/wasm32-unknown-unknown/release/code_is_magic.wasm"
