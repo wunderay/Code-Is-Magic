@@ -35,7 +35,7 @@ with tempfile.TemporaryDirectory(prefix='magic-inscriptions-') as temp:
         subprocess.run(command, env=env, check=True, capture_output=True)
         assert output.read_bytes() == encoded
         compact = gzip.decompress(encoded).decode()
-        assert "data-magic-format='3'" in compact and '<script>' in compact
+        assert "data-magic-format='4'" in compact and '<script>' in compact
         static = temp / 'static.svg'
         subprocess.run([str(binary), '--expand', str(output), '--output', str(static)], check=True, capture_output=True)
         svg = static.read_text()

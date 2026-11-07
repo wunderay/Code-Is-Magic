@@ -25,6 +25,6 @@ int main(void) {
     fputs("\"type_keyword\":\"type\",\"type_kinds\":{\"struct\":\"struct\",\"interface\":\"interface\"},\"type_default_kind\":\"struct\",\"object_keywords\":[\"const\",\"let\",\"var\"],\"receiver_keyword\":\"func\",\"required_function_keyword\":\"\",\"arrow_token\":\"=>\",\"controls\":",stdout);
     strings(controls,sizeof(controls)/sizeof(controls[0]));
     fputs(",\"reject_function_prefixes\":",stdout);strings(prefixes,sizeof(prefixes)/sizeof(prefixes[0]));
-    fputs(",\"member_operators\":[\".\",\"::\"],\"self_qualifiers\":[\"self\",\"this\",\"Self\"],\"merge_containers\":[\"impl\"],\"sigil\":\"⚙\",\"repeats\":12,\"collar\":[{\"op\":\"path\",\"data\":\"M -.03 -.94 L -.03 -.983 L .03 -.983 L .03 -.94\"}]}\n",stdout);
+    fputs(",\"member_operators\":[\".\",\"::\"],\"self_qualifiers\":[\"self\",\"this\",\"Self\"],\"merge_containers\":[\"impl\"],\"sigil\":\"⚙\",\"repeats\":12,\"ward_ring\":[{\"op\":\"path\",\"data\":\"M -.03 -.94 L -.03 -.983 L .03 -.983 L .03 -.94\"}]}\n",stdout);
     return 0;
 }

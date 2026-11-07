@@ -338,8 +338,8 @@ fn design(s: &mut String, e: &Entity, x: f64, y: f64, r: f64, large: bool, key: 
     let seed = entity_seed(e, key);
     let rotation = (seed % 360) as f64 * PI / 180.;
     let mut ink = Entropy(seed.wrapping_add(71));
-    // A calm circular collar contrasts with the wilder name-derived center.
-    crate::magic::write_ring(s, x, y, r, seed % 360, profile_for_language(&e.language));
+    // A calm ward ring contrasts with the wilder name-derived center.
+    crate::magic::raise_ward_ring(s, x, y, r, seed % 360, profile_for_language(&e.language));
     center_emblem(s, e, x, y, r, key);
     if large {
         // Offset satellites and partial orbits keep the overall inscription unruly.

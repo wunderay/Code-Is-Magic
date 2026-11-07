@@ -14,12 +14,6 @@
         "union": "struct"
       },
       "call_group": "c-family",
-      "collar": [
-        {
-          "data": "M -.03 -.94 L -.03 -.983 L .03 -.983 L .03 -.94",
-          "op": "path"
-        }
-      ],
       "color": "#555555",
       "controls": [
         "if",
@@ -88,7 +82,13 @@
       "type_kinds": {
         "interface": "interface",
         "struct": "struct"
-      }
+      },
+      "ward_ring": [
+        {
+          "data": "M -.03 -.94 L -.03 -.983 L .03 -.983 L .03 -.94",
+          "op": "path"
+        }
+      ]
     },
     {
       "arrow_token": "=>",
@@ -104,26 +104,6 @@
         "union": "struct"
       },
       "call_group": "c-family",
-      "collar": [
-        {
-          "cx": -0.017,
-          "cy": -0.964,
-          "n": 4,
-          "op": "polygon",
-          "r": 0.027,
-          "rotation_degrees": 45,
-          "step": 1
-        },
-        {
-          "cx": 0.017,
-          "cy": -0.964,
-          "n": 4,
-          "op": "polygon",
-          "r": 0.027,
-          "rotation_degrees": 45,
-          "step": 1
-        }
-      ],
       "color": "#f34b7d",
       "controls": [
         "if",
@@ -193,7 +173,27 @@
       "type_kinds": {
         "interface": "interface",
         "struct": "struct"
-      }
+      },
+      "ward_ring": [
+        {
+          "cx": -0.017,
+          "cy": -0.964,
+          "n": 4,
+          "op": "polygon",
+          "r": 0.027,
+          "rotation_degrees": 45,
+          "step": 1
+        },
+        {
+          "cx": 0.017,
+          "cy": -0.964,
+          "n": 4,
+          "op": "polygon",
+          "r": 0.027,
+          "rotation_degrees": 45,
+          "step": 1
+        }
+      ]
     },
     {
       "arrow_token": "=>",
@@ -209,17 +209,6 @@
         "union": "struct"
       },
       "call_group": "csharp",
-      "collar": [
-        {
-          "cx": 0,
-          "cy": -0.964,
-          "n": 4,
-          "op": "polygon",
-          "r": 0.031,
-          "rotation_degrees": 0,
-          "step": 1
-        }
-      ],
       "color": "#7355dd",
       "controls": [
         "if",
@@ -287,7 +276,18 @@
       "type_kinds": {
         "interface": "interface",
         "struct": "struct"
-      }
+      },
+      "ward_ring": [
+        {
+          "cx": 0,
+          "cy": -0.964,
+          "n": 4,
+          "op": "polygon",
+          "r": 0.031,
+          "rotation_degrees": 0,
+          "step": 1
+        }
+      ]
     },
     {
       "arrow_token": "=>",
@@ -303,12 +303,6 @@
         "union": "struct"
       },
       "call_group": "go",
-      "collar": [
-        {
-          "data": "M -.12 -.965 Q -.04 -.99 0 -.955 T .12 -.965 M -.1 -.938 Q -.03 -.965 .02 -.936 T .1 -.938",
-          "op": "path"
-        }
-      ],
       "color": "#00ADD8",
       "controls": [
         "if",
@@ -376,7 +370,13 @@
       "type_kinds": {
         "interface": "interface",
         "struct": "struct"
-      }
+      },
+      "ward_ring": [
+        {
+          "data": "M -.12 -.965 Q -.04 -.99 0 -.955 T .12 -.965 M -.1 -.938 Q -.03 -.965 .02 -.936 T .1 -.938",
+          "op": "path"
+        }
+      ]
     },
     {
       "arrow_token": "=>",
@@ -392,12 +392,6 @@
         "union": "struct"
       },
       "call_group": "java",
-      "collar": [
-        {
-          "data": "M -.028 -.94 L -.028 -.965 Q 0 -1.02 .028 -.965 L .028 -.94 M 0 -.99 L 0 -.94",
-          "op": "path"
-        }
-      ],
       "color": "#b07219",
       "controls": [
         "if",
@@ -465,7 +459,13 @@
       "type_kinds": {
         "interface": "interface",
         "struct": "struct"
-      }
+      },
+      "ward_ring": [
+        {
+          "data": "M -.028 -.94 L -.028 -.965 Q 0 -1.02 .028 -.965 L .028 -.94 M 0 -.99 L 0 -.94",
+          "op": "path"
+        }
+      ]
     },
     {
       "arrow_token": "=>",
@@ -481,12 +481,6 @@
         "union": "struct"
       },
       "call_group": "ecmascript",
-      "collar": [
-        {
-          "data": "M 0 -.99 L 0 -.94 M -.018 -.982 L .018 -.947 M .018 -.982 L -.018 -.947",
-          "op": "path"
-        }
-      ],
       "color": "#f1e05a",
       "controls": [
         "if",
@@ -557,7 +551,13 @@
       "type_kinds": {
         "interface": "interface",
         "struct": "struct"
-      }
+      },
+      "ward_ring": [
+        {
+          "data": "M 0 -.99 L 0 -.94 M -.018 -.982 L .018 -.947 M .018 -.982 L -.018 -.947",
+          "op": "path"
+        }
+      ]
     },
     {
       "arrow_token": "=>",
@@ -573,12 +573,6 @@
         "union": "struct"
       },
       "call_group": "python",
-      "collar": [
-        {
-          "data": "M -.035 -.965 Q 0 -.925 .035 -.965 Q 0 -.995 -.035 -.965 Z",
-          "op": "path"
-        }
-      ],
       "color": "#3572A5",
       "controls": [
         "if",
@@ -649,7 +643,13 @@
       "type_kinds": {
         "interface": "interface",
         "struct": "struct"
-      }
+      },
+      "ward_ring": [
+        {
+          "data": "M -.035 -.965 Q 0 -.925 .035 -.965 Q 0 -.995 -.035 -.965 Z",
+          "op": "path"
+        }
+      ]
     },
     {
       "arrow_token": "=>",
@@ -665,12 +665,6 @@
         "union": "struct"
       },
       "call_group": "rust",
-      "collar": [
-        {
-          "data": "M -.024 -.94 L 0 -.99 L .024 -.94 M 0 -.99 L 0 -.90",
-          "op": "path"
-        }
-      ],
       "color": "#dea584",
       "controls": [
         "if",
@@ -738,7 +732,13 @@
       "type_kinds": {
         "interface": "interface",
         "struct": "struct"
-      }
+      },
+      "ward_ring": [
+        {
+          "data": "M -.024 -.94 L 0 -.99 L .024 -.94 M 0 -.99 L 0 -.90",
+          "op": "path"
+        }
+      ]
     },
     {
       "arrow_token": "=>",
@@ -754,26 +754,6 @@
         "union": "struct"
       },
       "call_group": "ecmascript",
-      "collar": [
-        {
-          "cx": 0,
-          "cy": -0.87,
-          "n": 3,
-          "op": "polygon",
-          "r": 0.115,
-          "rotation_degrees": -90,
-          "step": 1
-        },
-        {
-          "cx": 0,
-          "cy": -0.87,
-          "n": 3,
-          "op": "polygon",
-          "r": 0.07,
-          "rotation_degrees": 90,
-          "step": 1
-        }
-      ],
       "color": "#3178c6",
       "controls": [
         "if",
@@ -842,7 +822,27 @@
       "type_kinds": {
         "interface": "interface",
         "struct": "struct"
-      }
+      },
+      "ward_ring": [
+        {
+          "cx": 0,
+          "cy": -0.87,
+          "n": 3,
+          "op": "polygon",
+          "r": 0.115,
+          "rotation_degrees": -90,
+          "step": 1
+        },
+        {
+          "cx": 0,
+          "cy": -0.87,
+          "n": 3,
+          "op": "polygon",
+          "r": 0.07,
+          "rotation_degrees": 90,
+          "step": 1
+        }
+      ]
     }
   ],
   "version": 1

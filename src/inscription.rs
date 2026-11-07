@@ -169,7 +169,7 @@ fn cells<'a>(
             }
             let height = ink.between(0.90, 1.04);
             let ids: Vec<usize> = glyphs.iter().map(|g| g.id).collect();
-            let weight = crate::magic::cell_weight(&ids, height, style, i);
+            let weight = crate::magic::rune_weight(&ids, height, style, i);
             Cell {
                 glyphs,
                 height,

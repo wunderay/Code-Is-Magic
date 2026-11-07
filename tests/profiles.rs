@@ -7,7 +7,7 @@ fn bundled_profiles_cover_nine_languages_with_unambiguous_extensions() {
     assert_eq!(profiles.len(), 9);
     let mut extensions = BTreeSet::new();
     for profile in profiles {
-        assert!(!profile.collar.is_empty() && !profile.sigil.is_empty());
+        assert!(!profile.ward_ring.is_empty() && !profile.sigil.is_empty());
         for extension in &profile.extensions {
             assert!(extensions.insert(extension));
             let path = format!("source.{extension}");

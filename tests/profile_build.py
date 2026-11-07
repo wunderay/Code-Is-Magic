@@ -34,7 +34,7 @@ class ProfileCompilerTests(unittest.TestCase):
     def test_executable_or_external_geometry_fails(self):
         for operation in ({"op": "script", "data": "alert(1)"}, {"op": "path", "data": "M 0 0' onload='alert(1)"}):
             raw = copy.deepcopy(self.raw)
-            raw["c"]["collar"] = [operation]
+            raw["c"]["ward_ring"] = [operation]
             with self.assertRaises(ValueError):
                 build.compile_profiles(raw)
 

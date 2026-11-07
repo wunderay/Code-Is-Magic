@@ -4,6 +4,6 @@ const profile = {
   extensions: ['js', 'jsx', 'mjs', 'cjs'], call_group: 'ecmascript', color: '#f1e05a',
   object_keywords: ['const', 'let', 'var'], arrow_token: '=>',
   sigil: '☉', repeats: 12,
-  collar: [{op: 'path', data: 'M 0 -.99 L 0 -.94 M -.018 -.982 L .018 -.947 M .018 -.982 L -.018 -.947'}],
+  ward_ring: [{op: 'path', data: 'M 0 -.99 L 0 -.94 M -.018 -.982 L .018 -.947 M .018 -.982 L -.018 -.947'}],
 };
 console.log(JSON.stringify(profile));

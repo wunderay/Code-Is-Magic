@@ -31,7 +31,7 @@ STRINGS = {"id", "name", "call_group", "line_comment", "type_keyword", "type_def
 BOOLS = {"block_comments", "raw_strings", "lifetimes", "triple_quotes"}
 LISTS = {"extensions", "object_keywords", "controls", "reject_function_prefixes", "member_operators", "self_qualifiers", "merge_containers"}
 MAPS = {"indented_declarations", "braced_declarations", "type_kinds"}
-KEYS = STRINGS | BOOLS | LISTS | MAPS | {"repeats", "collar"}
+KEYS = STRINGS | BOOLS | LISTS | MAPS | {"repeats", "ward_ring"}
 
 def tool(name):
     path = shutil.which(name)
@@ -87,10 +87,10 @@ def validate(profile):
     if any(not re.fullmatch(r"[a-z]+", ext) for ext in profile["extensions"]):
         raise ValueError("Invalid extension")
     if type(profile["repeats"]) is not int or not 1 <= profile["repeats"] <= 64:
-        raise ValueError("Invalid collar repeat count")
-    if not isinstance(profile["collar"], list) or not profile["collar"]:
-        raise ValueError("Missing collar geometry")
-    for operation in profile["collar"]:
+        raise ValueError("Invalid ward-ring repeat count")
+    if not isinstance(profile["ward_ring"], list) or not profile["ward_ring"]:
+        raise ValueError("Missing ward-ring geometry")
+    for operation in profile["ward_ring"]:
         if operation.get("op") == "path":
             if set(operation) != {"op", "data"} or not re.fullmatch(r"[MmLlHhVvCcSsQqTtAaZz0-9eE+.,\s-]+", operation["data"]):
                 raise ValueError("Invalid portable path geometry")

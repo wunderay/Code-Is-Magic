@@ -20,7 +20,7 @@ type Profile struct {
 	Color      string   `json:"color"`
 	Sigil      string   `json:"sigil"`
 	Repeats    int      `json:"repeats"`
-	Collar     []Path   `json:"collar"`
+	WardRing   []Path   `json:"ward_ring"`
 }
 
 func main() {
