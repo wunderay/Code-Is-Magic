@@ -61,6 +61,34 @@ export function unrollingReach(seal, { axis, heart, halfReach }) {
   return bind((Math.abs(offset) + (seal.radius || 0) * 1.22) / Math.max(1, halfReach), 0, 1);
 }
 
+// The same reach, measured on the screen from the current pan and zoom: how far the opening must
+// be, from 0 at the parchment's heart to 1 at its rods, for the seal to be bared whole where it now lies.
+export function screenReach(seal, { axis, panX, panY, zoom, width, height }) {
+  const halfSpan = (axis === 'down' ? height : width) / 2;
+  const offset = axis === 'down' ? panY + seal.y * zoom - halfSpan : panX + seal.x * zoom - halfSpan;
+  return bind((Math.abs(offset) + (seal.radius || 0) * zoom * 1.22) / Math.max(1, halfSpan), 0, 1);
+}
+
+// The parchment opens at the even pace, wider if the seals being written need it, and never closes again.
+export const unrollingOpening = (pace, reaches, formerOpening = 0) => Math.max(formerOpening, bind(pace, 0, 1), ...reaches);
+
+// One step of critical damping (frame-rate independent): the value glides to its target without overshoot.
+export function glide(value, velocity, target, hourglassSeconds, smoothing) {
+  const eagerness = 2 / Math.max(1e-3, smoothing), grain = Math.min(hourglassSeconds, 0.1), stride = eagerness * grain;
+  const fading = 1 / (1 + stride + 0.48 * stride * stride + 0.235 * stride ** 3);
+  const distance = value - target, pull = (velocity + eagerness * distance) * grain;
+  return { value: target + (distance + pull) * fading, velocity: (velocity - eagerness * pull) * fading };
+}
+
+// Where the view should settle while the pen writes a seal: gently nearer, never past a few times the
+// fitted zoom, and drawn toward the seal in step with the zoom so that the fitted page stays whole.
+export function followingView(seal, fitted, { width, height }, { ceiling = 3.5, readable = 0.34 } = {}) {
+  const wanted = readable * Math.min(width, height) / (2 * Math.max(1, seal.radius || 0) * 1.22);
+  const zoom = bind(wanted, fitted.zoom, fitted.zoom * ceiling), draw = 1 - fitted.zoom / zoom;
+  const fittedX = fitted.panX + seal.x * fitted.zoom, fittedY = fitted.panY + seal.y * fitted.zoom;
+  return { zoom, panX: fittedX + (width / 2 - fittedX) * draw - seal.x * zoom, panY: fittedY + (height / 2 - fittedY) * draw - seal.y * zoom };
+}
+
 // What the animation loop should do for a quill at this moment:
 // 'idle' with no quill, 'rest' while an unstarted quill waits for enough of the scroll to be seen
 // (nothing on the page changes, so no frame is requested), 'begin' as it comes into view, else 'write'.
@@ -81,16 +109,35 @@ export class Quill {
     this.plan = writingPlan(diagram.placements.filter(seal => seal.radius > 0), ink.paths, ink.flow, { fast, scroll: { axis, heart, halfReach } });
     this.begin = now;
     this.fast = fast;
+    this.axis = axis;
+    this.opening = 0;
     this.finished = false;
   }
   elapsed(now) { return now - this.begin; }
   done(now) { return this.finished || this.elapsed(now) >= this.plan.total; }
   finish() { this.finished = true; }
   // How much of the scroll lies open, from 0 (rolled shut) to 1 (open to its rods).
-  unrolled(now) {
+  // Given the current view ({ panX, panY, zoom, width, height }) it also bares the seal the pen is writing.
+  unrolled(now, view = null) {
     // A quick rewrite after a settings change writes on the scroll as it already lies open.
     if (this.finished || this.fast) return 1;
-    return bind((this.elapsed(now) + unrollingLead) / Math.max(1, this.plan.span), 0, 1);
+    const pace = (this.elapsed(now) + unrollingLead) / Math.max(1, this.plan.span), penSeal = view && this.current(now, view);
+    const reaches = penSeal ? [screenReach(penSeal, { ...view, axis: this.axis })] : [];
+    return this.opening = this.done(now) ? 1 : unrollingOpening(pace, reaches, this.opening);
+  }
+  // The seal the pen is writing, which the view follows: of those under the pen, the one nearest the
+  // view's centre (so the pen does not leap between far sides); else the one most lately begun; null before the first stroke.
+  current(now, view = null) {
+    const hourglass = this.elapsed(now), centreX = view ? (view.width / 2 - view.panX) / view.zoom : 0, centreY = view ? (view.height / 2 - view.panY) / view.zoom : 0;
+    let newest = null, nearest = null, nearness = Infinity;
+    for (const inscription of this.plan.seals.values()) {
+      if (hourglass < inscription.start) continue;
+      if (!newest || inscription.start >= newest.start) newest = inscription;
+      const distance = view ? Math.hypot(inscription.seal.x - centreX, inscription.seal.y - centreY) : -inscription.start;
+      if (hourglass < inscription.start + inscription.duration && distance < nearness) { nearest = inscription; nearness = distance; }
+    }
+    const penning = nearest || newest;
+    return penning && penning.seal;
   }
   // Number of seals fully inscribed, for the readout.
   written(now) {
