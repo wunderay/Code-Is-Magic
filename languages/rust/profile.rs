@@ -11,7 +11,7 @@ fn main() {
             "{{\"id\":\"rust\",\"base\":\"c\",\"name\":{},\"extensions\":[\"rs\"],",
             "\"call_group\":\"rust\",\"raw_strings\":true,\"lifetimes\":true,",
             "\"required_function_keyword\":{},\"color\":\"#dea584\",\"sigil\":\"ᛟ\",\"repeats\":8,",
-            "\"collar\":[{{\"op\":\"path\",\"data\":{}}}]}}"
+            "\"ward_ring\":[{{\"op\":\"path\",\"data\":{}}}]}}"
         ),
         quoted(name),
         quoted(keyword),

@@ -1,6 +1,6 @@
 # Native-language profile authoring
 
-Language-specific lexical switches, declaration rules, call compatibility, center glyphs and collar geometry are authored in their own languages:
+Language-specific lexical switches, declaration rules, call compatibility, center glyphs and ward-ring geometry are authored in their own languages:
 
 | Source | Language | Base policy |
 | --- | --- | --- |
@@ -41,4 +41,4 @@ node --test tests/wasm.test.js
 
 Commit both the authoring module and generated artifacts. CI compiles/runs **all nine actual native-language modules**, checks freshness, and then checks native/browser parity and source recovery. Missing authoring toolchains fail explicitly; the check never substitutes pre-generated output or skips a module.
 
-Profile schema v1 includes comment/string flags, indented/braced declaration maps, type/object/function markers, control/prefix exclusions, member/self rules, mergeable containers, dialect compatibility groups, glyphs, six-digit base RGB language colors, and collar primitives. Browser color legends and supported extensions are generated from the same profiles. Portable geometry permits only numeric SVG paths and polygons. Inheritance reuses the prior broad brace-language structural policy; language-specific overrides retain existing behavior.
+Profile schema v1 includes comment/string flags, indented/braced declaration maps, type/object/function markers, control/prefix exclusions, member/self rules, mergeable containers, dialect compatibility groups, glyphs, six-digit base RGB language colors, and ward-ring primitives. Browser color legends and supported extensions are generated from the same profiles. Portable geometry permits only numeric SVG paths and polygons. Inheritance reuses the prior broad brace-language structural policy; language-specific overrides retain existing behavior.

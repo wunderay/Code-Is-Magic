@@ -24,12 +24,12 @@ Add `--output name.svg` to write the same drawing uncompressed. Chromium does no
 
 ### How the image stays small
 
-A Code Is Magic drawing is almost entirely *generated* geometry. Each braided call channel is 192 points sampled from one cubic curve. Every glyph placement in an inscription band follows from the cell proportions. Collars repeat a language template, and each vertex of a name contour encodes one nibble of the name. The canonical encoder:
+A Code Is Magic drawing is almost entirely *generated* geometry. Each braided call channel is 192 points sampled from one cubic curve. Every glyph placement in an inscription band follows from the cell proportions. Ward rings repeat a language's runes, and each vertex of a name contour encodes one nibble of the name. The canonical encoder:
 
 1. analyzes and renders the repository deterministically. The renderer tags each generated subtree with its parameters;
 2. rounds ordinary literal geometry below pixel scale (paths 0.01, placement 0.001, transforms 0.000001 SVG units), as before;
-3. replaces each braid, inscription band, collar, regular polygon and name contour with a one-line macro holding its parameters. It drops values the expander can recompute, such as cell weights, and stores glyph outlines as relative paths on a 2-font-unit grid;
-4. embeds a ~5 KB script that unfolds the macros in the browser, plus the glyph metrics and collar templates it needs;
+3. replaces each braid, inscription band, ward ring, regular polygon and name contour with a one-line macro holding its parameters. It drops values the expander can recompute, such as cell weights, and stores glyph outlines as relative paths on a 2-font-unit grid;
+4. embeds a ~5 KB script that unfolds the macros in the browser, plus the glyph metrics and ward-rune templates it needs;
 5. embeds the repository snapshot in a binary, brotli-compressed (quality 11) capsule, authenticated and optionally encrypted as before;
 6. compresses the complete result as deterministic gzip/SVGZ with a zero timestamp.
 

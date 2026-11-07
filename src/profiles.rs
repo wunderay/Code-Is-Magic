@@ -32,11 +32,11 @@ pub struct LanguageProfile {
     pub sigil: String,
     pub color: String,
     pub repeats: usize,
-    pub collar: Vec<CollarOperation>,
+    pub ward_ring: Vec<WardRune>,
 }
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
-pub enum CollarOperation {
+pub enum WardRune {
     Path {
         data: String,
     },

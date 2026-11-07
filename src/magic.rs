@@ -2,24 +2,24 @@
 //!
 //! The full drawing is dominated by geometry that is completely determined by a few
 //! parameters: braided invocation channels (192 sampled points from one cubic curve),
-//! inscription bands (every glyph placement follows from cell weights), collars
-//! (repeated language templates), and name contours (one nibble per vertex). The
+//! inscription bands (every glyph placement follows from cell weights), ward rings
+//! (repeated language rune templates), and name contours (one nibble per vertex). The
 //! renderer tags each such subtree with its parameters (`data-m`). The canonical
 //! export replaces each tagged subtree by a short macro element, and an embedded
 //! script expands macros when the image is opened in a browser. Rust expands the same
 //! macros with the exact functions the renderer used, so `expand(compact(svg))`
 //! reproduces the renderer's markup for unquantized parameters byte for byte.
 use crate::inscription::Outline;
-use crate::profiles::{language_profiles, CollarOperation, LanguageProfile};
+use crate::profiles::{language_profiles, LanguageProfile, WardRune};
 use crate::render::{circle, curve_point, poly};
 use std::{collections::BTreeMap, f64::consts::PI, fmt::Write, sync::OnceLock};
 
 pub(crate) const FORMAT: &str = "data-magic-format='3'";
 const SCRIPT: &str = include_str!("magic.js");
-/// Macro parameter precision. Braids and collars live in SVG pixel space; band weights
+/// Macro parameter precision. Braids and ward rings live in SVG pixel space; band weights
 /// and sigil placement need a little more because they are multiplied by radii.
 const BRAID_DECIMALS: usize = 2;
-const RING_DECIMALS: usize = 3;
+const WARD_DECIMALS: usize = 3;
 const BAND_DECIMALS: usize = 4;
 const SIGIL_DECIMALS: usize = 4;
 /// Regular polygons are often drawn in unit coordinates scaled by a seal radius.
@@ -172,13 +172,13 @@ pub(crate) fn write_braid(s: &mut String, b: &Braid<'_>) {
 fn profile_index(id: &str) -> Option<usize> {
     language_profiles().iter().position(|p| p.id == id)
 }
-fn write_collar(s: &mut String, profile: &LanguageProfile) {
-    for operation in &profile.collar {
+fn inscribe_ward_runes(s: &mut String, profile: &LanguageProfile) {
+    for operation in &profile.ward_ring {
         match operation {
-            CollarOperation::Path { data } => {
+            WardRune::Path { data } => {
                 let _ = write!(s, "<path d='{data}'/>");
             }
-            CollarOperation::Polygon {
+            WardRune::Polygon {
                 cx,
                 cy,
                 r,
@@ -189,8 +189,8 @@ fn write_collar(s: &mut String, profile: &LanguageProfile) {
         }
     }
 }
-/// The calm outer collar: three rings and the language's repeated ornament.
-pub(crate) fn write_ring(
+/// The calm ward ring: three rings and the language's repeated ward runes.
+pub(crate) fn raise_ward_ring(
     s: &mut String,
     x: f64,
     y: f64,
@@ -200,7 +200,7 @@ pub(crate) fn write_ring(
 ) {
     let _ = write!(
         s,
-        "<g data-ring='1' data-m='{x} {y} {r} {rotation} {}' stroke-width='{:.3}'>",
+        "<g data-ward-ring='1' data-m='{x} {y} {r} {rotation} {}' stroke-width='{:.3}'>",
         profile.id,
         (r * 0.004).max(0.85)
     );
@@ -212,20 +212,20 @@ pub(crate) fn write_ring(
         let angle = rotation + i as f64 * 2. * PI / profile.repeats as f64;
         let degrees = angle * 180. / PI;
         let _ = write!(s, "<g transform='translate({x} {y}) rotate({degrees:.3}) scale({r})' stroke-width='.007'>");
-        write_collar(s, profile);
+        inscribe_ward_runes(s, profile);
         s.push_str("</g>");
     }
     s.push_str("</g>");
 }
-fn expand_ring(s: &mut String, payload: &str) -> Result<(), String> {
+fn unfold_ward_ring(s: &mut String, payload: &str) -> Result<(), String> {
     let mut t = payload.split_ascii_whitespace();
     let (x, y, r) = (number(t.next())?, number(t.next())?, number(t.next())?);
     let rotation = index(t.next())? as u64 % 360;
     let profile = t
         .next()
         .and_then(profile_index)
-        .ok_or("Unknown collar language")?;
-    write_ring(s, x, y, r, rotation, &language_profiles()[profile]);
+        .ok_or("Unknown ward-ring tongue")?;
+    raise_ward_ring(s, x, y, r, rotation, &language_profiles()[profile]);
     Ok(())
 }
 
@@ -483,8 +483,8 @@ fn tag(node: &roxmltree::Node<'_, '_>) -> Option<(&'static str, usize)> {
     node.attribute("data-m")?;
     Some(if node.has_attribute("data-channel") {
         ("B", BRAID_DECIMALS)
-    } else if node.has_attribute("data-ring") {
-        ("O", RING_DECIMALS)
+    } else if node.has_attribute("data-ward-ring") {
+        ("W", WARD_DECIMALS)
     } else if node.has_attribute("data-inscription-band") {
         ("I", BAND_DECIMALS)
     } else if node.has_attribute("data-name-sigil") {
@@ -635,7 +635,7 @@ fn relative_path(d: &str, grid: f64) -> Result<String, String> {
 }
 
 /// Replace every parameterized subtree by its macro and add what the embedded
-/// expander needs: glyph metrics, collar templates and the script itself.
+/// expander needs: glyph metrics, ward-rune templates and the script itself.
 pub(crate) fn compact(svg: &str) -> Result<String, String> {
     if svg.contains(FORMAT) {
         return Ok(svg.into());
@@ -647,7 +647,7 @@ pub(crate) fn compact(svg: &str) -> Result<String, String> {
     }
     let glyphs = glyphs();
     let mut edits: Vec<(std::ops::Range<usize>, String)> = Vec::new();
-    let mut languages = std::collections::BTreeSet::new();
+    let mut warded_tongues = std::collections::BTreeSet::new();
     let mut skip_until = 0;
     for node in document.descendants().filter(|n| n.is_element()) {
         if node.range().start < skip_until {
@@ -655,9 +655,9 @@ pub(crate) fn compact(svg: &str) -> Result<String, String> {
         }
         if let Some((name, decimals)) = tag(&node) {
             let payload = node.attribute("data-m").unwrap();
-            if name == "O" {
+            if name == "W" {
                 if let Some(id) = payload.split_ascii_whitespace().nth(4) {
-                    languages.insert(profile_index(id).ok_or("Unknown collar language")?);
+                    warded_tongues.insert(profile_index(id).ok_or("Unknown ward-ring tongue")?);
                 }
             }
             let payload = if name == "I" {
@@ -694,22 +694,22 @@ pub(crate) fn compact(svg: &str) -> Result<String, String> {
     for (range, text) in edits.into_iter().rev() {
         out.replace_range(range, &text);
     }
-    let mut templates = String::new();
-    for &language in &languages {
-        let profile = &language_profiles()[language];
+    let mut ward_runes = String::new();
+    for &tongue in &warded_tongues {
+        let profile = &language_profiles()[tongue];
         let _ = write!(
-            templates,
-            "<g id='L{language}' l='{}' n='{}' stroke-width='.007'>",
+            ward_runes,
+            "<g id='W{tongue}' l='{}' n='{}' stroke-width='.007'>",
             profile.id, profile.repeats
         );
-        write_collar(&mut templates, profile);
-        templates.push_str("</g>");
+        inscribe_ward_runes(&mut ward_runes, profile);
+        ward_runes.push_str("</g>");
     }
     match out.find("</defs>") {
-        Some(at) => out.insert_str(at, &templates),
+        Some(at) => out.insert_str(at, &ward_runes),
         None => {
             let at = out.find('>').ok_or("Invalid SVG artwork")? + 1;
-            out.insert_str(at, &format!("<defs>{templates}</defs>"));
+            out.insert_str(at, &format!("<defs>{ward_runes}</defs>"));
         }
     }
     let end = out.rfind("</svg>").ok_or("Invalid SVG artwork")?;
@@ -735,11 +735,11 @@ pub fn expand_svg(svg: &str) -> Result<String, String> {
         let name = node.tag_name().name();
         let mut out = String::new();
         match name {
-            "B" | "O" | "I" | "N" | "Y" => {
+            "B" | "W" | "I" | "N" | "Y" => {
                 let payload = node.attribute("d").ok_or("Empty magic macro")?;
                 match name {
                     "B" => write_braid(&mut out, &Braid::parse(payload)?),
-                    "O" => expand_ring(&mut out, payload)?,
+                    "W" => unfold_ward_ring(&mut out, payload)?,
                     "I" => expand_band(&mut out, payload)?,
                     "Y" => expand_polygon(&mut out, payload)?,
                     _ => expand_sigil(&mut out, payload)?,
@@ -747,7 +747,7 @@ pub fn expand_svg(svg: &str) -> Result<String, String> {
                 edits.push((node.range(), out));
             }
             "script" => edits.push((node.range(), out)),
-            "g" if node.attribute("id").is_some_and(|id| id.starts_with('L'))
+            "g" if node.attribute("id").is_some_and(|id| id.starts_with('W'))
                 && node
                     .parent_element()
                     .is_some_and(|p| p.has_tag_name("defs")) =>
@@ -821,7 +821,7 @@ mod tests {
             let mut out = String::new();
             match name {
                 "B" => write_braid(&mut out, &Braid::parse(payload).unwrap()),
-                "O" => expand_ring(&mut out, payload).unwrap(),
+                "W" => unfold_ward_ring(&mut out, payload).unwrap(),
                 "N" => expand_sigil(&mut out, payload).unwrap(),
                 "Y" => expand_polygon(&mut out, payload).unwrap(),
                 _ => continue,
