@@ -2,11 +2,17 @@ import { readRepository, sourceFiles, encodeBytes } from './repository.js';
 import { classifyInput, droppedLink, droppedFiles, fetchMagic, INPUT_HELP } from './input.js';
 import { languageColors } from './languages.js';
 import { LivingInk } from './effects.js';
+import { Quill, quillCadence } from './quill.js';
 import { validateSvg } from './svg.js';
 const $ = id => document.getElementById(id);
 let livingInk=new LivingInk();
-let glowing=true,moving=!matchMedia('(prefers-reduced-motion: reduce)').matches,animationFrame=null,animationEpoch=performance.now(),lastAnimationFrame=0,previewVisible=true;
+const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
+// The quill writes each new diagram onto the page; it waits until the page is in view.
+let quill=null,writingDoneAt=-Infinity;
+let glowing=true,moving=!reducedMotion.matches,animationFrame=null,animationEpoch=performance.now(),lastAnimationFrame=0,previewVisible=true;
 const canvas = $('canvas'), ctx = canvas.getContext('2d'), viewport = $('viewport');
+// The circle chamber is a scroll: across on wide screens, unrolling downward on phones.
+const scrollCase = document.querySelector('.grimoire-scroll'), narrowScroll = matchMedia('(max-width: 760px)');
 let worker, requestId = 0, pending = new Map(), image, diagram, files = [], title = 'Code is Magic';
 let snapshot = null, inputSelection = null;
 let diagramKey = '';
@@ -49,10 +55,11 @@ async function install(next,signal,source) {
   const nextInk=new LivingInk();await nextInk.prepare(next.svg,next);
   signal?.throwIfAborted();
   if(source){snapshot=source.snapshot;files=source.files;title=source.title;imported=false;reframe=true;}
+  quill=reducedMotion.matches?null:new Quill(next,nextInk,{fast:!reframe,now:Infinity,axis:narrowScroll.matches?'down':'across'});writingDoneAt=quill?-Infinity:performance.now()-1e4;writingState();
   livingInk=nextInk;animationEpoch=performance.now();diagram = next; diagramKey=resultKeys.get(next)||''; image = nextImage; selected = null;
   viewport.dataset.ink=livingInk.background==='#f0e8d7'?'light':'dark';
   scheduleAnimation();
-  if (reframe) fit(); else draw();
+  if (reframe) { shapeScroll(); fit(); } else draw();
   $('diagram-title').textContent = title;
   const visible = next.analysis.entities.filter(e=>e.kind!=='merged_impl');
   const calls = next.analysis.edges.filter(e=>e.kind==='calls').length;
@@ -69,28 +76,64 @@ function draw(time=performance.now()-animationEpoch) {
   if (canvas.width!==w || canvas.height!==h) { canvas.width=w;canvas.height=h; }
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,bounds.width,bounds.height);
   if (!image) return;
-  livingInk.paint(ctx,image,diagram,{width:bounds.width,height:bounds.height,dpr,panX,panY,zoom},typeof time==='number'?time:performance.now()-animationEpoch,{glow:glowing,motion:moving});
+  const now=performance.now();
+  if(quill&&quill.done(now))finishWriting(now);
+  unrollScroll(quill?quill.unrolled(now):1);
+  const awaken=Math.max(0,Math.min(1,(now-writingDoneAt)/900));
+  livingInk.paint(ctx,image,diagram,{width:bounds.width,height:bounds.height,dpr,panX,panY,zoom},typeof time==='number'?time:now-animationEpoch,{glow:glowing,motion:moving&&!quill,writing:quill,now,awaken});
   if (selected!==null) { const p=diagram.placements.find(p=>p.id===selected);if(p){ctx.beginPath();ctx.arc(panX+p.x*zoom,panY+p.y*zoom,(p.radius+9)*zoom,0,Math.PI*2);ctx.strokeStyle=livingInk.background==='#f0e8d7'?'#73502d':'#f5dfaa';ctx.lineWidth=1.5;ctx.stroke();} }
-  const flowText=moving?livingInk.describe(typeof time==='number'?time:performance.now()-animationEpoch):'Call flow paused';
+  const flowText=quill?(Number.isFinite(quill.begin)?`The quill inscribes ${quill.written(now)} of ${quill.plan.seals.size} seals…`:'The page awaits the quill'):moving?livingInk.describe(typeof time==='number'?time:performance.now()-animationEpoch):'Call flow paused';
   if($('flow-label').textContent!==flowText)$('flow-label').textContent=flowText;
   const zoomText=`${Math.round(zoom*100)}%`;if($('zoom-label').textContent!==zoomText)$('zoom-label').textContent=zoomText;
 }
+// Size the parchment to the diagram's own shape, so the drawing reaches close to its edges.
+function shapeScroll() {
+  if(!diagram)return;
+  const bounds=livingInk.bounds,bearing=Math.max(.45,Math.min(1.6,(bounds.bottom-bounds.top)/Math.max(1,bounds.right-bounds.left)));
+  const rodBreadth=parseFloat(getComputedStyle(scrollCase).getPropertyValue('--rod-breadth'))||30;
+  const caseWidth=scrollCase.parentElement.clientWidth;
+  let parchmentWidth,parchmentHeight;
+  if(narrowScroll.matches) {
+    parchmentWidth=caseWidth-44;
+    parchmentHeight=Math.max(360,Math.min(parchmentWidth*bearing,innerHeight-150));
+  } else {
+    const openWidth=caseWidth-rodBreadth,tallest=Math.max(440,innerHeight-80);
+    parchmentHeight=Math.min(openWidth*bearing,tallest);
+    parchmentWidth=Math.max(Math.min(openWidth,parchmentHeight/bearing),Math.min(openWidth,520));
+  }
+  viewport.style.width=`${Math.round(parchmentWidth)}px`;viewport.style.height=`${Math.round(parchmentHeight)}px`;
+}
+// Rods start together at the heart of the scroll and part as the quill writes.
+let lastUnrolling=-1;
+function unrollScroll(unrolling) {
+  const rodBreadth=parseFloat(getComputedStyle(scrollCase).getPropertyValue('--rod-breadth'))||30;
+  const parchmentSpan=narrowScroll.matches?viewport.clientHeight:viewport.clientWidth;
+  const shut=Math.min(1,rodBreadth/Math.max(1,parchmentSpan));
+  const opening=Math.max(shut,unrolling);
+  if(Math.abs(opening-lastUnrolling)<.0005)return;
+  lastUnrolling=opening;scrollCase.style.setProperty('--unroll',opening.toFixed(4));
+}
+let scrollResize;
+addEventListener('resize',()=>{clearTimeout(scrollResize);scrollResize=setTimeout(shapeScroll,120);},{passive:true});
+narrowScroll.addEventListener('change',shapeScroll);
 function fit() {
   if(!diagram)return;
   const view=viewport.getBoundingClientRect(),bounds=livingInk.bounds;
   const width=Math.max(1,bounds.right-bounds.left),height=Math.max(1,bounds.bottom-bounds.top);
-  zoom=Math.min((view.width-64)/width,(view.height-105)/height,8);
+  // A modest margin: the worn edge, plus the rolls that rest over the parchment's ends.
+  const margin=Math.max(10,Math.min(26,Math.min(view.width,view.height)*.03))+12;
+  zoom=Math.min((view.width-margin*2)/width,(view.height-margin*2)/height,8);
   panX=view.width/2-(bounds.left+width/2)*zoom;
-  panY=(view.height-42)/2-(bounds.top+height/2)*zoom;draw();
+  panY=view.height/2-(bounds.top+height/2)*zoom;draw();
 }
 function zoomAt(factor,x,y) {const z=Math.min(8,Math.max(.025,zoom*factor));panX=x-(x-panX)*z/zoom;panY=y-(y-panY)*z/zoom;zoom=z;draw();}
 viewport.addEventListener('wheel',e=>{e.preventDefault();const b=viewport.getBoundingClientRect();zoomAt(Math.exp(-e.deltaY*.001),e.clientX-b.left,e.clientY-b.top);},{passive:false});
 let drag;
-viewport.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,px:panX,py:panY,moved:false};viewport.setPointerCapture(e.pointerId);});
+viewport.addEventListener('pointerdown',touch=>{if(quill)finishWriting();drag={x:touch.clientX,y:touch.clientY,px:panX,py:panY,moved:false};viewport.setPointerCapture(touch.pointerId);});
 viewport.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.moved ||= Math.hypot(dx,dy)>4;panX=drag.px+dx;panY=drag.py+dy;draw();});
 viewport.addEventListener('pointerup',e=>{if(!drag)return;if(!drag.moved&&diagram){const b=viewport.getBoundingClientRect(),x=(e.clientX-b.left-panX)/zoom,y=(e.clientY-b.top-panY)/zoom;const p=diagram.placements.find(p=>Math.hypot(p.x-x,p.y-y)<p.radius);if(p)inspect(p.id);}drag=null;});
 viewport.addEventListener('pointercancel',()=>{drag=null;});
-viewport.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();panX+=e.key==='ArrowLeft'?30:e.key==='ArrowRight'?-30:0;panY+=e.key==='ArrowUp'?30:e.key==='ArrowDown'?-30:0;draw();}if(e.key==='+'||e.key==='=')$('zoom-in').click();if(e.key==='-')$('zoom-out').click();});
+viewport.addEventListener('keydown',keystroke=>{if(quill&&!['Shift','Control','Alt','Meta','Tab'].includes(keystroke.key)){finishWriting();if(keystroke.key===' '||keystroke.key==='Enter'||keystroke.key==='Escape'){keystroke.preventDefault();return;}}if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(keystroke.key)){keystroke.preventDefault();panX+=keystroke.key==='ArrowLeft'?30:keystroke.key==='ArrowRight'?-30:0;panY+=keystroke.key==='ArrowUp'?30:keystroke.key==='ArrowDown'?-30:0;draw();}if(keystroke.key==='+'||keystroke.key==='=')$('zoom-in').click();if(keystroke.key==='-')$('zoom-out').click();});
 let lastViewportWidth = 0, lastViewportHeight = 0;
 new ResizeObserver(() => { const bounds = viewport.getBoundingClientRect(); if (bounds.width !== lastViewportWidth || bounds.height !== lastViewportHeight) { lastViewportWidth = bounds.width; lastViewportHeight = bounds.height; fit(); } else { draw(); } }).observe(viewport);
 $('fit').onclick=fit;
@@ -270,30 +313,48 @@ $('save-key').onclick=()=>{
   status('Key saved. Keep it separate from the source folder and image.');
 };
 $('clear-key').onclick=()=>{$('magic-key').value='';updateKey();};
+function finishWriting(now=performance.now()){
+  if(!quill)return;
+  quill.finish();quill=null;writingDoneAt=now;animationEpoch=now;writingState();draw();scheduleAnimation();
+}
+function writingState(){
+  $('quill-skip').hidden=!quill;
+  viewport.dataset.writing=quill?'true':'false';
+}
+function animating(){return moving||!!quill||performance.now()-writingDoneAt<900;}
 function scheduleAnimation(){
-  if(animationFrame!==null||!moving||!image||document.hidden)return;
+  if(animationFrame!==null||!animating()||!image||document.hidden)return;
   const bounds=viewport.getBoundingClientRect();
   previewVisible=bounds.width>0&&bounds.height>0&&bounds.bottom>0&&bounds.top<innerHeight&&bounds.right>0&&bounds.left<innerWidth;
   if(!previewVisible){canvas.dataset.motion='paused';return;}
+  // Begin writing once a fair part of the scroll can be seen. Until then the waiting page never
+  // changes, so no frame is queued; scrolling, resizing or the sight watcher below wakes the loop.
+  const cadence=quillCadence(quill,Math.min(bounds.bottom,innerHeight)-Math.max(bounds.top,0),{fullView:Math.min(bounds.height,innerHeight),fast:quill?.fast});
+  if(cadence==='rest'){canvas.dataset.motion='paused';return;}
+  if(cadence==='begin')quill.begin=performance.now();
   canvas.dataset.motion='running';
   animationFrame=requestAnimationFrame(timestamp=>{
     animationFrame=null;
-    if(timestamp-lastAnimationFrame>=33){lastAnimationFrame=timestamp;draw(timestamp-animationEpoch);}
+    if(timestamp-lastAnimationFrame>=(quill?15:33)){lastAnimationFrame=timestamp;draw(timestamp-animationEpoch);}
     scheduleAnimation();
   });
 }
 function displayOptions(){
   $('glow-toggle').setAttribute('aria-pressed',String(glowing));
   $('motion-toggle').setAttribute('aria-pressed',String(moving));
-  if(!moving&&animationFrame!==null){cancelAnimationFrame(animationFrame);animationFrame=null;}
+  if(!animating()&&animationFrame!==null){cancelAnimationFrame(animationFrame);animationFrame=null;}
   canvas.dataset.motion=moving?'running':'paused';draw();scheduleAnimation();
 }
 $('glow-toggle').onclick=()=>{glowing=!glowing;displayOptions();};
 $('motion-toggle').onclick=()=>{moving=!moving;displayOptions();};
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&animationFrame!==null){cancelAnimationFrame(animationFrame);animationFrame=null;}else scheduleAnimation();});
 window.addEventListener('scroll',scheduleAnimation,{passive:true});
+// Wakes the loop when the scroll comes into view without a scroll event, e.g. after the layout shifts.
+if('IntersectionObserver' in window)new IntersectionObserver(scheduleAnimation,{threshold:[0,.05,.1,.2,.3,.4,.5,.6,.8,1]}).observe(viewport);
 window.addEventListener('resize',scheduleAnimation,{passive:true});
-matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',event=>{if(event.matches){moving=false;displayOptions();}});
+reducedMotion.addEventListener('change',event=>{if(event.matches){finishWriting();moving=false;displayOptions();}});
+$('quill-skip').onclick=()=>{finishWriting();viewport.focus();};
+document.addEventListener('keydown',keystroke=>{if(keystroke.key==='Escape'&&quill)finishWriting();});
 $('settings-toggle').onclick=()=>{const open=!document.querySelector('.workbench').hasAttribute('data-settings-open');document.querySelector('.workbench').toggleAttribute('data-settings-open',open);$('settings-toggle').setAttribute('aria-expanded',String(open));};
 function theme(mode,changeInk=false){
   document.documentElement.dataset.theme=mode;
