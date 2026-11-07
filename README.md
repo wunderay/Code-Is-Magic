@@ -37,11 +37,9 @@ Rust unfolds the same macros with the very functions the renderer drew them with
 
 Measured on this repository's own tree (7394×6850 drawing, 72 entries):
 
-| | before | after |
-| --- | ---: | ---: |
-| whole SVGZ | 1,686,757 B | **385,845 B** (−77%) |
-| artwork (gzip share) | 1,342,901 B | 167,365 B (−88%) |
-| source capsule (gzip share) | 329,703 B | 213,785 B (−35%) |
+- **Whole SVGZ:** 1,686,757 B → **385,845 B** (−77%).
+- **Artwork** (its share of the gzip): 1,342,901 B → 167,365 B (−88%).
+- **Source capsule** (its share of the gzip): 329,703 B → 213,785 B (−35%).
 
 Against the earlier canonical render, the scripted image as unfolded by Chromium measures **52.5 dB PSNR** for the whole drawing (rendered at ¼ scale). A dense 1:1 crop measures 37.1 dB, where the only differences are glyph-edge anti-aliasing. The capsule is now about the size of `git archive | xz -9e`, and exact source recovery has to carry it. That is why the whole file cannot shrink by 99% while it still holds the repository.
 
@@ -123,17 +121,15 @@ The browser File API cannot expose Unix executable modes or symlinks for ordinar
 
 The structural visualizer currently has authored profiles for:
 
-| Language | Typical source | Visual family |
-| --- | --- | --- |
-| Rust | `.rs` | Forge / runic |
-| Python | `.py` | Lunar |
-| JavaScript | `.js`, `.mjs`, `.cjs` | Solar |
-| TypeScript | `.ts`, `.tsx` | Prism |
-| Go | `.go` | Triad |
-| C | `.c`, `.h` | Clockwork |
-| C++ | `.cc`, `.cpp`, `.cxx`, `.hpp`, `.hh`, `.hxx` | Linked facets |
-| Java | `.java` | Cathedral |
-| C# | `.cs` | Lattice |
+- **Rust** (`.rs`): Forge / runic
+- **Python** (`.py`): Lunar
+- **JavaScript** (`.js`, `.mjs`, `.cjs`): Solar
+- **TypeScript** (`.ts`, `.tsx`): Prism
+- **Go** (`.go`): Triad
+- **C** (`.c`, `.h`): Clockwork
+- **C++** (`.cc`, `.cpp`, `.cxx`, `.hpp`, `.hh`, `.hxx`): Linked facets
+- **Java** (`.java`): Cathedral
+- **C#** (`.cs`): Lattice
 
 Functions, methods, and related declarations become seals. Calls become braided invocation channels without arrowheads. Circle area follows source-code length independently of declaration-name length. `--language-colors` optionally colors seals using their language palette while adapting tones for the selected background.
 

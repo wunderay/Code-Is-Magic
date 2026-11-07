@@ -2,17 +2,15 @@
 
 Language-specific lexical switches, declaration rules, call compatibility, center glyphs and ward-ring geometry are authored in their own languages:
 
-| Source | Language | Base policy |
-| --- | --- | --- |
-| `c/profile.c` | C | Shared brace-language structural heuristics |
-| `cpp/profile.cpp` | C++ | C |
-| `rust/profile.rs` | Rust | C, with raw strings, lifetimes and explicit function declarations |
-| `python/profile.py` | Python | C, with indentation, hash comments and triple quotes |
-| `javascript/profile.js` | JavaScript | C, with ECMAScript dialect pairing and solar design |
-| `typescript/profile.ts` | TypeScript | JavaScript, with prismatic design |
-| `go/profile.go` | Go | C, with receiver syntax and flowing triad |
-| `java/Profile.java` | Java | C, with cathedral design |
-| `csharp/Profile.cs` | C# | Java, with its own dialect and diamond design |
+- `c/profile.c`: **C**, the shared brace-language structural heuristics
+- `cpp/profile.cpp`: **C++**, based on C
+- `rust/profile.rs`: **Rust**, based on C, with raw strings, lifetimes and explicit function declarations
+- `python/profile.py`: **Python**, based on C, with indentation, hash comments and triple quotes
+- `javascript/profile.js`: **JavaScript**, based on C, with ECMAScript dialect pairing and solar design
+- `typescript/profile.ts`: **TypeScript**, based on JavaScript, with prismatic design
+- `go/profile.go`: **Go**, based on C, with receiver syntax and flowing triad
+- `java/Profile.java`: **Java**, based on C, with cathedral design
+- `csharp/Profile.cs`: **C#**, based on Java, with its own dialect and diamond design
 
 These are **build-time profile generators**, not per-file native-runtime analyzers. The Rust engine remains a generic structural lexer/parser and deterministic renderer. It executes no inspected repository code. This preserves the existing structural heuristics and limits; it does not turn the visualizer into nine compilers.
 
