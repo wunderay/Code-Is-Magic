@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {sampleCurve,createFlow} from '../web/flow.js';
-import {writingOrder,writingPlan,unrollingReach,quillCadence} from '../web/quill.js';
+import {writingOrder,writingPlan,unrollingReach,screenReach,unrollingOpening,glide,followingView,Quill,quillCadence} from '../web/quill.js';
 const entities=[{id:0,name:'main',tokens:['zeta','(',')','alpha','(',')']},{id:1,name:'alpha',tokens:[]},{id:2,name:'zeta',tokens:['alpha','(']},{id:3,name:'lonely',tokens:[]}];
 const placements=entities.map((spell,nthSpell)=>({id:spell.id,x:nthSpell*100,y:0,radius:20+nthSpell*5}));
 const channel=(from,to)=>({from,to,...sampleCurve([0,0,15,60,85,-40,100,10])});
@@ -48,4 +48,47 @@ test('an unstarted quill below its sight threshold requests no frames at all',()
   assert.equal(quillCadence({begin:Infinity,fast:true},40,{fullView,fast:true}),'begin');
   assert.equal(quillCadence({begin:12,fast:false},0,{fullView}),'write');
   assert.equal(quillCadence(null,0,{fullView}),'idle');
+});
+test('on the screen, the opening must bare a seal where the current pan and zoom put it',()=>{
+  const view={axis:'across',panX:0,panY:0,zoom:1,width:400,height:300};
+  assert.equal(screenReach({x:200,y:0,radius:0},view),0);
+  assert.equal(screenReach({x:300,y:0,radius:50},view),(100+50*1.22)/200);
+  // Zoomed in and panned, the same seal lies far from the heart and needs the whole scroll.
+  assert.equal(screenReach({x:300,y:0,radius:50},{...view,zoom:3,panX:-400}),1);
+  assert.equal(screenReach({x:0,y:240,radius:0},{...view,axis:'down'}),90/150);
+});
+test('the opening keeps the even pace, widens for the pen, never closes and ends open',()=>{
+  assert.equal(unrollingOpening(.3,[]),.3);
+  assert.equal(unrollingOpening(.3,[.2,.7]),.7);
+  assert.equal(unrollingOpening(.3,[.2],.5),.5);
+  assert.equal(unrollingOpening(1.4,[]),1);
+  const seal={id:0,x:100,y:0,radius:20},inkwell={bounds:{left:-100,right:100,top:-50,bottom:50},paths:[],flow:[]};
+  const quill=new Quill({placements:[seal]},inkwell,{now:0});
+  const view={panX:200,panY:150,zoom:1,width:400,height:300};
+  let opening=0;
+  for(let hourglass=0;hourglass<=quill.plan.total+10;hourglass+=25){
+    const wider=quill.unrolled(hourglass,view);
+    assert.ok(wider>=opening);opening=wider;
+  }
+  assert.equal(opening,1);
+  // Zoomed in on the seal's far side, the pen's seal is bared before the even pace reaches it.
+  const central=new Quill({placements:[{...seal,x:0}]},inkwell,{now:0}),writingAt=central.plan.seals.get(0).start;
+  const evenPace=new Quill({placements:[{...seal,x:0}]},inkwell,{now:0}).unrolled(writingAt);
+  assert.ok(evenPace<1);
+  assert.equal(central.unrolled(writingAt,{...view,zoom:4,panX:-600}),1);
+});
+test('the view glides to its target without overshoot, whatever the frame rate',()=>{
+  const settle=frames=>{let state={value:0,velocity:0};for(let nthFrame=0;nthFrame<frames;nthFrame++){state=glide(state.value,state.velocity,10,2/frames,.8);assert.ok(state.value<=10+1e-9);}return state.value;};
+  assert.ok(Math.abs(settle(60)-settle(240))<.05);
+  assert.ok(settle(60)>9);
+  assert.equal(glide(3,0,10,0,.8).value,3);
+});
+test('while writing, the view draws nearer by at most a few times the fitted zoom, and toward the seal',()=>{
+  const fitted={zoom:.1,panX:200,panY:150},room={width:400,height:300};
+  const small=followingView({x:1000,y:500,radius:5},fitted,room);
+  assert.ok(Math.abs(small.zoom-.35)<1e-9);
+  const fittedX=fitted.panX+1000*fitted.zoom,followedX=small.panX+1000*small.zoom;
+  assert.ok(Math.abs(followedX-200)<Math.abs(fittedX-200));
+  const grand=followingView({x:0,y:0,radius:5000},fitted,room);
+  assert.deepEqual(grand,{zoom:.1,panX:200,panY:150});
 });

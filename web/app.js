@@ -2,13 +2,17 @@ import { readRepository, sourceFiles, encodeBytes } from './repository.js';
 import { classifyInput, droppedLink, droppedFiles, fetchMagic, INPUT_HELP } from './input.js';
 import { languageColors } from './languages.js';
 import { LivingInk } from './effects.js';
-import { Quill, quillCadence } from './quill.js';
+import { Quill, quillCadence, followingView, glide } from './quill.js';
 import { validateSvg } from './svg.js';
 const $ = id => document.getElementById(id);
 let livingInk=new LivingInk();
 const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
 // The quill writes each new diagram onto the page; it waits until the page is in view.
 let quill=null,writingDoneAt=-Infinity;
+// The view eases toward the seal being written ('following'), then back to the fitted page ('homing'), until the reader takes the view in hand (null).
+let penFollowing=null,penVelocity={zoom:0,panX:0,panY:0},lastPenGlide=0;
+const penGlideSeconds=.8;
+function takeHand(){penFollowing=null;}
 let glowing=true,moving=!reducedMotion.matches,animationFrame=null,animationEpoch=performance.now(),lastAnimationFrame=0,previewVisible=true;
 const canvas = $('canvas'), ctx = canvas.getContext('2d'), viewport = $('viewport');
 // The circle chamber is a scroll: across on wide screens, unrolling downward on phones.
@@ -60,6 +64,7 @@ async function install(next,signal,source) {
   viewport.dataset.ink=livingInk.background==='#f0e8d7'?'light':'dark';
   scheduleAnimation();
   if (reframe) { shapeScroll(); fit(); } else draw();
+  penFollowing=quill&&!quill.fast?'following':null;penVelocity={zoom:0,panX:0,panY:0};
   $('diagram-title').textContent = title;
   const visible = next.analysis.entities.filter(e=>e.kind!=='merged_impl');
   const calls = next.analysis.edges.filter(e=>e.kind==='calls').length;
@@ -78,13 +83,25 @@ function draw(time=performance.now()-animationEpoch) {
   if (!image) return;
   const now=performance.now();
   if(quill&&quill.done(now))finishWriting(now);
-  unrollScroll(quill?quill.unrolled(now):1);
+  followPen(now,bounds);
+  unrollScroll(quill?quill.unrolled(now,{panX,panY,zoom,width:bounds.width,height:bounds.height}):1);
   const awaken=Math.max(0,Math.min(1,(now-writingDoneAt)/900));
   livingInk.paint(ctx,image,diagram,{width:bounds.width,height:bounds.height,dpr,panX,panY,zoom},typeof time==='number'?time:now-animationEpoch,{glow:glowing,motion:moving&&!quill,writing:quill,now,awaken});
   if (selected!==null) { const p=diagram.placements.find(p=>p.id===selected);if(p){ctx.beginPath();ctx.arc(panX+p.x*zoom,panY+p.y*zoom,(p.radius+9)*zoom,0,Math.PI*2);ctx.strokeStyle=livingInk.background==='#f0e8d7'?'#73502d':'#f5dfaa';ctx.lineWidth=1.5;ctx.stroke();} }
   const flowText=quill?(Number.isFinite(quill.begin)?`The quill inscribes ${quill.written(now)} of ${quill.plan.seals.size} seals…`:'The page awaits the quill'):moving?livingInk.describe(typeof time==='number'?time:performance.now()-animationEpoch):'Call flow paused';
   if($('flow-label').textContent!==flowText)$('flow-label').textContent=flowText;
   const zoomText=`${Math.round(zoom*100)}%`;if($('zoom-label').textContent!==zoomText)$('zoom-label').textContent=zoomText;
+}
+// Ease the view toward the seal under the quill, or home to the fitted page once writing is over.
+function followPen(now,view){
+  if(!penFollowing||!image)return;
+  const hourglassSeconds=Math.min(.1,Math.max(0,(now-lastPenGlide)/1000));lastPenGlide=now;
+  const fitted=fittedView(view),seal=penFollowing==='following'&&quill&&Number.isFinite(quill.begin)&&quill.current(now);
+  const aim=penFollowing==='homing'?fitted:seal&&followingView(seal,fitted,view);
+  if(!aim)return;
+  const glidedZoom=glide(Math.log(zoom),penVelocity.zoom,Math.log(aim.zoom),hourglassSeconds,penGlideSeconds),glidedX=glide(panX,penVelocity.panX,aim.panX,hourglassSeconds,penGlideSeconds),glidedY=glide(panY,penVelocity.panY,aim.panY,hourglassSeconds,penGlideSeconds);
+  zoom=Math.exp(glidedZoom.value);panX=glidedX.value;panY=glidedY.value;penVelocity={zoom:glidedZoom.velocity,panX:glidedX.velocity,panY:glidedY.velocity};
+  if(penFollowing==='homing'&&Math.abs(Math.log(zoom/aim.zoom))<.003&&Math.hypot(panX-aim.panX,panY-aim.panY)<.5){zoom=aim.zoom;panX=aim.panX;panY=aim.panY;penFollowing=null;}
 }
 // Size the parchment to the diagram's own shape, so the drawing reaches close to its edges.
 function shapeScroll() {
@@ -118,25 +135,27 @@ addEventListener('resize',()=>{clearTimeout(scrollResize);scrollResize=setTimeou
 narrowScroll.addEventListener('change',shapeScroll);
 function fit() {
   if(!diagram)return;
-  const view=viewport.getBoundingClientRect(),bounds=livingInk.bounds;
+  const fitted=fittedView();zoom=fitted.zoom;panX=fitted.panX;panY=fitted.panY;draw();
+}
+function fittedView(view=viewport.getBoundingClientRect()) {
+  const bounds=livingInk.bounds;
   const width=Math.max(1,bounds.right-bounds.left),height=Math.max(1,bounds.bottom-bounds.top);
   // A modest margin: the worn edge, plus the rolls that rest over the parchment's ends.
   const margin=Math.max(10,Math.min(26,Math.min(view.width,view.height)*.03))+12;
-  zoom=Math.min((view.width-margin*2)/width,(view.height-margin*2)/height,8);
-  panX=view.width/2-(bounds.left+width/2)*zoom;
-  panY=view.height/2-(bounds.top+height/2)*zoom;draw();
+  const fittedZoom=Math.min((view.width-margin*2)/width,(view.height-margin*2)/height,8);
+  return {zoom:fittedZoom,panX:view.width/2-(bounds.left+width/2)*fittedZoom,panY:view.height/2-(bounds.top+height/2)*fittedZoom};
 }
-function zoomAt(factor,x,y) {const z=Math.min(8,Math.max(.025,zoom*factor));panX=x-(x-panX)*z/zoom;panY=y-(y-panY)*z/zoom;zoom=z;draw();}
+function zoomAt(factor,x,y) {takeHand();const z=Math.min(8,Math.max(.025,zoom*factor));panX=x-(x-panX)*z/zoom;panY=y-(y-panY)*z/zoom;zoom=z;draw();}
 viewport.addEventListener('wheel',e=>{e.preventDefault();const b=viewport.getBoundingClientRect();zoomAt(Math.exp(-e.deltaY*.001),e.clientX-b.left,e.clientY-b.top);},{passive:false});
 let drag;
-viewport.addEventListener('pointerdown',touch=>{if(quill)finishWriting();drag={x:touch.clientX,y:touch.clientY,px:panX,py:panY,moved:false};viewport.setPointerCapture(touch.pointerId);});
+viewport.addEventListener('pointerdown',touch=>{takeHand();if(quill)finishWriting();drag={x:touch.clientX,y:touch.clientY,px:panX,py:panY,moved:false};viewport.setPointerCapture(touch.pointerId);});
 viewport.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.moved ||= Math.hypot(dx,dy)>4;panX=drag.px+dx;panY=drag.py+dy;draw();});
 viewport.addEventListener('pointerup',e=>{if(!drag)return;if(!drag.moved&&diagram){const b=viewport.getBoundingClientRect(),x=(e.clientX-b.left-panX)/zoom,y=(e.clientY-b.top-panY)/zoom;const p=diagram.placements.find(p=>Math.hypot(p.x-x,p.y-y)<p.radius);if(p)inspect(p.id);}drag=null;});
 viewport.addEventListener('pointercancel',()=>{drag=null;});
-viewport.addEventListener('keydown',keystroke=>{if(quill&&!['Shift','Control','Alt','Meta','Tab'].includes(keystroke.key)){finishWriting();if(keystroke.key===' '||keystroke.key==='Enter'||keystroke.key==='Escape'){keystroke.preventDefault();return;}}if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(keystroke.key)){keystroke.preventDefault();panX+=keystroke.key==='ArrowLeft'?30:keystroke.key==='ArrowRight'?-30:0;panY+=keystroke.key==='ArrowUp'?30:keystroke.key==='ArrowDown'?-30:0;draw();}if(keystroke.key==='+'||keystroke.key==='=')$('zoom-in').click();if(keystroke.key==='-')$('zoom-out').click();});
+viewport.addEventListener('keydown',keystroke=>{if(quill&&!['Shift','Control','Alt','Meta','Tab'].includes(keystroke.key)){finishWriting();if(keystroke.key===' '||keystroke.key==='Enter'||keystroke.key==='Escape'){keystroke.preventDefault();return;}}if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(keystroke.key)){takeHand();keystroke.preventDefault();panX+=keystroke.key==='ArrowLeft'?30:keystroke.key==='ArrowRight'?-30:0;panY+=keystroke.key==='ArrowUp'?30:keystroke.key==='ArrowDown'?-30:0;draw();}if(keystroke.key==='+'||keystroke.key==='=')$('zoom-in').click();if(keystroke.key==='-')$('zoom-out').click();});
 let lastViewportWidth = 0, lastViewportHeight = 0;
 new ResizeObserver(() => { const bounds = viewport.getBoundingClientRect(); if (bounds.width !== lastViewportWidth || bounds.height !== lastViewportHeight) { lastViewportWidth = bounds.width; lastViewportHeight = bounds.height; fit(); } else { draw(); } }).observe(viewport);
-$('fit').onclick=fit;
+$('fit').onclick=()=>{takeHand();fit();};
 for(const [id,factor] of [['zoom-in',1.25],['zoom-out',.8]])$(id).onclick=()=>{const b=viewport.getBoundingClientRect();zoomAt(factor,b.width/2,b.height/2);};
 function listEntities() {
   const root=$('entities');root.replaceChildren();if(!diagram)return;
@@ -144,7 +163,7 @@ function listEntities() {
   for(const e of diagram.analysis.entities.filter(e=>e.kind!=='merged_impl'&&`${e.qualified_name} ${e.path} ${e.language}`.toLowerCase().includes(query))) {
     const button=document.createElement('button');button.type='button';button.dataset.id=e.id;button.classList.toggle('selected',selected===e.id);
     button.append(document.createTextNode(`${e.kind==='function'?'◎':e.kind==='struct'?'⬡':'◇'} ${e.qualified_name}`));
-    const detail=document.createElement('small');detail.textContent=`${e.language} · ${e.path}:${e.line} · ${e.lines} lines`;button.append(detail);button.onclick=()=>{inspect(e.id);const p=diagram.placements.find(p=>p.id===e.id);if(p){const b=viewport.getBoundingClientRect();zoom=Math.max(zoom,1);panX=b.width/2-p.x*zoom;panY=b.height/2-p.y*zoom;draw();}};root.append(button);
+    const detail=document.createElement('small');detail.textContent=`${e.language} · ${e.path}:${e.line} · ${e.lines} lines`;button.append(detail);button.onclick=()=>{takeHand();inspect(e.id);const p=diagram.placements.find(p=>p.id===e.id);if(p){const b=viewport.getBoundingClientRect();zoom=Math.max(zoom,1);panX=b.width/2-p.x*zoom;panY=b.height/2-p.y*zoom;draw();}};root.append(button);
   }
 }
 $('search').oninput=listEntities;
@@ -315,13 +334,14 @@ $('save-key').onclick=()=>{
 $('clear-key').onclick=()=>{$('magic-key').value='';updateKey();};
 function finishWriting(now=performance.now()){
   if(!quill)return;
+  penFollowing=penFollowing==='following'?'homing':null;
   quill.finish();quill=null;writingDoneAt=now;animationEpoch=now;writingState();draw();scheduleAnimation();
 }
 function writingState(){
   $('quill-skip').hidden=!quill;
   viewport.dataset.writing=quill?'true':'false';
 }
-function animating(){return moving||!!quill||performance.now()-writingDoneAt<900;}
+function animating(){return moving||!!quill||penFollowing==='homing'||performance.now()-writingDoneAt<900;}
 function scheduleAnimation(){
   if(animationFrame!==null||!animating()||!image||document.hidden)return;
   const bounds=viewport.getBoundingClientRect();
@@ -335,7 +355,7 @@ function scheduleAnimation(){
   canvas.dataset.motion='running';
   animationFrame=requestAnimationFrame(timestamp=>{
     animationFrame=null;
-    if(timestamp-lastAnimationFrame>=(quill?15:33)){lastAnimationFrame=timestamp;draw(timestamp-animationEpoch);}
+    if(timestamp-lastAnimationFrame>=(quill||penFollowing?15:33)){lastAnimationFrame=timestamp;draw(timestamp-animationEpoch);}
     scheduleAnimation();
   });
 }
