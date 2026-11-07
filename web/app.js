@@ -145,7 +145,7 @@ function fittedView(view=viewport.getBoundingClientRect()) {
   const fittedZoom=Math.min((view.width-margin*2)/width,(view.height-margin*2)/height,8);
   return {zoom:fittedZoom,panX:view.width/2-(bounds.left+width/2)*fittedZoom,panY:view.height/2-(bounds.top+height/2)*fittedZoom};
 }
-function zoomAt(factor,x,y) {takeHand();const z=Math.min(8,Math.max(.025,zoom*factor));panX=x-(x-panX)*z/zoom;panY=y-(y-panY)*z/zoom;zoom=z;draw();}
+function zoomAt(factor,focusX,focusY) {takeHand();const magnified=Math.min(8,Math.max(.025,zoom*factor));panX=focusX-(focusX-panX)*magnified/zoom;panY=focusY-(focusY-panY)*magnified/zoom;zoom=magnified;draw();}
 viewport.addEventListener('wheel',e=>{e.preventDefault();const b=viewport.getBoundingClientRect();zoomAt(Math.exp(-e.deltaY*.001),e.clientX-b.left,e.clientY-b.top);},{passive:false});
 let drag;
 viewport.addEventListener('pointerdown',touch=>{takeHand();if(quill)finishWriting();drag={x:touch.clientX,y:touch.clientY,px:panX,py:panY,moved:false};viewport.setPointerCapture(touch.pointerId);});
@@ -163,7 +163,7 @@ function listEntities() {
   for(const e of diagram.analysis.entities.filter(e=>e.kind!=='merged_impl'&&`${e.qualified_name} ${e.path} ${e.language}`.toLowerCase().includes(query))) {
     const button=document.createElement('button');button.type='button';button.dataset.id=e.id;button.classList.toggle('selected',selected===e.id);
     button.append(document.createTextNode(`${e.kind==='function'?'◎':e.kind==='struct'?'⬡':'◇'} ${e.qualified_name}`));
-    const detail=document.createElement('small');detail.textContent=`${e.language} · ${e.path}:${e.line} · ${e.lines} lines`;button.append(detail);button.onclick=()=>{takeHand();inspect(e.id);const p=diagram.placements.find(p=>p.id===e.id);if(p){const b=viewport.getBoundingClientRect();zoom=Math.max(zoom,1);panX=b.width/2-p.x*zoom;panY=b.height/2-p.y*zoom;draw();}};root.append(button);
+    const detail=document.createElement('small');detail.textContent=`${e.language} · ${e.path}:${e.line} · ${e.lines} lines`;button.append(detail);button.onclick=()=>{takeHand();inspect(e.id);const chosenSeal=diagram.placements.find(seal=>seal.id===e.id);if(chosenSeal){const frame=viewport.getBoundingClientRect();zoom=Math.max(zoom,1);panX=frame.width/2-chosenSeal.x*zoom;panY=frame.height/2-chosenSeal.y*zoom;draw();}};root.append(button);
   }
 }
 $('search').oninput=listEntities;
