@@ -16,8 +16,6 @@
   --muted:#b6aa94;--gold:#dcbd84;--rubric:#ec8a6f;--line:#40372c;--soft:#2a231d;
   --button:#211b16;--danger:#f2b09b;--shadow:#000a;--star:#b9b7cf;
   --glow:#e6c88a55;--sheen:#fff3d6;--nebula:#6b5aa512;--nebula2:#8a4a2a12;
-  --leather:#4a2219;--leather-dark:#230f0b;--leather-edge:#c79a5a55;
-  --page-edge:#2a2621;--page-edge-line:#14120f;
 }
 :root[data-theme=light] {
   color-scheme:light;
@@ -25,8 +23,6 @@
   --muted:#5d5141;--gold:#77501f;--rubric:#9a2b1a;--line:#bfae91;--soft:#ded0b6;
   --button:#efe4cf;--danger:#9a2b1a;--shadow:#4a32183a;--star:#877f98;
   --glow:#a0763a38;--sheen:#a2723a;--nebula:#c9a46a26;--nebula2:#9a5a3a12;
-  --leather:#7a3d24;--leather-dark:#4a2214;--leather-edge:#f3d39a66;
-  --page-edge:#f3ead6;--page-edge-line:#cdbb98;
 }
 *{box-sizing:border-box}
 html{overflow-x:clip}
@@ -123,52 +119,54 @@ input::placeholder{color:var(--muted);opacity:.85}
 .view-controls button[aria-pressed]{border-color:var(--line)}.view-controls button[aria-pressed=true]{border-color:var(--gold)}
 .view-controls #glow-toggle{margin-left:9px}#settings-toggle{display:none}
 #quill-skip{color:var(--rubric)!important;border-color:currentColor!important;font-style:italic}
-.grimoire-book{position:relative;flex:1;display:flex;padding:14px 16px 20px;margin-bottom:26px;border-radius:9px 9px 12px 12px;
-  background:radial-gradient(ellipse at 30% 0%,#ffffff12,transparent 60%),var(--grain),linear-gradient(160deg,var(--leather),var(--leather-dark));background-size:auto,240px 240px,auto;
-  box-shadow:0 34px 60px -26px var(--shadow),0 4px 14px -4px var(--shadow),inset 0 0 0 1px #0006,inset 0 0 0 4px var(--leather),inset 0 0 0 5px var(--leather-edge),inset 0 0 22px #0008}
-/* Stacked page edges peek out beneath the open pages. */
-.book-edges{position:absolute;left:18px;right:18px;bottom:8px;height:16px;border-radius:0 0 6px 6px;pointer-events:none;
-  background:repeating-linear-gradient(to bottom,var(--page-edge) 0 1px,var(--page-edge-line) 1px 2px);opacity:.85;
-  background-image:repeating-linear-gradient(to bottom,var(--page-edge) 0 1px,var(--page-edge-line) 1px 2px),linear-gradient(90deg,transparent 49.6%,#0006 50%,transparent 50.4%);
-  background-blend-mode:multiply}
-.grimoire-book:has(#viewport[data-ink=light]){--page-edge:#efe5cf;--page-edge-line:#c4b08c}
-.grimoire-book:has(#viewport[data-ink=dark]){--page-edge:#2a2722;--page-edge-line:#12100d}
-.book-ribbon{position:absolute;z-index:4;left:63%;bottom:-30px;width:20px;height:58px;pointer-events:none;
-  background:linear-gradient(90deg,#5e1210,#a8281c 45%,#7c1a14);clip-path:polygon(0 0,100% 0,100% 100%,50% 82%,0 100%);box-shadow:0 2px 6px #0007;opacity:.95}
-#viewport{flex:1;position:relative;min-height:650px;background:#0c1112;overflow:hidden;cursor:grab;touch-action:none;border-radius:3px;
+/* ── The scroll: parchment between two turned rods, unrolled as the quill writes ──
+   --unroll runs from nearly shut (the rods side by side) to 1 (open to its ends). */
+.grimoire-scroll{--rod-breadth:30px;--rod-overhang:9px;--unroll:.04;position:relative;width:fit-content;max-width:100%;margin:6px auto 4px;
+  display:flex;justify-content:center;padding:34px calc(var(--rod-breadth) / 2);
+  --roll-light:#fbf3df;--roll-mid:#dccba6;--roll-dark:#7f6644;--brass-light:#fff1c4;--brass:#c99a48;--brass-dark:#4a300d}
+.grimoire-scroll:has(#viewport[data-ink=dark]){--roll-light:#4a4236;--roll-mid:#1d1914;--roll-dark:#050403}
+/* The shadow the open parchment casts on the desk, following the rods. */
+.grimoire-scroll:before{content:'';position:absolute;z-index:0;pointer-events:none;top:34px;bottom:34px;
+  left:calc(var(--rod-breadth) / 2 + (1 - var(--unroll)) * (50% - var(--rod-breadth) / 2));right:calc(var(--rod-breadth) / 2 + (1 - var(--unroll)) * (50% - var(--rod-breadth) / 2));
+  box-shadow:0 26px 44px -20px var(--shadow),0 3px 10px -3px var(--shadow)}
+#viewport{position:relative;z-index:1;flex:none;width:min(100%,900px);height:620px;background:#0c1112;overflow:hidden;cursor:grab;touch-action:none;
+  clip-path:inset(0 calc((1 - var(--unroll)) * 50%));
   -webkit-mask:var(--deckle) center/100% 100% no-repeat;mask:var(--deckle) center/100% 100% no-repeat}
 #viewport[data-ink=light]{background:#f0e8d7}
 #viewport:active{cursor:grabbing}canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
-/* Paper: grain, fibres, foxing toward the edges, and the shadow of the spine. */
+/* The rolls: parchment wound on a turned rod, with brass finials at either end. */
+.scroll-rod{position:absolute;z-index:2;pointer-events:none;top:calc(34px - var(--rod-overhang));bottom:calc(34px - var(--rod-overhang));width:var(--rod-breadth);border-radius:9px / 5px;
+  background:var(--grain),linear-gradient(90deg,var(--roll-dark),var(--roll-mid) 20%,var(--roll-light) 46%,var(--roll-mid) 72%,var(--roll-dark));background-size:240px 240px,auto}
+.scroll-rod-start{left:calc((1 - var(--unroll)) * (50% - var(--rod-breadth) / 2));box-shadow:9px 0 12px -6px #0009,inset -1px 0 0 #0003}
+.scroll-rod-end{right:calc((1 - var(--unroll)) * (50% - var(--rod-breadth) / 2));box-shadow:-9px 0 12px -6px #0009,inset 1px 0 0 #0003}
+.scroll-rod:before,.scroll-rod:after{content:'';position:absolute;left:50%;width:calc(var(--rod-breadth) * .72);height:25px;transform:translateX(-50%);
+  background:radial-gradient(ellipse 55% 45% at 42% 38%,var(--brass-light),var(--brass) 38%,#8a6224 70%,var(--brass-dark));
+  border-radius:50% 50% 42% 42% / 64% 64% 36% 36%;box-shadow:0 2px 4px #0007}
+.scroll-rod:before{top:-24px}
+.scroll-rod:after{bottom:-24px;transform:translateX(-50%) scaleY(-1)}
+/* Paper: grain and fibres, worn toward the edges, and the curl where it leaves each roll. */
 .page-paper{position:absolute;inset:0;pointer-events:none;
   background:
-    linear-gradient(90deg,transparent 43%,#00000024 48%,#00000070 49.7%,#ffffff0d 50.15%,#00000038 51.2%,transparent 57%),
-    linear-gradient(90deg,#0000004d,transparent 7%,transparent 93%,#0000004d),
-    radial-gradient(ellipse 75% 70% at 50% 50%,transparent 60%,#00000066 100%),
+    radial-gradient(ellipse 80% 72% at 50% 50%,transparent 62%,#00000059 100%),
     radial-gradient(ellipse 55% 50% at 50% 45%,#ffd9a00c,transparent 75%),
     var(--grain);
-  background-size:auto,auto,auto,auto,240px 240px;mix-blend-mode:normal;opacity:.9}
-.page-paper:before{content:'';position:absolute;inset:26px;border:1px solid #d8bd8826;box-shadow:0 0 0 4px transparent,0 0 0 5px #d8bd8814;pointer-events:none}
+  background-size:auto,auto,240px 240px;opacity:.9;
+  box-shadow:inset 0 12px 16px -12px #e8cf9a26,inset 0 -12px 16px -12px #e8cf9a1c}
 #viewport[data-ink=light] .page-paper{mix-blend-mode:multiply;opacity:1;
   background:
-    linear-gradient(90deg,transparent 42%,#6a4a2a18 47.5%,#5a3a1a55 49.7%,#fff8e826 50.15%,#5a3a1a28 51.3%,transparent 58%),
-    linear-gradient(90deg,#8a6a4038,transparent 6%,transparent 94%,#8a6a4038),
-    radial-gradient(circle at 8% 88%,#b0804022,transparent 12%),radial-gradient(circle at 91% 9%,#a0703018,transparent 10%),
-    radial-gradient(ellipse 78% 72% at 50% 50%,transparent 58%,#8f6a3a44 100%),
+    radial-gradient(circle at 9% 86%,#b0804024,transparent 13%),radial-gradient(circle at 92% 12%,#a0703018,transparent 11%),
+    radial-gradient(ellipse 82% 74% at 50% 50%,transparent 60%,#8f6a3a40 100%),
     var(--fibers),var(--grain);
-  background-size:auto,auto,auto,auto,auto,600px 600px,240px 240px}
-#viewport[data-ink=light] .page-paper:before{border-color:#9a2b1a33;box-shadow:0 0 0 4px transparent,0 0 0 5px #9a2b1a1c}
-.canvas-corner{position:absolute;top:34px;left:38px;font:24px var(--serif);color:#d8bd88;opacity:.6;pointer-events:none}
+  background-size:auto,auto,auto,600px 600px,240px 240px;box-shadow:inset 0 10px 14px -10px #6a4a2a33,inset 0 -10px 14px -10px #6a4a2a2a}
+.canvas-corner{position:absolute;top:18px;left:26px;font:22px var(--serif);color:#d8bd88;opacity:.55;pointer-events:none}
 #viewport[data-ink=light] .canvas-corner{color:#9a2b1a}
-.canvas-tip{position:absolute;bottom:34px;left:0;right:0;pointer-events:none;text-align:center;font:italic 12px/1.5 var(--serif);letter-spacing:.06em;color:#b4ac9c;text-shadow:0 1px 5px #111}
-.flow-readout{position:absolute;left:50%;bottom:58px;transform:translateX(-50%);max-width:86%;display:flex;align-items:center;gap:8px;padding:5px 12px;background:#0c1112cc;border:1px solid #a8906433;border-radius:20px;pointer-events:none;color:#ead4aa;font:italic 14px/1.4 var(--serif);white-space:nowrap}
-.flow-readout span{overflow:hidden;text-overflow:ellipsis}.flow-readout i{width:4px;height:4px;background:#dfc18b;border-radius:50%;box-shadow:0 0 9px 2px #dfc18b60;flex-shrink:0}
-#viewport[data-writing=true] .flow-readout i{width:9px;height:9px;border-radius:0;background:none;box-shadow:none;border-bottom:2px solid currentColor;transform:rotate(-35deg)}
-#viewport[data-ink=light] .canvas-tip{color:#6c5c46;text-shadow:none}
-#viewport[data-ink=light] .flow-readout{background:#f4ecdcee;border-color:#bba98a;color:#5b4120}
-#viewport[data-ink=light] .flow-readout i{background:#88632d;box-shadow:0 0 8px #88632d60}
-#viewport[data-ink=light][data-writing=true] .flow-readout i{background:none;box-shadow:none}
-/* Colophon beneath the book. */
+/* The scribe's note beneath the scroll. */
+.scroll-caption{display:flex;flex-direction:column;align-items:center;gap:2px;margin:2px 0 16px;min-width:0}
+.flow-readout{max-width:100%;display:flex;align-items:center;gap:8px;padding:5px 14px;background:var(--panel);border:1px solid var(--line);border-radius:20px;pointer-events:none;color:var(--text);font:italic 14px/1.4 var(--serif);white-space:nowrap}
+.flow-readout span{overflow:hidden;text-overflow:ellipsis}.flow-readout i{width:4px;height:4px;background:var(--gold);border-radius:50%;box-shadow:0 0 9px 2px var(--glow);flex-shrink:0}
+.canvas-area:has(#viewport[data-writing=true]) .flow-readout i{width:9px;height:9px;border-radius:0;background:none;box-shadow:none;border-bottom:2px solid var(--rubric);transform:rotate(-35deg)}
+.canvas-tip{pointer-events:none;text-align:center;font:italic 12px/1.5 var(--serif);letter-spacing:.06em;color:var(--muted)}
+/* Colophon beneath the scroll. */
 .export-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 4px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .export-bar .panel-label{display:block;color:var(--rubric)}.export-note{font:italic 13px var(--serif);color:var(--muted)}
 .export-bar>div:last-child{display:flex;gap:6px;flex-wrap:wrap}.export-bar button{background:transparent;font-size:13px;padding:9px 12px}.export-bar #download-svgz{border-color:var(--gold);color:var(--gold)}
@@ -207,7 +205,6 @@ h3:first-letter{color:var(--rubric)}
 .method{border-top:1px solid var(--line);padding:20px 0;font-size:14px;color:var(--muted)}.method summary{font:italic 18px var(--serif);color:var(--rubric);cursor:pointer}.method p{max-width:62em;line-height:1.75}
 .method p:first-of-type:first-letter{float:left;font-size:3.4em;line-height:.8;padding:6px 8px 0 0;color:var(--rubric)}
 footer{display:flex;justify-content:space-between;gap:20px;border-top:1px solid var(--line);padding:22px 0 30px;margin-top:13px;font:600 11px/1.5 var(--serif);letter-spacing:.14em;font-variant:small-caps;color:var(--muted)}footer a{letter-spacing:.04em;padding:6px 0}
-@media(min-width:1450px){#viewport{min-height:740px}}
 @media(max-width:1100px){
   .masthead,main{padding-left:30px;padding-right:30px}.masthead:after{left:30px;right:30px}.header-note{display:none}.masthead nav{margin-left:auto}
   .workbench{grid-template-columns:minmax(0,1fr) 220px;gap:0 20px}.controls{padding-left:16px}
@@ -228,12 +225,19 @@ footer{display:flex;justify-content:space-between;gap:20px;border-top:1px solid 
   .controls{grid-column:1;grid-row:1;border-left:0;padding:8px 4px 4px;margin-bottom:16px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.controls:before{display:none}
   .workbench:not([data-settings-open]) .controls{display:none}
   .canvas-toolbar{padding:4px 0 10px}.canvas-toolbar>span{width:auto}.view-controls{margin-left:0}#settings-toggle{display:inline-flex}
-  .grimoire-book{padding:9px 9px 16px}.book-edges{left:11px;right:11px;bottom:5px;height:11px;background-image:repeating-linear-gradient(to bottom,var(--page-edge) 0 1px,var(--page-edge-line) 1px 2px)}
-  #viewport{min-height:540px}.inspect-section{gap:25px}#inspector{padding-left:25px}
-  /* A single page on a phone: the spine falls at its left edge. */
-  .page-paper{background:linear-gradient(90deg,#00000070,#0000002a 4%,transparent 12%),radial-gradient(ellipse 80% 75% at 50% 50%,transparent 60%,#00000066 100%),var(--grain);background-size:auto,auto,240px 240px}
-  #viewport[data-ink=light] .page-paper{background:linear-gradient(90deg,#5a3a1a50,#6a4a2a18 4%,transparent 12%),radial-gradient(circle at 8% 90%,#b0804022,transparent 14%),radial-gradient(ellipse 82% 76% at 50% 50%,transparent 58%,#8f6a3a44 100%),var(--fibers),var(--grain);background-size:auto,auto,auto,600px 600px,240px 240px}
-  .page-paper:before{inset:18px}.canvas-corner{left:28px;top:24px}
+  /* On a phone the scroll hangs downward: rods above and below, unrolling from its heart. */
+  .grimoire-scroll{width:100%;padding:calc(var(--rod-breadth) / 2) 22px;--rod-breadth:26px;--rod-overhang:8px}
+  .grimoire-scroll:before{left:22px;right:22px;top:calc(var(--rod-breadth) / 2 + (1 - var(--unroll)) * (50% - var(--rod-breadth) / 2));bottom:calc(var(--rod-breadth) / 2 + (1 - var(--unroll)) * (50% - var(--rod-breadth) / 2))}
+  #viewport{width:100%;height:420px;clip-path:inset(calc((1 - var(--unroll)) * 50%) 0)}
+  .scroll-rod{top:auto;bottom:auto;left:calc(22px - var(--rod-overhang));right:calc(22px - var(--rod-overhang));width:auto;height:var(--rod-breadth);border-radius:5px / 9px;
+    background:var(--grain),linear-gradient(180deg,var(--roll-dark),var(--roll-mid) 20%,var(--roll-light) 46%,var(--roll-mid) 72%,var(--roll-dark));background-size:240px 240px,auto}
+  .scroll-rod-start{left:calc(22px - var(--rod-overhang));top:calc((1 - var(--unroll)) * (50% - var(--rod-breadth) / 2));box-shadow:0 9px 12px -6px #0009}
+  .scroll-rod-end{right:calc(22px - var(--rod-overhang));bottom:calc((1 - var(--unroll)) * (50% - var(--rod-breadth) / 2));box-shadow:0 -9px 12px -6px #0009}
+  .scroll-rod:before,.scroll-rod:after{top:50%;left:auto;width:21px;height:calc(var(--rod-breadth) * .74);transform:translateY(-50%);border-radius:64% 36% 36% 64% / 50% 42% 42% 50%}
+  .scroll-rod:before{left:-20px}
+  .scroll-rod:after{right:-20px;bottom:auto;transform:translateY(-50%) scaleX(-1)}
+  .canvas-corner{left:18px;top:14px}
+  .inspect-section{gap:25px}#inspector{padding-left:25px}
 }
 @media(max-width:500px){
   .masthead,main{padding-left:16px;padding-right:16px}.masthead{gap:10px}.masthead:after{left:16px;right:16px}.brand{font-size:13px;gap:8px}.brand small{font-size:10px}.brand-seal{width:31px;height:31px}
@@ -241,8 +245,9 @@ footer{display:flex;justify-content:space-between;gap:20px;border-top:1px solid 
   .input-foot{display:block}.input-foot .text-button{display:flex;width:max-content;margin-top:6px;min-height:32px}.source-actions{gap:4px 16px}
   .workspace-heading{flex-direction:column;gap:16px}.download-dock{width:100%;display:flex;flex-direction:column;align-items:stretch}.primary-download{width:100%;font-size:14px;padding:13px 16px}.download-dock>span{text-align:center}
   .canvas-toolbar{gap:6px}.canvas-toolbar>span{font-size:11px}.view-controls{width:100%;justify-content:flex-end;gap:2px}.view-controls button{padding:8px 8px;min-width:40px;min-height:40px}#settings-toggle{margin-right:auto}.view-controls #glow-toggle{margin-left:2px}
-  #viewport{min-height:500px}.canvas-tip{font-size:11px;letter-spacing:.02em;bottom:26px}.flow-readout{font-size:13px;bottom:48px}
-  .book-ribbon{left:72%;width:16px;height:46px;bottom:-24px}
+  /* While the quill writes, its skip control takes a row of its own so the view controls stay on one line. */
+  #quill-skip{flex-basis:100%;order:-1;margin-bottom:4px}
+  .canvas-tip{font-size:11px;letter-spacing:.02em}.flow-readout{font-size:13px}
   .export-bar{gap:10px}.export-bar>div:last-child{width:100%}.export-bar button{flex:1;padding:10px 8px;min-height:40px}
   .canvas-footer{font-size:11px;flex-wrap:wrap;gap:4px 12px}
   .inspect-section{grid-template-columns:1fr;padding:26px 0;gap:26px}#inspector{border-left:0;border-top:1px solid var(--line);padding:25px 0 0}.entity-list{max-height:200px}h3{font-size:26px}
@@ -285,7 +290,7 @@ button:focus-visible,.button:focus-within:has(:focus-visible){box-shadow:0 0 0 4
 .invocation:before{content:'';position:absolute;left:50%;top:-2px;width:min(340px,60%);height:2px;transform:translateX(-50%);pointer-events:none;
   background:linear-gradient(90deg,transparent,var(--sheen),transparent);opacity:.6}
 .invocation:focus-within{box-shadow:0 0 0 1px transparent,0 10px 40px -18px var(--glow)}
-/* The old chamber ward gave way to the book's binding. */
+/* The old chamber ward gave way to the scroll's rods. */
 .chamber-ward{display:none}
 progress{appearance:none;-webkit-appearance:none;height:3px;border:0;border-radius:2px;overflow:hidden;background:var(--soft);color:var(--gold)}
 progress::-webkit-progress-bar{background:var(--soft)}
@@ -301,6 +306,6 @@ progress::-moz-progress-bar{background:linear-gradient(90deg,var(--gold) 0 35%,v
 /* On a phone the ring stays beside the title, clear of the star chart below. */
 @media(max-width:760px){.arcane-ring{width:230px;height:230px;top:-46px;left:auto;right:-30px;opacity:.16}}
 @media(max-width:500px){.arcane-ring{width:180px;height:180px;top:-30px;right:-26px;opacity:.14}}
-@media(forced-colors:active){h1 em{-webkit-text-fill-color:currentColor;color:CanvasText;background:none;filter:none}.enchant-sky,.arcane-ring,.chamber-ward,.page-paper,.book-ribbon,.book-edges{display:none}#viewport{-webkit-mask:none;mask:none}}
+@media(forced-colors:active){h1 em{-webkit-text-fill-color:currentColor;color:CanvasText;background:none;filter:none}.enchant-sky,.arcane-ring,.chamber-ward,.page-paper,.scroll-rod{display:none}#viewport{-webkit-mask:none;mask:none}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important}progress::-webkit-progress-value{animation:none!important}.brand:hover .brand-seal{transform:none}}
 @media(prefers-reduced-motion:reduce){progress::-moz-progress-bar{animation:none!important}}

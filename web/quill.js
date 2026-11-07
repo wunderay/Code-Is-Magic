@@ -27,7 +27,9 @@ export function writingOrder(placements, lanes = []) {
 
 // Times are in milliseconds from the first stroke. Many seals are written at once
 // in overlapping waves, so 400 seals take about eight seconds and ten take three.
-export function writingPlan(placements, channels = [], lanes = [], { fast = false } = {}) {
+// Given a scroll (an unrolling axis, its heart and half its reach in diagram units),
+// each seal waits until the unrolling parchment has bared it, then the pen writes it.
+export function writingPlan(placements, channels = [], lanes = [], { fast = false, scroll = null } = {}) {
   const procession = writingOrder(placements, lanes);
   const multitude = procession.length, haste = fast ? 0.32 : 1;
   const grandest = Math.max(1, ...procession.map(seal => seal.radius || 0));
@@ -36,7 +38,7 @@ export function writingPlan(placements, channels = [], lanes = [], { fast = fals
   procession.forEach((seal, nthSeal) => {
     const duration = (420 + 680 * Math.sqrt(bind((seal.radius || 0) / grandest, 0, 1))) * (fast ? 0.55 : 1);
     // A slow first flourish, then the hand quickens.
-    const start = multitude > 1 ? span * (nthSeal / (multitude - 1)) ** 1.18 : 0;
+    const start = scroll ? span * unrollingReach(seal, scroll) : multitude > 1 ? span * (nthSeal / (multitude - 1)) ** 1.18 : 0;
     seals.set(seal.id, { seal, start, duration, angle: -Math.PI / 2 + (omen(seal.id) - 0.5) * 1.1, rank: nthSeal });
   });
   const strokes = [];
@@ -50,13 +52,24 @@ export function writingPlan(placements, channels = [], lanes = [], { fast = fals
   let total = 0;
   for (const inscription of seals.values()) total = Math.max(total, inscription.start + inscription.duration);
   for (const stroke of strokes) total = Math.max(total, stroke.start + stroke.duration);
-  return { seals, strokes, total };
+  return { seals, strokes, total, span };
 }
 
+// How far the scroll must be unrolled, from 0 at its heart to 1 at its rods, to bare a seal whole.
+export function unrollingReach(seal, { axis, heart, halfReach }) {
+  const offset = axis === 'down' ? seal.y - heart.y : seal.x - heart.x;
+  return bind((Math.abs(offset) + (seal.radius || 0) * 1.22) / Math.max(1, halfReach), 0, 1);
+}
+
+// The parchment unrolls just ahead of the pen, at an even pace.
+const unrollingLead = 260;
+
 export class Quill {
-  constructor(diagram, ink, { fast = false, now = performance.now() } = {}) {
+  constructor(diagram, ink, { fast = false, now = performance.now(), axis = 'across' } = {}) {
     this.ink = ink;
-    this.plan = writingPlan(diagram.placements.filter(seal => seal.radius > 0), ink.paths, ink.flow, { fast });
+    const bounds = ink.bounds, heart = { x: (bounds.left + bounds.right) / 2, y: (bounds.top + bounds.bottom) / 2 };
+    const halfReach = axis === 'down' ? (bounds.bottom - bounds.top) / 2 : (bounds.right - bounds.left) / 2;
+    this.plan = writingPlan(diagram.placements.filter(seal => seal.radius > 0), ink.paths, ink.flow, { fast, scroll: { axis, heart, halfReach } });
     this.begin = now;
     this.fast = fast;
     this.finished = false;
@@ -64,6 +77,12 @@ export class Quill {
   elapsed(now) { return now - this.begin; }
   done(now) { return this.finished || this.elapsed(now) >= this.plan.total; }
   finish() { this.finished = true; }
+  // How much of the scroll lies open, from 0 (rolled shut) to 1 (open to its rods).
+  unrolled(now) {
+    // A quick rewrite after a settings change writes on the scroll as it already lies open.
+    if (this.finished || this.fast) return 1;
+    return bind((this.elapsed(now) + unrollingLead) / Math.max(1, this.plan.span), 0, 1);
+  }
   // Number of seals fully inscribed, for the readout.
   written(now) {
     const hourglass = this.elapsed(now);
@@ -123,7 +142,8 @@ export class Quill {
       const presence = Math.min(1, wet.progress * 6, (1 - wet.progress) * 8);
       if (wet.reach > 9) this.bleed(scroll, tipX, tipY, Math.max(2.5, wet.reach * 0.07), vellum, presence);
       if (nthPen < 7 && wet.reach > 9) this.quillGlyph(scroll, tipX, tipY, bind(wet.reach * 0.95, 22, 62), inkwell, aura, presence, now + wet.inscription.rank * 97, vellum);
-      else this.nib(scroll, tipX, tipY, bind(wet.reach * 0.12, 1.6, 3.2), inkwell, aura, presence);
+      // Seals only a few pixels wide are inked without a visible nib, so the page does not fill with marks.
+      else if (wet.reach > 5) this.nib(scroll, tipX, tipY, bind(wet.reach * 0.12, 1.6, 3.2), inkwell, aura, presence * (vellum ? 0.7 : 1));
     });
     for (const tip of nibTips) {
       const tipX = panX + tip.x * zoom, tipY = panY + tip.y * zoom;

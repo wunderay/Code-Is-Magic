@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {sampleCurve,createFlow} from '../web/flow.js';
-import {writingOrder,writingPlan} from '../web/quill.js';
+import {writingOrder,writingPlan,unrollingReach} from '../web/quill.js';
 const entities=[{id:0,name:'main',tokens:['zeta','(',')','alpha','(',')']},{id:1,name:'alpha',tokens:[]},{id:2,name:'zeta',tokens:['alpha','(']},{id:3,name:'lonely',tokens:[]}];
 const placements=entities.map((spell,nthSpell)=>({id:spell.id,x:nthSpell*100,y:0,radius:20+nthSpell*5}));
 const channel=(from,to)=>({from,to,...sampleCurve([0,0,15,60,85,-40,100,10])});
@@ -26,4 +26,14 @@ test('braids are drawn after the seals they join, and the plan stays within a pl
   const grandPlan=writingPlan(multitude,[],[]);
   assert.ok(grandPlan.total>=4000&&grandPlan.total<=10000,`400 seals take 4-10 s, got ${grandPlan.total}`);
   assert.ok(writingPlan(multitude,[],[],{fast:true}).total<grandPlan.total/2);
+});
+test('on a scroll, seals wait for the parchment to unroll past them, from its heart to its rods',()=>{
+  const scroll={axis:'across',heart:{x:150,y:0},halfReach:200};
+  const plan=writingPlan(placements,[],[],{scroll});
+  const byReach=[...placements].sort((nearer,farther)=>unrollingReach(nearer,scroll)-unrollingReach(farther,scroll));
+  for(let nthSeal=1;nthSeal<byReach.length;nthSeal++)assert.ok(plan.seals.get(byReach[nthSeal].id).start>=plan.seals.get(byReach[nthSeal-1].id).start);
+  for(const seal of placements)assert.ok(Math.abs(plan.seals.get(seal.id).start-plan.span*unrollingReach(seal,scroll))<1e-9);
+  assert.equal(unrollingReach({x:150,y:0,radius:0},scroll),0);
+  assert.equal(unrollingReach({x:9999,y:0,radius:10},scroll),1);
+  assert.equal(unrollingReach({x:150,y:120,radius:0},{...scroll,axis:'down'}),.6);
 });

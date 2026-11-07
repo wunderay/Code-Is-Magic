@@ -11,6 +11,8 @@ const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
 let quill=null,writingDoneAt=-Infinity;
 let glowing=true,moving=!reducedMotion.matches,animationFrame=null,animationEpoch=performance.now(),lastAnimationFrame=0,previewVisible=true;
 const canvas = $('canvas'), ctx = canvas.getContext('2d'), viewport = $('viewport');
+// The circle chamber is a scroll: across on wide screens, unrolling downward on phones.
+const scrollCase = document.querySelector('.grimoire-scroll'), narrowScroll = matchMedia('(max-width: 760px)');
 let worker, requestId = 0, pending = new Map(), image, diagram, files = [], title = 'Code is Magic';
 let snapshot = null, inputSelection = null;
 let diagramKey = '';
@@ -53,11 +55,11 @@ async function install(next,signal,source) {
   const nextInk=new LivingInk();await nextInk.prepare(next.svg,next);
   signal?.throwIfAborted();
   if(source){snapshot=source.snapshot;files=source.files;title=source.title;imported=false;reframe=true;}
-  quill=reducedMotion.matches?null:new Quill(next,nextInk,{fast:!reframe,now:Infinity});writingDoneAt=quill?-Infinity:performance.now()-1e4;writingState();
+  quill=reducedMotion.matches?null:new Quill(next,nextInk,{fast:!reframe,now:Infinity,axis:narrowScroll.matches?'down':'across'});writingDoneAt=quill?-Infinity:performance.now()-1e4;writingState();
   livingInk=nextInk;animationEpoch=performance.now();diagram = next; diagramKey=resultKeys.get(next)||''; image = nextImage; selected = null;
   viewport.dataset.ink=livingInk.background==='#f0e8d7'?'light':'dark';
   scheduleAnimation();
-  if (reframe) fit(); else draw();
+  if (reframe) { shapeScroll(); fit(); } else draw();
   $('diagram-title').textContent = title;
   const visible = next.analysis.entities.filter(e=>e.kind!=='merged_impl');
   const calls = next.analysis.edges.filter(e=>e.kind==='calls').length;
@@ -76,6 +78,7 @@ function draw(time=performance.now()-animationEpoch) {
   if (!image) return;
   const now=performance.now();
   if(quill&&quill.done(now))finishWriting(now);
+  unrollScroll(quill?quill.unrolled(now):1);
   const awaken=Math.max(0,Math.min(1,(now-writingDoneAt)/900));
   livingInk.paint(ctx,image,diagram,{width:bounds.width,height:bounds.height,dpr,panX,panY,zoom},typeof time==='number'?time:now-animationEpoch,{glow:glowing,motion:moving&&!quill,writing:quill,now,awaken});
   if (selected!==null) { const p=diagram.placements.find(p=>p.id===selected);if(p){ctx.beginPath();ctx.arc(panX+p.x*zoom,panY+p.y*zoom,(p.radius+9)*zoom,0,Math.PI*2);ctx.strokeStyle=livingInk.background==='#f0e8d7'?'#73502d':'#f5dfaa';ctx.lineWidth=1.5;ctx.stroke();} }
@@ -83,13 +86,45 @@ function draw(time=performance.now()-animationEpoch) {
   if($('flow-label').textContent!==flowText)$('flow-label').textContent=flowText;
   const zoomText=`${Math.round(zoom*100)}%`;if($('zoom-label').textContent!==zoomText)$('zoom-label').textContent=zoomText;
 }
+// Size the parchment to the diagram's own shape, so the drawing reaches close to its edges.
+function shapeScroll() {
+  if(!diagram)return;
+  const bounds=livingInk.bounds,bearing=Math.max(.45,Math.min(1.6,(bounds.bottom-bounds.top)/Math.max(1,bounds.right-bounds.left)));
+  const rodBreadth=parseFloat(getComputedStyle(scrollCase).getPropertyValue('--rod-breadth'))||30;
+  const caseWidth=scrollCase.parentElement.clientWidth;
+  let parchmentWidth,parchmentHeight;
+  if(narrowScroll.matches) {
+    parchmentWidth=caseWidth-44;
+    parchmentHeight=Math.max(360,Math.min(parchmentWidth*bearing,innerHeight-150));
+  } else {
+    const openWidth=caseWidth-rodBreadth,tallest=Math.max(440,innerHeight-80);
+    parchmentHeight=Math.min(openWidth*bearing,tallest);
+    parchmentWidth=Math.max(Math.min(openWidth,parchmentHeight/bearing),Math.min(openWidth,520));
+  }
+  viewport.style.width=`${Math.round(parchmentWidth)}px`;viewport.style.height=`${Math.round(parchmentHeight)}px`;
+}
+// Rods start together at the heart of the scroll and part as the quill writes.
+let lastUnrolling=-1;
+function unrollScroll(unrolling) {
+  const rodBreadth=parseFloat(getComputedStyle(scrollCase).getPropertyValue('--rod-breadth'))||30;
+  const parchmentSpan=narrowScroll.matches?viewport.clientHeight:viewport.clientWidth;
+  const shut=Math.min(1,rodBreadth/Math.max(1,parchmentSpan));
+  const opening=Math.max(shut,unrolling);
+  if(Math.abs(opening-lastUnrolling)<.0005)return;
+  lastUnrolling=opening;scrollCase.style.setProperty('--unroll',opening.toFixed(4));
+}
+let scrollResize;
+addEventListener('resize',()=>{clearTimeout(scrollResize);scrollResize=setTimeout(shapeScroll,120);},{passive:true});
+narrowScroll.addEventListener('change',shapeScroll);
 function fit() {
   if(!diagram)return;
   const view=viewport.getBoundingClientRect(),bounds=livingInk.bounds;
   const width=Math.max(1,bounds.right-bounds.left),height=Math.max(1,bounds.bottom-bounds.top);
-  zoom=Math.min((view.width-64)/width,(view.height-105)/height,8);
+  // A modest margin: the worn edge, plus the rolls that rest over the parchment's ends.
+  const margin=Math.max(10,Math.min(26,Math.min(view.width,view.height)*.03))+12;
+  zoom=Math.min((view.width-margin*2)/width,(view.height-margin*2)/height,8);
   panX=view.width/2-(bounds.left+width/2)*zoom;
-  panY=(view.height-42)/2-(bounds.top+height/2)*zoom;draw();
+  panY=view.height/2-(bounds.top+height/2)*zoom;draw();
 }
 function zoomAt(factor,x,y) {const z=Math.min(8,Math.max(.025,zoom*factor));panX=x-(x-panX)*z/zoom;panY=y-(y-panY)*z/zoom;zoom=z;draw();}
 viewport.addEventListener('wheel',e=>{e.preventDefault();const b=viewport.getBoundingClientRect();zoomAt(Math.exp(-e.deltaY*.001),e.clientX-b.left,e.clientY-b.top);},{passive:false});
