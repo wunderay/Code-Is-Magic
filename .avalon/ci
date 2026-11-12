@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Verification gate: the same steps as the project's former PR "Verify" job.
+# Change-aware: with AVALON_CHANGED set, only the affected parts run; unset,
+# everything runs. Parts and their inputs are documented in parts.sh:
+#   rust      fmt, clippy, cargo test   <- src, Rust tests, Cargo.*, languages/profiles.json
+#   glyphs    build-glyphs.py --check   <- glyph script, sources, fonts, src/glyphs.json
+#   inscript  tests/inscriptions.py     <- the Rust crate, the script
+#   recovery  tests/recovery_cli.py     <- the Rust crate, the script
+#   js        npm test                  <- web, package.json, JS tests
+#   wasm      build-web.sh + wasm test  <- the Rust crate, web, build scripts
+# The native-language profiles check (Go, Java, Mono) is the separate
+# code-is-magic--profiles.yml workflow, not part of this gate.
+set -euo pipefail
+source .avalon/parts.sh
+
+skip() { echo "ci: $1 skipped, not affected by this change"; }
+
+if [ "$ALL" = 0 ] && [ "$P_RUST$P_GLYPHS$P_INSCRIPT$P_RECOVERY$P_JS$P_WASM" = 000000 ]; then
+  echo "ci: nothing to verify, no changed path affects this gate"
+  exit 0
+fi
+
+if [ "$P_RUST" = 1 ]; then
+  cargo fmt --all -- --check
+  cargo clippy --locked --all-targets -- -D warnings
+  cargo test --locked
+else skip "rust (fmt, clippy, cargo test)"; fi
+
+if [ "$P_GLYPHS" = 1 ]; then target/check-venv/bin/python scripts/build-glyphs.py --check
+else skip "glyph check"; fi
+if [ "$P_INSCRIPT" = 1 ]; then python3 tests/inscriptions.py
+else skip "inscription check"; fi
+if [ "$P_RECOVERY" = 1 ]; then python3 tests/recovery_cli.py
+else skip "recovery check"; fi
+
+if [ "$P_JS" = 1 ]; then npm test
+else skip "npm test"; fi
+
+if [ "$P_WASM" = 1 ]; then
+  bash scripts/build-web.sh
+  node --test tests/wasm.test.js
+else skip "wasm build and test"; fi

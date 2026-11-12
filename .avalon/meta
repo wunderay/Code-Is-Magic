@@ -1,0 +1,12 @@
+# Project metadata, read by ./avalon. One `key: value` per line.
+description: Transmutes source code into connected arcane diagrams (Rust CLI and WebAssembly web app) with exact, reversible source recovery
+# Main languages and tools, comma-separated.
+stack: rust, wasm, javascript, python
+# Where this project came from, if it was imported.
+origin: https://github.com/wunderay/Code-Is-Magic
+# Other Avalon projects this one cannot build without, comma-separated.
+# `./avalon focus` checks them out alongside.
+needs:
+# CI: leave empty for the shared runner (runs .avalon/ci), `custom` if the
+# project owns .github/workflows/code-is-magic--*.yml, `none` to opt out.
+ci: custom

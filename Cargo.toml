@@ -41,3 +41,14 @@ reqwest = { version = "0.12", default-features = false, features = ["blocking", 
 lto = true
 opt-level = "s"
 strip = true
+
+# The tests and the CLI runs in tests/wasm.test.js spend their time compressing and rasterising.
+# Optimise just those crates; the dev profile's debug assertions and overflow checks stay on.
+[profile.dev.package.miniz_oxide]
+opt-level = 3
+[profile.dev.package.png]
+opt-level = 3
+[profile.dev.package.tiny-skia]
+opt-level = 3
+[profile.dev.package.brotli]
+opt-level = 3
