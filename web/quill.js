@@ -3,6 +3,12 @@
 import { pointOnChannel } from './flow.js';
 
 const fullTurn = Math.PI * 2;
+const wetReach = 12; // screen pixels: smaller seals are written without the wet edge
+const boundingBox = points => {
+  const box = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
+  for (const { x, y } of points) { box.left = Math.min(box.left, x); box.top = Math.min(box.top, y); box.right = Math.max(box.right, x); box.bottom = Math.max(box.bottom, y); }
+  return box;
+};
 const wetInk = 0.5; // radians of wet, half-dried ink behind the nib
 const bind = (quantity, floor, ceiling) => Math.max(floor, Math.min(ceiling, quantity));
 const flourish = moment => moment < 0.5 ? 2 * moment * moment : 1 - (-2 * moment + 2) ** 2 / 2;
@@ -156,6 +162,10 @@ export class Quill {
       const progress = (hourglass - stroke.start) / stroke.duration;
       if (progress <= 0) continue;
       const channel = this.ink.paths[stroke.index];
+      if (!channel.box) channel.box = boundingBox(channel.samples);
+      const { left, top, right, bottom } = channel.box, margin = halfBreadth / zoom;
+      // Braids wholly off the page add nothing to the clip but would still cost their vertices every frame.
+      if (panX + (right + margin) * zoom < 0 || panX + (left - margin) * zoom > width || panY + (bottom + margin) * zoom < 0 || panY + (top - margin) * zoom > height) continue;
       this.ribbon(ribbons, channel, Math.min(1, flourish(Math.min(1, progress))), halfBreadth, view);
       if (progress < 1) nibTips.push(pointOnChannel(channel, flourish(progress)));
     }
@@ -169,13 +179,15 @@ export class Quill {
       if (!withinPage(heartX, heartY, reach)) continue;
       if (progress >= 1) { wedges.moveTo(heartX + reach, heartY); wedges.arc(heartX, heartY, reach, 0, fullTurn); continue; }
       const sweep = flourish(progress) * (fullTurn + wetInk);
-      const driedInk = Math.min(fullTurn, sweep - wetInk);
+      // A seal only a few pixels wide shows no wet edge; its ink dries at once and saves four clipped copies.
+      const driedInk = Math.min(fullTurn, reach < wetReach ? sweep : sweep - wetInk);
       if (driedInk > 0) { wedges.moveTo(heartX, heartY); wedges.arc(heartX, heartY, reach, inscription.angle, inscription.angle + driedInk); wedges.closePath(); }
-      wetSeals.push({ inscription, heartX, heartY, reach, sweep, progress });
+      wetSeals.push({ inscription, heartX, heartY, reach, sweep, progress, wet: reach >= wetReach });
     }
     scroll.save(); scroll.clip(wedges); scroll.drawImage(finishedInk, 0, 0, width, height); scroll.restore();
     // The wet edge: the newest ink is thinner, as if it has not yet soaked in.
     for (const wet of wetSeals) {
+      if (!wet.wet) continue;
       const sourceLeft = Math.max(0, Math.floor((wet.heartX - wet.reach) * dpr)), sourceTop = Math.max(0, Math.floor((wet.heartY - wet.reach) * dpr));
       const sourceWidth = Math.min(finishedInk.width - sourceLeft, Math.ceil(wet.reach * 2 * dpr) + 2), sourceHeight = Math.min(finishedInk.height - sourceTop, Math.ceil(wet.reach * 2 * dpr) + 2);
       if (sourceWidth < 1 || sourceHeight < 1) continue;
@@ -208,8 +220,10 @@ export class Quill {
   }
   ribbon(path, channel, fraction, halfBreadth, { panX, panY, zoom }) {
     const samples = channel.samples, journeyEnd = fraction * channel.length;
+    // About one waypoint per eight screen pixels: the ribbon is a generous clip, not the braid itself.
+    const stride = Math.max(1, Math.floor(samples.length * 8 / Math.max(1, channel.length * zoom)));
     const waypoints = [];
-    for (const sample of samples) { if (sample.distance > journeyEnd) break; waypoints.push(sample); }
+    for (let nth = 0; nth < samples.length; nth += stride) { if (samples[nth].distance > journeyEnd) break; waypoints.push(samples[nth]); }
     waypoints.push(pointOnChannel(channel, fraction));
     if (waypoints.length < 2) return;
     const leftBank = [], rightBank = [];

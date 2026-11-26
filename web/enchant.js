@@ -21,7 +21,20 @@ function motes() {
   document.body.prepend(canvas);
   const ctx = canvas.getContext('2d', { alpha: true });
   if (!ctx) return;
-  let width = 0, height = 0, ratio = 1, particles = [], colors = themeColors(), frame = 0, last = 0;
+  let width = 0, height = 0, ratio = 1, particles = [], colors = themeColors(), frame = 0, last = 0, painted = 0, glowSprite = null;
+  // A gold mote's soft glow, drawn once: canvas shadows on every mote, every frame, cost far more.
+  const sprite = () => {
+    const size = 64, art = document.createElement('canvas');
+    art.width = art.height = size;
+    const pen = art.getContext('2d'), heart = size / 2;
+    const halo = pen.createRadialGradient(heart, heart, 0, heart, heart, heart);
+    const hex = /^#[0-9a-f]{6}$/i.test(colors.gold) ? colors.gold : '#d8bd88';
+    const rgb = [1, 3, 5].map(at => parseInt(hex.slice(at, at + 2), 16)).join(',');
+    halo.addColorStop(0, `rgb(${rgb})`); halo.addColorStop(0.16, `rgb(${rgb})`);
+    halo.addColorStop(0.3, `rgba(${rgb},.45)`); halo.addColorStop(1, `rgba(${rgb},0)`);
+    pen.fillStyle = halo; pen.fillRect(0, 0, size, size);
+    return art;
+  };
 
   const seed = () => {
     const count = Math.round(Math.min(110, Math.max(36, (width * height) / 14000)));
@@ -46,6 +59,7 @@ function motes() {
     canvas.width = Math.round(width * ratio);
     canvas.height = Math.round(height * ratio);
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    glowSprite = sprite();
     seed();
   };
 
@@ -60,34 +74,38 @@ function motes() {
       const twinkle = 0.5 + 0.5 * Math.sin(p.phase + time * p.speed);
       const alpha = (p.mote ? 0.18 + 0.42 * twinkle : 0.12 + 0.5 * twinkle) * colors.strength;
       ctx.globalAlpha = alpha;
-      ctx.fillStyle = p.mote ? colors.gold : colors.star;
       if (p.mote) {
-        ctx.shadowColor = colors.gold;
-        ctx.shadowBlur = 6 * p.r;
-      } else ctx.shadowBlur = 0;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+        const reach = p.r * 6.5;
+        ctx.drawImage(glowSprite, p.x - reach, p.y - reach, reach * 2, reach * 2);
+      } else {
+        ctx.fillStyle = colors.star;
+        ctx.fillRect(p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
+      }
     }
-    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
   };
 
+  // The motes drift a few pixels a second, so 30 frames a second look the same as 60 at half the work.
   const tick = time => {
     frame = 0;
-    const dt = last ? Math.min(time - last, 64) : 0;
-    last = time;
-    draw(time, dt);
+    if (time - painted >= 32) {
+      const dt = last ? Math.min(time - last, 64) : 0;
+      last = painted = time;
+      draw(time, dt);
+    }
     schedule();
   };
   const schedule = () => {
     if (!frame && !document.hidden && !reduced.matches) frame = requestAnimationFrame(tick);
   };
-  const stop = () => { if (frame) cancelAnimationFrame(frame); frame = 0; last = 0; };
+  const stop = () => { if (frame) cancelAnimationFrame(frame); frame = 0; last = 0; painted = 0; };
   const refresh = () => { stop(); if (reduced.matches) draw(0, 0); else schedule(); };
 
   let resizeTimer;
   addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { resize(); refresh(); }, 120); }, { passive: true });
   document.addEventListener('visibilitychange', () => document.hidden ? stop() : refresh());
   reduced.addEventListener?.('change', refresh);
-  new MutationObserver(() => { colors = themeColors(); if (reduced.matches || !frame) draw(0, 0); })
+  new MutationObserver(() => { colors = themeColors(); glowSprite = sprite(); if (reduced.matches || !frame) draw(0, 0); })
     .observe(root, { attributes: true, attributeFilter: ['data-theme'] });
   resize();
   refresh();

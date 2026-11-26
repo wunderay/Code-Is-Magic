@@ -17,7 +17,7 @@ let glowing=true,moving=!reducedMotion.matches,animationFrame=null,animationEpoc
 const canvas = $('canvas'), ctx = canvas.getContext('2d'), viewport = $('viewport');
 // The circle chamber is a scroll: across on wide screens, unrolling downward on phones.
 const scrollCase = document.querySelector('.grimoire-scroll'), narrowScroll = matchMedia('(max-width: 760px)');
-let worker, requestId = 0, pending = new Map(), image, diagram, files = [], title = 'Code is Magic';
+let worker, requestId = 0, pending = new Map(), diagram, files = [], title = 'Code is Magic';
 let snapshot = null, inputSelection = null;
 let diagramKey = '';
 const resultKeys = new WeakMap();
@@ -52,15 +52,11 @@ function capsule() {
 }
 async function install(next,signal,source) {
   // Generated SVG has no external images or executable source text.
-  const blob = new Blob([next.svg], {type:'image/svg+xml'}), url = URL.createObjectURL(blob);
-  const nextImage = new Image();
-  try { await new Promise((resolve,reject) => { nextImage.onload = resolve; nextImage.onerror = () => reject(new Error('The inscription image could not render.')); nextImage.src = url; }); }
-  finally { URL.revokeObjectURL(url); }
   const nextInk=new LivingInk();await nextInk.prepare(next.svg,next);
   signal?.throwIfAborted();
   if(source){snapshot=source.snapshot;files=source.files;title=source.title;imported=false;reframe=true;}
   quill=reducedMotion.matches?null:new Quill(next,nextInk,{fast:!reframe,now:Infinity,axis:narrowScroll.matches?'down':'across'});writingDoneAt=quill?-Infinity:performance.now()-1e4;writingState();
-  livingInk=nextInk;animationEpoch=performance.now();diagram = next; diagramKey=resultKeys.get(next)||''; image = nextImage; selected = null;
+  livingInk=nextInk;animationEpoch=performance.now();diagram = next; diagramKey=resultKeys.get(next)||''; selected = null;
   viewport.dataset.ink=livingInk.background==='#f0e8d7'?'light':'dark';
   scheduleAnimation();
   if (reframe) { shapeScroll(); fit(); } else draw();
@@ -74,19 +70,22 @@ async function install(next,signal,source) {
   for (const id of ['download-magic','download-png','download-svg','download-svgz','download-json']) $(id).disabled = false;
   listEntities(); inspect(null);
 }
+let sharpen;
 function draw(time=performance.now()-animationEpoch) {
   const bounds = viewport.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
   const w = Math.round(bounds.width*dpr), h = Math.round(bounds.height*dpr);
   if(w<1||h<1)return;
   if (canvas.width!==w || canvas.height!==h) { canvas.width=w;canvas.height=h; }
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,bounds.width,bounds.height);
-  if (!image) return;
+  if (!diagram) return;
   const now=performance.now();
   if(quill&&quill.done(now))finishWriting(now);
   followPen(now,bounds);
   unrollScroll(quill?quill.unrolled(now,{panX,panY,zoom,width:bounds.width,height:bounds.height}):1);
   const awaken=Math.max(0,Math.min(1,(now-writingDoneAt)/900));
-  livingInk.paint(ctx,image,diagram,{width:bounds.width,height:bounds.height,dpr,panX,panY,zoom},typeof time==='number'?time:now-animationEpoch,{glow:glowing,motion:moving&&!quill,writing:quill,now,awaken});
+  livingInk.paint(ctx,diagram,{width:bounds.width,height:bounds.height,dpr,panX,panY,zoom},typeof time==='number'?time:now-animationEpoch,{glow:glowing,motion:moving&&!quill,writing:quill,now,awaken});
+  // A still view zoomed past the cached bitmaps is sharpened from the vector drawing once it settles.
+  clearTimeout(sharpen);if(livingInk.blurred)sharpen=setTimeout(()=>{if(animationFrame===null)draw();},140);
   if (selected!==null) { const p=diagram.placements.find(p=>p.id===selected);if(p){ctx.beginPath();ctx.arc(panX+p.x*zoom,panY+p.y*zoom,(p.radius+9)*zoom,0,Math.PI*2);ctx.strokeStyle=livingInk.background==='#f0e8d7'?'#73502d':'#f5dfaa';ctx.lineWidth=1.5;ctx.stroke();} }
   const flowText=quill?(Number.isFinite(quill.begin)?`The quill inscribes ${quill.written(now)} of ${quill.plan.seals.size} seals…`:'The page awaits the quill'):moving?livingInk.describe(typeof time==='number'?time:performance.now()-animationEpoch):'Call flow paused';
   if($('flow-label').textContent!==flowText)$('flow-label').textContent=flowText;
@@ -94,7 +93,7 @@ function draw(time=performance.now()-animationEpoch) {
 }
 // Ease the view toward the seal under the quill, or home to the fitted page once writing is over.
 function followPen(now,view){
-  if(!penFollowing||!image)return;
+  if(!penFollowing||!diagram)return;
   const hourglassSeconds=Math.min(.1,Math.max(0,(now-lastPenGlide)/1000));lastPenGlide=now;
   const fitted=fittedView(view),seal=penFollowing==='following'&&quill&&Number.isFinite(quill.begin)&&quill.current(now,{panX,panY,zoom,width:view.width,height:view.height});
   const aim=penFollowing==='homing'?fitted:seal&&followingView(seal,fitted,view);
@@ -343,7 +342,7 @@ function writingState(){
 }
 function animating(){return moving||!!quill||penFollowing==='homing'||performance.now()-writingDoneAt<900;}
 function scheduleAnimation(){
-  if(animationFrame!==null||!animating()||!image||document.hidden)return;
+  if(animationFrame!==null||!animating()||!diagram||document.hidden)return;
   const bounds=viewport.getBoundingClientRect();
   previewVisible=bounds.width>0&&bounds.height>0&&bounds.bottom>0&&bounds.top<innerHeight&&bounds.right>0&&bounds.left<innerWidth;
   if(!previewVisible){canvas.dataset.motion='paused';return;}
@@ -387,4 +386,6 @@ function theme(mode,changeInk=false){
 $('theme-toggle').onclick=()=>theme(document.documentElement.dataset.theme==='light'?'dark':'light',true);
 let savedTheme='dark';try{if(localStorage.getItem('code-is-magic-theme')==='light')savedTheme='light';}catch{}
 theme(savedTheme);if(savedTheme==='light')$('palette').value='parchment';displayOptions();
+// Start the Rust engine downloading now, alongside the bundled grimoire it will read.
+getWorker();
 colorLegend();inputMode();loadDefault();
